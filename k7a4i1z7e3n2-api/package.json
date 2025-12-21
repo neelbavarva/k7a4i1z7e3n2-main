@@ -1,0 +1,26 @@
+{
+    "name": "k7a4i1z7e3n2-api",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "type": "commonjs",
+    "dependencies": {
+        "address": "^1.2.2",
+        "argon2": "^0.44.0",
+        "cors": "^2.8.5",
+        "crypto": "^1.0.1",
+        "crypto-js": "^4.1.1",
+        "cryptr": "^6.0.3",
+        "dotenv": "^16.4.5",
+        "express": "^4.17.1",
+        "express-rate-limit": "^8.2.1",
+        "express-validator": "^7.3.1",
+        "mongoose": "^8.3.1"
+    }
+}
