@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const Password = require("../schema/Passowrd");
+const Password = require("../schema/Passoword");
 const { apiKeyMiddleware } = require("../middleware");
 const crypto = require("crypto");
 const { body, validationResult } = require("express-validator");
@@ -187,7 +187,7 @@ router.post(
     [
         body("name").isString().isLength({ min: 1, max: 256 }),
         body("password").isString().isLength({ min: 1, max: 1024 }),
-        body("key").isString().isLength({ min: 8, max: 128 }),
+        body("key").isString().isLength({ min: 1, max: 128 }),
         body("email").optional().isEmail().isLength({ max: 320 }),
         body("category").optional().isString().isLength({ max: 64 }),
     ],
@@ -222,7 +222,7 @@ router.post(
     "/decryptPassword/:id",
     apiKeyMiddleware,
     decryptLimiter,
-    [body("key").isString().isLength({ min: 8, max: 128 })],
+    [body("key").isString().isLength({ min: 1, max: 128 })],
     async (req, res) => {
         const errors = validationResult(req);
         if (!errors.isEmpty())
@@ -265,7 +265,7 @@ router.put(
         body("id").isString(),
         body("name").optional().isString().isLength({ min: 1, max: 256 }),
         body("password").optional().isString().isLength({ min: 1, max: 1024 }),
-        body("key").optional().isString().isLength({ min: 8, max: 128 }),
+        body("key").optional().isString().isLength({ min: 1, max: 128 }),
         body("email").optional().isEmail().isLength({ max: 320 }),
         body("category").optional().isString().isLength({ max: 64 }),
         body("archive").optional().isBoolean(),
@@ -317,5 +317,94 @@ router.delete("/deletePassword/:id", apiKeyMiddleware, async (req, res) => {
         res.status(500).json({ message: "Server error" });
     }
 });
+
+router.post(
+    "/changeKey",
+    apiKeyMiddleware,
+    [
+        body("oldKey").isString().isLength({ min: 1, max: 128 }),
+        body("newKey").isString().isLength({ min: 1, max: 128 }),
+    ],
+    async (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty())
+            return res.status(400).json({ errors: errors.array() });
+
+        if (req.body.oldKey === req.body.newKey)
+            return res
+                .status(400)
+                .json({ message: "oldKey and newKey must be different" });
+
+        try {
+            const query = {};
+            if (req.user) query.owner = req.user;
+
+            const cursor = Password.find(query).cursor();
+            let concurrency =
+                parseInt(process.env.CHANGE_KEY_CONCURRENCY, 10) || 10;
+            concurrency = Math.max(1, Math.min(concurrency, 100)); // clamp
+
+            const pool = new Set();
+
+            let processed = 0;
+            let updated = 0;
+            let skipped = 0;
+            let failed = 0;
+            const changedSample = [];
+
+            async function processDoc(doc) {
+                processed++;
+                // Try decrypt with oldKey; if fails, skip
+                let plain;
+                try {
+                    plain = await decryptText(doc.password, req.body.oldKey);
+                } catch (err) {
+                    skipped++;
+                    return;
+                }
+
+                // Re-encrypt with newKey and save
+                try {
+                    doc.password = await encryptText(plain, req.body.newKey);
+                    doc.failedAttempts = 0;
+                    doc.lockedUntil = null;
+                    await doc.save();
+                    updated++;
+                    if (changedSample.length < 100)
+                        changedSample.push({
+                            id: doc._id.toString(),
+                            name: doc.name,
+                        });
+                } catch (err) {
+                    failed++;
+                }
+            }
+
+            for (
+                let doc = await cursor.next();
+                doc != null;
+                doc = await cursor.next()
+            ) {
+                const p = processDoc(doc);
+                pool.add(p);
+                p.finally(() => pool.delete(p));
+                if (pool.size >= concurrency) await Promise.race(pool);
+            }
+
+            await Promise.all(Array.from(pool));
+
+            const summary = {
+                processed,
+                updated,
+                skipped,
+                failed,
+                changedSample,
+            };
+            res.json({ summary });
+        } catch {
+            res.status(500).json({ message: "Server error" });
+        }
+    }
+);
 
 module.exports = router;
