@@ -13,6 +13,17 @@
     --foreground: #ffffff;
 }
 
+/* Global border color for UI components */
+:root,
+.dark {
+    --border: #1c1c1c;
+}
+
+/* Fallback: ensure elements using regular borders inherit the theme border color */
+* {
+    border-color: var(--border, #1c1c1c);
+}
+
 @layer base {
     *,
     *::before,
