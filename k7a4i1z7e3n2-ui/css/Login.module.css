@@ -2,9 +2,9 @@
     display: flex;
     width: 275px !important;
     height: 320px !important;
-    padding-left: 1rem;
-    padding-right: 1rem;
-    padding-top: 1rem;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+    padding-top: 0.5rem;
 }
 
 .glowingEffectContainer {
@@ -37,6 +37,7 @@
 
 .otpInputContainer {
     margin-top: 0.75rem;
+    margin-bottom: 1rem;
     display: flex;
     justify-content: center;
     align-items: center;
