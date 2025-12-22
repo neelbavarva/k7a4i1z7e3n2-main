@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useCallback } from "react";
-import { useEffect } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { authenticator } from "otplib";
 import { apiPost } from "../lib/api";
 import { getCurrentSession, getSessionTiming } from "../lib/session";
@@ -31,18 +30,34 @@ export default function Login({ onSuccess }) {
     const [otp, setOtp] = useState("");
     const [loading, setLoading] = useState(false);
     const [blockedInfo, setBlockedInfo] = useState(null);
+    const [initializing, setInitializing] = useState(true); // NEW
     const inputRef = useRef(null);
 
+    // Initial check: cache + IP/block status
     useEffect(() => {
         (async () => {
             try {
+                // 1. Check browser cache (already logged in?)
+                const cachedAuth =
+                    typeof window !== "undefined"
+                        ? localStorage.getItem("auth")
+                        : null;
+
+                if (cachedAuth) {
+                    onSuccess();
+                    return;
+                }
+
+                // 2. Check if current IP is blocked
                 const r = await apiPost("/isBlocked", {});
                 if (r && r.blocked) setBlockedInfo(r);
             } catch (e) {
-                console.error("isBlocked check failed", e);
+                console.error("initial auth / isBlocked check failed", e);
+            } finally {
+                setInitializing(false);
             }
         })();
-    }, []);
+    }, [onSuccess]);
 
     const verifyAndSubmit = useCallback(
         async (value) => {
@@ -133,7 +148,11 @@ export default function Login({ onSuccess }) {
                     <AuthTimer />
                 </div>
                 <form onSubmit={(e) => e.preventDefault()}>
-                    {!loading ? (
+                    {loading || initializing ? (
+                        <div className={styles.otpInputContainer}>
+                            <Spinner className={styles.spinner} />
+                        </div>
+                    ) : (
                         <div
                             className={styles.otpInputContainer}
                             onClick={() => inputRef.current?.focus()}
@@ -152,10 +171,6 @@ export default function Login({ onSuccess }) {
                                     ))}
                                 </InputOTPGroup>
                             </InputOTP>
-                        </div>
-                    ) : (
-                        <div className={styles.otpInputContainer}>
-                            <Spinner className={styles.spinner} />
                         </div>
                     )}
                 </form>
