@@ -5,12 +5,32 @@
 :root {
     --background: #000000;
     --foreground: #ffffff;
+    /* Make shadcn primary buttons white with black text */
+    --primary: #ffffff;
+    --primary-foreground: #000000;
+    /* Solid surfaces for popovers/selects and inputs */
+    --popover: #000000;
+    --popover-foreground: #ffffff;
+    --input: #000000;
+    /* Focused item background in menus */
+    --accent: #111111;
+    --accent-foreground: #ffffff;
 }
 
 /* Ensure shadcn/dark variables are using black/white */
 .dark {
     --background: #000000;
     --foreground: #ffffff;
+    /* Match dark mode primary to white as well */
+    --primary: #ffffff;
+    --primary-foreground: #000000;
+    /* Solid surfaces for popovers/selects and inputs */
+    --popover: #000000;
+    --popover-foreground: #ffffff;
+    --input: #000000;
+    /* Focused item background in menus */
+    --accent: #111111;
+    --accent-foreground: #ffffff;
 }
 
 /* Global border color for UI components */
@@ -42,4 +62,13 @@
         -moz-osx-font-smoothing: grayscale;
         min-height: 100vh;
     }
+}
+
+/* Hide scrollbars for horizontally scrolling containers when desired */
+.no-scrollbar {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+}
+.no-scrollbar::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
 }
