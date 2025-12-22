@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const Password = require("../schema/Passoword");
+const Card = require("../schema/Card");
 const { apiKeyMiddleware } = require("../middleware");
 const crypto = require("crypto");
 const { body, validationResult } = require("express-validator");
@@ -25,7 +25,7 @@ const decryptLimiter = rateLimit({
 });
 
 async function deriveKey(passphrase, saltBuffer) {
-    const key = await argon2.hash(passphrase, {
+    return await argon2.hash(passphrase, {
         salt: saltBuffer,
         raw: true,
         type: argon2.argon2id,
@@ -34,7 +34,6 @@ async function deriveKey(passphrase, saltBuffer) {
         parallelism: 1,
         hashLength: 32,
     });
-    return key;
 }
 
 async function encryptText(plain, passphrase) {
@@ -78,100 +77,24 @@ async function decryptText(stored, passphrase) {
     }
 }
 
-router.get("/getAllPasswords", apiKeyMiddleware, async (req, res) => {
+router.get("/getCards", apiKeyMiddleware, async (req, res) => {
     try {
         const query = {};
         if (req.user) query.owner = req.user;
-        const passwords = await Password.find(query).select("-password");
-        res.json(passwords);
+        const cards = await Card.find(query).select(
+            "-number -validTill -cvv -pin"
+        );
+        res.json(cards);
     } catch {
         res.status(500).json({ message: "Server error" });
     }
 });
-
-router.get("/getPasswords", apiKeyMiddleware, async (req, res) => {
-    try {
-        const query = { archive: false };
-        if (req.user) query.owner = req.user;
-        const passwords = await Password.find(query).select("-password");
-        res.json(passwords);
-    } catch {
-        res.status(500).json({ message: "Server error" });
-    }
-});
-
-router.get("/getArchivePasswords", apiKeyMiddleware, async (req, res) => {
-    try {
-        const query = { archive: true };
-        if (req.user) query.owner = req.user;
-        const passwords = await Password.find(query).select("-password");
-        res.json(passwords);
-    } catch {
-        res.status(500).json({ message: "Server error" });
-    }
-});
-
-router.get("/getNonBankingPasswords", apiKeyMiddleware, async (req, res) => {
-    try {
-        const query = {
-            archive: false,
-            category: { $in: ["web-app", "email", "other"] },
-        };
-        if (req.user) query.owner = req.user;
-        const passwords = await Password.find(query).select("-password");
-        res.json(passwords);
-    } catch {
-        res.status(500).json({ message: "Server error" });
-    }
-});
-
-router.get(
-    "/getNonBankingArchivePasswords",
-    apiKeyMiddleware,
-    async (req, res) => {
-        try {
-            const query = {
-                archive: true,
-                category: { $in: ["web-app", "email", "other"] },
-            };
-            if (req.user) query.owner = req.user;
-            const passwords = await Password.find(query).select("-password");
-            res.json(passwords);
-        } catch {
-            res.status(500).json({ message: "Server error" });
-        }
-    }
-);
-
-router.get("/getBankingPasswords", apiKeyMiddleware, async (req, res) => {
-    try {
-        const query = { archive: false, category: "banking" };
-        if (req.user) query.owner = req.user;
-        const passwords = await Password.find(query).select("-password");
-        res.json(passwords);
-    } catch {
-        res.status(500).json({ message: "Server error" });
-    }
-});
-
-router.get(
-    "/getBankingArchivePasswords",
-    apiKeyMiddleware,
-    async (req, res) => {
-        try {
-            const query = { archive: true, category: "banking" };
-            if (req.user) query.owner = req.user;
-            const passwords = await Password.find(query).select("-password");
-            res.json(passwords);
-        } catch {
-            res.status(500).json({ message: "Server error" });
-        }
-    }
-);
 
 router.get("/:id", apiKeyMiddleware, async (req, res) => {
     try {
-        const doc = await Password.findById(req.params.id).select("-password");
+        const doc = await Card.findById(req.params.id).select(
+            "-number -validTill -cvv -pin"
+        );
         if (!doc) return res.status(404).json({ message: "Not found" });
         if (req.user && doc.owner && doc.owner.toString() !== req.user)
             return res.status(403).json({ message: "Forbidden" });
@@ -182,35 +105,46 @@ router.get("/:id", apiKeyMiddleware, async (req, res) => {
 });
 
 router.post(
-    "/newPassword",
+    "/newCard",
     apiKeyMiddleware,
     [
-        body("name").isString().isLength({ min: 1, max: 256 }),
-        body("password").isString().isLength({ min: 1, max: 1024 }),
+        body("bankName").isString().isLength({ min: 1, max: 256 }),
+        body("cardName").optional().isString().isLength({ max: 256 }),
+        body("number").isString().isLength({ min: 6, max: 30 }),
+        body("validTill").isString().isLength({ min: 3, max: 16 }),
+        body("cvv").isString().isLength({ min: 3, max: 4 }),
+        body("pin").isString().isLength({ min: 3, max: 10 }),
         body("key").isString().isLength({ min: 1, max: 128 }),
-        body("email").optional().isEmail().isLength({ max: 320 }),
-        body("category").optional().isString().isLength({ max: 64 }),
     ],
     async (req, res) => {
         const errors = validationResult(req);
         if (!errors.isEmpty())
             return res.status(400).json({ errors: errors.array() });
+
         try {
-            const encrypted = await encryptText(
-                req.body.password,
-                req.body.key
-            );
-            const passwordDoc = new Password({
-                name: req.body.name,
-                email: req.body.email,
-                category: req.body.category,
-                password: encrypted,
-                archive: req.body.archive,
+            const { bankName, cardName, number, validTill, cvv, pin, key } =
+                req.body;
+            const encNumber = await encryptText(number, key);
+            const encValid = await encryptText(validTill, key);
+            const encCvv = await encryptText(cvv, key);
+            const encPin = await encryptText(pin, key);
+
+            const cardDoc = new Card({
+                bankName,
+                cardName,
+                lastOfNumber: number.slice(-4),
+                number: encNumber,
+                validTill: encValid,
+                cvv: encCvv,
+                pin: encPin,
             });
-            if (req.user) passwordDoc.owner = req.user;
-            const newPassword = await passwordDoc.save();
-            const output = newPassword.toObject();
-            delete output.password;
+            if (req.user) cardDoc.owner = req.user;
+            const newCard = await cardDoc.save();
+            const output = newCard.toObject();
+            delete output.number;
+            delete output.validTill;
+            delete output.cvv;
+            delete output.pin;
             res.status(201).json(output);
         } catch {
             res.status(400).json({ message: "Invalid input" });
@@ -219,7 +153,7 @@ router.post(
 );
 
 router.post(
-    "/decryptPassword/:id",
+    "/decryptCard/:id",
     apiKeyMiddleware,
     decryptLimiter,
     [body("key").isString().isLength({ min: 1, max: 128 })],
@@ -227,8 +161,9 @@ router.post(
         const errors = validationResult(req);
         if (!errors.isEmpty())
             return res.status(400).json({ errors: errors.array() });
+
         try {
-            const doc = await Password.findById(req.params.id);
+            const doc = await Card.findById(req.params.id);
             if (!doc) return res.status(404).json({ message: "Not found" });
             if (req.user && doc.owner && doc.owner.toString() !== req.user)
                 return res.status(403).json({ message: "Forbidden" });
@@ -239,11 +174,19 @@ router.post(
                     .json({ message: "Too many failed attempts, try later" });
 
             try {
-                const decrypted = await decryptText(doc.password, req.body.key);
+                const number = await decryptText(doc.number, req.body.key);
+                const validTill = await decryptText(
+                    doc.validTill,
+                    req.body.key
+                );
+                const cvv = await decryptText(doc.cvv, req.body.key);
+                const pin = await decryptText(doc.pin, req.body.key);
+
                 doc.failedAttempts = 0;
                 doc.lockedUntil = null;
                 await doc.save();
-                res.status(200).json({ password: decrypted });
+
+                res.status(200).json({ number, validTill, cvv, pin });
             } catch {
                 doc.failedAttempts = (doc.failedAttempts || 0) + 1;
                 if (doc.failedAttempts >= 5) {
@@ -259,45 +202,72 @@ router.post(
 );
 
 router.put(
-    "/editPassword",
+    "/editCard",
     apiKeyMiddleware,
     [
         body("id").isString(),
-        body("name").optional().isString().isLength({ min: 1, max: 256 }),
-        body("password").optional().isString().isLength({ min: 1, max: 1024 }),
+        body("bankName").optional().isString().isLength({ min: 1, max: 256 }),
+        body("cardName").optional().isString().isLength({ max: 256 }),
+        body("number").optional().isString().isLength({ min: 6, max: 30 }),
+        body("validTill").optional().isString().isLength({ min: 3, max: 16 }),
+        body("cvv").optional().isString().isLength({ min: 3, max: 4 }),
+        body("pin").optional().isString().isLength({ min: 3, max: 10 }),
         body("key").optional().isString().isLength({ min: 1, max: 128 }),
-        body("email").optional().isEmail().isLength({ max: 320 }),
-        body("category").optional().isString().isLength({ max: 64 }),
-        body("archive").optional().isBoolean(),
     ],
     async (req, res) => {
         const errors = validationResult(req);
         if (!errors.isEmpty())
             return res.status(400).json({ errors: errors.array() });
+
         try {
             const id = req.body.id;
-            const doc = await Password.findById(id);
+            const doc = await Card.findById(id);
             if (!doc) return res.status(404).json({ message: "Not found" });
             if (req.user && doc.owner && doc.owner.toString() !== req.user)
                 return res.status(403).json({ message: "Forbidden" });
-            if (req.body.password) {
+
+            if (req.body.bankName) doc.bankName = req.body.bankName;
+            if (req.body.cardName) doc.cardName = req.body.cardName;
+
+            if (req.body.number) {
                 if (!req.body.key)
-                    return res
-                        .status(400)
-                        .json({ message: "Key required to update password" });
-                doc.password = await encryptText(
-                    req.body.password,
+                    return res.status(400).json({
+                        message: "Key required to update sensitive fields",
+                    });
+                doc.number = await encryptText(req.body.number, req.body.key);
+                doc.lastOfNumber = req.body.number.slice(-4);
+            }
+            if (req.body.validTill) {
+                if (!req.body.key)
+                    return res.status(400).json({
+                        message: "Key required to update sensitive fields",
+                    });
+                doc.validTill = await encryptText(
+                    req.body.validTill,
                     req.body.key
                 );
             }
-            if (req.body.name) doc.name = req.body.name;
-            if (req.body.email) doc.email = req.body.email;
-            if (typeof req.body.archive === "boolean")
-                doc.archive = req.body.archive;
-            if (req.body.category) doc.category = req.body.category;
+            if (req.body.cvv) {
+                if (!req.body.key)
+                    return res.status(400).json({
+                        message: "Key required to update sensitive fields",
+                    });
+                doc.cvv = await encryptText(req.body.cvv, req.body.key);
+            }
+            if (req.body.pin) {
+                if (!req.body.key)
+                    return res.status(400).json({
+                        message: "Key required to update sensitive fields",
+                    });
+                doc.pin = await encryptText(req.body.pin, req.body.key);
+            }
+
             const updated = await doc.save();
             const output = updated.toObject();
-            delete output.password;
+            delete output.number;
+            delete output.validTill;
+            delete output.cvv;
+            delete output.pin;
             res.json(output);
         } catch {
             res.status(500).json({ message: "Server error" });
@@ -305,13 +275,13 @@ router.put(
     }
 );
 
-router.delete("/deletePassword/:id", apiKeyMiddleware, async (req, res) => {
+router.delete("/deleteCard/:id", apiKeyMiddleware, async (req, res) => {
     try {
-        const doc = await Password.findById(req.params.id);
+        const doc = await Card.findById(req.params.id);
         if (!doc) return res.status(404).json({ message: "Not found" });
         if (req.user && doc.owner && doc.owner.toString() !== req.user)
             return res.status(403).json({ message: "Forbidden" });
-        await Password.findByIdAndDelete(req.params.id);
+        await Card.findByIdAndDelete(req.params.id);
         res.json({ message: "Deleted" });
     } catch {
         res.status(500).json({ message: "Server error" });
@@ -339,7 +309,7 @@ router.post(
             const query = {};
             if (req.user) query.owner = req.user;
 
-            const cursor = Password.find(query).cursor();
+            const cursor = Card.find(query).cursor();
             let concurrency =
                 parseInt(process.env.CHANGE_KEY_CONCURRENCY, 10) || 10;
             concurrency = Math.max(1, Math.min(concurrency, 100));
@@ -354,16 +324,34 @@ router.post(
 
             async function processDoc(doc) {
                 processed++;
-                let plain;
+                let numberPlain, validPlain, cvvPlain, pinPlain;
                 try {
-                    plain = await decryptText(doc.password, req.body.oldKey);
+                    numberPlain = await decryptText(
+                        doc.number,
+                        req.body.oldKey
+                    );
+                    validPlain = await decryptText(
+                        doc.validTill,
+                        req.body.oldKey
+                    );
+                    cvvPlain = await decryptText(doc.cvv, req.body.oldKey);
+                    pinPlain = await decryptText(doc.pin, req.body.oldKey);
                 } catch (err) {
                     skipped++;
                     return;
                 }
 
                 try {
-                    doc.password = await encryptText(plain, req.body.newKey);
+                    doc.number = await encryptText(
+                        numberPlain,
+                        req.body.newKey
+                    );
+                    doc.validTill = await encryptText(
+                        validPlain,
+                        req.body.newKey
+                    );
+                    doc.cvv = await encryptText(cvvPlain, req.body.newKey);
+                    doc.pin = await encryptText(pinPlain, req.body.newKey);
                     doc.failedAttempts = 0;
                     doc.lockedUntil = null;
                     await doc.save();
@@ -371,7 +359,7 @@ router.post(
                     if (changedSample.length < 100)
                         changedSample.push({
                             id: doc._id.toString(),
-                            name: doc.name,
+                            bankName: doc.bankName,
                         });
                 } catch (err) {
                     failed++;

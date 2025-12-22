@@ -1,0 +1,34 @@
+@import "tailwindcss";
+@import "shadcn/tailwind.css";
+
+/* Simplified: force a plain black background and white text for the app */
+:root {
+    --background: #000000;
+    --foreground: #ffffff;
+}
+
+/* Ensure shadcn/dark variables are using black/white */
+.dark {
+    --background: #000000;
+    --foreground: #ffffff;
+}
+
+@layer base {
+    *,
+    *::before,
+    *::after {
+        box-sizing: border-box;
+    }
+    html,
+    body {
+        height: 100%;
+    }
+    body {
+        margin: 0;
+        background-color: var(--background);
+        color: var(--foreground);
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        min-height: 100vh;
+    }
+}
