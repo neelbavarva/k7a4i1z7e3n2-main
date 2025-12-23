@@ -276,9 +276,7 @@ export default function Passwords({ refreshKey = 0 }) {
 
     return (
         <div className="space-y-4">
-            {error && <p className="text-sm text-red-400">{error}</p>}
-
-            {/* No empty-state message for cards; render nothing when none */}
+            {error && <p className="text-xs text-red-400">{error}</p>}
 
             {cards.length > 0 && (
                 <div className="flex gap-4 overflow-x-auto -mt-4 no-scrollbar">
@@ -306,38 +304,38 @@ export default function Passwords({ refreshKey = 0 }) {
                                         </span>
                                     </div>
                                 </CardHeader>
-                                <CardContent className="px-0 pt-0 pb-0 space-y-2">
+                                <CardContent className="px-0 pt-0 pb-0 space-y-2 leading-relaxed">
                                     <div>
-                                        <p className="text-[11px] uppercase tracking-wide text-zinc-500">
+                                        <p className="text-[11px] uppercase tracking-widest text-zinc-500">
                                             Card Number
                                         </p>
-                                        <p className="mt-1 mb-4 text-sm text-zinc-200">
+                                        <p className="mt-1 mb-4 text-xs text-zinc-200 tracking-[0.15em]">
                                             **** **** ****{" "}
                                             {card.lastOfNumber || "****"}
                                         </p>
                                     </div>
                                     <div className="grid grid-cols-3 gap-2 pt-3">
                                         <div>
-                                            <p className="text-[11px] text-zinc-500">
+                                            <p className="text-[11px] tracking-wide text-zinc-500">
                                                 Pin
                                             </p>
-                                            <p className="text-sm text-zinc-200">
+                                            <p className="text-xs text-zinc-200 tracking-widest">
                                                 ****
                                             </p>
                                         </div>
                                         <div className="text-center">
-                                            <p className="text-[11px] text-zinc-500">
+                                            <p className="text-[11px] tracking-wide text-zinc-500">
                                                 Exp Date
                                             </p>
-                                            <p className="text-sm text-zinc-200">
+                                            <p className="text-xs text-zinc-200 tracking-widest">
                                                 **/**
                                             </p>
                                         </div>
                                         <div className="text-right">
-                                            <p className="text-[11px] text-zinc-500">
+                                            <p className="text-[11px] tracking-wide text-zinc-500">
                                                 CVV
                                             </p>
-                                            <p className="text-sm text-zinc-200">
+                                            <p className="text-xs text-zinc-200 tracking-widest">
                                                 ***
                                             </p>
                                         </div>
@@ -349,8 +347,7 @@ export default function Passwords({ refreshKey = 0 }) {
                 </div>
             )}
 
-            <div className="space-y-2 -mt-1">
-                {/* Live search input above category container */}
+            <div className="space-y-2 -mt-2">
                 <div className="flex items-center gap-2">
                     <Input
                         value={searchQuery}
@@ -436,7 +433,7 @@ export default function Passwords({ refreshKey = 0 }) {
                 </div>
 
                 {passwordsError && (
-                    <p className="text-sm text-red-400">{passwordsError}</p>
+                    <p className="text-xs text-red-400">{passwordsError}</p>
                 )}
 
                 {passwords.length > 0 &&
@@ -484,18 +481,18 @@ export default function Passwords({ refreshKey = 0 }) {
                         const getIconForCategory = (cat) => {
                             switch (cat) {
                                 case "web-app":
-                                    return <Globe className="w-4 h-4" />;
+                                    return <Globe className="w-3 h-3" />;
                                 case "email":
-                                    return <Mail className="w-4 h-4" />;
+                                    return <Mail className="w-3 h-3" />;
                                 case "banking":
-                                    return <CreditCard className="w-4 h-4" />;
+                                    return <CreditCard className="w-3 h-3" />;
                                 default:
-                                    return <Archive className="w-4 h-4" />;
+                                    return <Archive className="w-3 h-3" />;
                             }
                         };
 
                         return (
-                            <div className="flex flex-col gap-2">
+                            <div className="flex flex-col gap-1.5">
                                 {sorted.map((pwd) => {
                                     const isLocked =
                                         pwd?.lockedUntil &&
@@ -504,7 +501,7 @@ export default function Passwords({ refreshKey = 0 }) {
                                     return (
                                         <div
                                             key={pwd._id}
-                                            className={`w-full flex items-center justify-between gap-3 rounded-md border bg-zinc-950/60 transition-colors p-3 cursor-pointer ${
+                                            className={`w-full flex items-center justify-between gap-2.5 rounded-md border bg-zinc-950/60 transition-colors p-2.5 cursor-pointer ${
                                                 isLocked
                                                     ? "border-[#f5365c] opacity-50"
                                                     : "border-zinc-800 hover:border-zinc-500"
@@ -515,23 +512,23 @@ export default function Passwords({ refreshKey = 0 }) {
                                             role="button"
                                             tabIndex={0}
                                         >
-                                            <div className="flex items-center gap-3 min-w-0">
-                                                <div className="w-8 h-8 rounded-md bg-zinc-900 text-zinc-300 flex items-center justify-center shrink-0">
+                                            <div className="flex items-center gap-2.5 min-w-0">
+                                                <div className="w-7 h-7 rounded-md bg-zinc-900 text-zinc-300 flex items-center justify-center shrink-0">
                                                     {getIconForCategory(
                                                         pwd.category
                                                     )}
                                                 </div>
                                                 <div className="min-w-0">
-                                                    <div className="text-sm text-zinc-200 truncate">
+                                                    <div className="text-[11px] text-zinc-200 truncate">
                                                         {pwd.name}
                                                     </div>
-                                                    <div className="text-xs text-zinc-500 truncate">
+                                                    <div className="text-[11px] text-zinc-500 truncate">
                                                         {pwd.email ||
                                                             "No email"}
                                                     </div>
                                                 </div>
                                             </div>
-                                            <ChevronRight className="w-4 h-4 text-zinc-500 shrink-0" />
+                                            <ChevronRight className="w-3 h-3 text-zinc-500 shrink-0" />
                                         </div>
                                     );
                                 })}
@@ -558,7 +555,7 @@ export default function Passwords({ refreshKey = 0 }) {
             >
                 <DialogContent>
                     {selectedCard && (
-                        <div className="space-y-4 text-sm">
+                        <div className="space-y-4 text-xs leading-relaxed">
                             <div className="rounded-md border border-zinc-800 bg-zinc-950/60 p-4 ">
                                 <div className="flex items-center justify-between">
                                     <p className="text-xs text-zinc-300">
@@ -572,7 +569,7 @@ export default function Passwords({ refreshKey = 0 }) {
                                     <p className="text-[11px] uppercase tracking-wide text-zinc-500">
                                         Card Number
                                     </p>
-                                    <p className="mt-1 text-sm text-zinc-200">
+                                    <p className="mt-1 text-xs text-zinc-200 tracking-widest">
                                         {decryptedData?.number
                                             ? (decryptedData.number || "")
                                                   .replace(
@@ -591,7 +588,7 @@ export default function Passwords({ refreshKey = 0 }) {
                                         <p className="text-[11px] text-zinc-500">
                                             Pin
                                         </p>
-                                        <p className="text-sm text-zinc-200">
+                                        <p className="text-xs text-zinc-200 tracking-wider">
                                             {decryptedData?.pin || "****"}
                                         </p>
                                     </div>
@@ -599,7 +596,7 @@ export default function Passwords({ refreshKey = 0 }) {
                                         <p className="text-[11px] text-zinc-500">
                                             Exp Date
                                         </p>
-                                        <p className="text-sm text-zinc-200">
+                                        <p className="text-xs text-zinc-200 tracking-wider">
                                             {decryptedData?.validTill ||
                                                 "**/**"}
                                         </p>
@@ -608,7 +605,7 @@ export default function Passwords({ refreshKey = 0 }) {
                                         <p className="text-[11px] text-zinc-500">
                                             CVV
                                         </p>
-                                        <p className="text-sm text-zinc-200">
+                                        <p className="text-xs text-zinc-200 tracking-wider">
                                             {decryptedData?.cvv || "***"}
                                         </p>
                                     </div>
@@ -697,7 +694,7 @@ export default function Passwords({ refreshKey = 0 }) {
                     </DialogHeader>
 
                     {selectedPassword && (
-                        <div className="space-y-4 text-sm">
+                        <div className="space-y-4 text-xs">
                             <div className="mt-2 rounded-md bg-zinc-900/80 p-3 text-xs">
                                 <div className="flex items-center justify-between gap-2">
                                     <p>
