@@ -71,9 +71,7 @@ export default function Passwords({ refreshKey = 0 }) {
     useEffect(() => {
         async function fetchCards() {
             try {
-                const base =
-                    process.env.NEXT_PUBLIC_PROD_LINK ||
-                    "https://k7a4i1z7e3n2.onrender.com";
+                const base = process.env.NEXT_PUBLIC_PROD_LINK;
                 const apiKey = process.env.NEXT_PUBLIC_SERVER_KEY || "";
                 const url = `${base.replace(/\/$/, "")}/cards/getCards`;
 
@@ -103,9 +101,7 @@ export default function Passwords({ refreshKey = 0 }) {
     useEffect(() => {
         async function fetchPasswords() {
             try {
-                const base =
-                    process.env.NEXT_PUBLIC_PROD_LINK ||
-                    "https://k7a4i1z7e3n2.onrender.com";
+                const base = process.env.NEXT_PUBLIC_PROD_LINK;
                 const apiKey = process.env.NEXT_PUBLIC_SERVER_KEY || "";
                 const url = `${base.replace(/\/$/, "")}/passwords/getPasswords`;
 
@@ -157,9 +153,7 @@ export default function Passwords({ refreshKey = 0 }) {
             setDecryptLoading(true);
             setDecryptError(null);
 
-            const base =
-                process.env.NEXT_PUBLIC_PROD_LINK ||
-                "https://k7a4i1z7e3n2.onrender.com";
+            const base = process.env.NEXT_PUBLIC_PROD_LINK;
             const apiKey = process.env.NEXT_PUBLIC_SERVER_KEY || "";
             const url = `${base.replace(/\/$/, "")}/cards/decryptCard/${
                 selectedCard._id
@@ -222,9 +216,7 @@ export default function Passwords({ refreshKey = 0 }) {
     async function deleteCard(cardId) {
         try {
             setCardDeleteLoading(true);
-            const base =
-                process.env.NEXT_PUBLIC_PROD_LINK ||
-                "https://k7a4i1z7e3n2.onrender.com";
+            const base = process.env.NEXT_PUBLIC_PROD_LINK;
             const apiKey = process.env.NEXT_PUBLIC_SERVER_KEY || "";
             const url = `${base.replace(/\/$/, "")}/cards/deleteCard/${cardId}`;
             const res = await fetch(url, {
@@ -244,9 +236,7 @@ export default function Passwords({ refreshKey = 0 }) {
     async function deletePassword(passwordId) {
         try {
             setPasswordDeleteLoading(true);
-            const base =
-                process.env.NEXT_PUBLIC_PROD_LINK ||
-                "https://k7a4i1z7e3n2.onrender.com";
+            const base = process.env.NEXT_PUBLIC_PROD_LINK;
             const apiKey = process.env.NEXT_PUBLIC_SERVER_KEY || "";
             const url = `${base.replace(
                 /\/$/,
@@ -740,8 +730,7 @@ export default function Passwords({ refreshKey = 0 }) {
 
                                             const base =
                                                 process.env
-                                                    .NEXT_PUBLIC_PROD_LINK ||
-                                                "https://k7a4i1z7e3n2.onrender.com";
+                                                    .NEXT_PUBLIC_PROD_LINK;
                                             const apiKey =
                                                 process.env
                                                     .NEXT_PUBLIC_SERVER_KEY ||
