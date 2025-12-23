@@ -72,3 +72,15 @@
 .no-scrollbar::-webkit-scrollbar {
     display: none; /* Chrome, Safari, Opera */
 }
+
+/* Hide page scrollbars but keep vertical/horizontal scrolling functional */
+html,
+body {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+}
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+    width: 0; /* Chrome, Safari, Opera */
+    height: 0; /* Hide horizontal scrollbar track */
+}

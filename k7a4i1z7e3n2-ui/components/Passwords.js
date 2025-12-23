@@ -279,7 +279,7 @@ export default function Passwords({ refreshKey = 0 }) {
             {error && <p className="text-xs text-red-400">{error}</p>}
 
             {cards.length > 0 && (
-                <div className="flex gap-4 overflow-x-auto -mt-4 no-scrollbar">
+                <div className="flex gap-1.5 overflow-x-auto -mt-4 no-scrollbar">
                     {cards.map((card) => {
                         const isLocked =
                             card?.lockedUntil &&
@@ -291,7 +291,7 @@ export default function Passwords({ refreshKey = 0 }) {
                                     isLocked
                                         ? "border-[#f5365c] opacity-50"
                                         : "border-zinc-800 hover:border-zinc-500"
-                                } min-w-[260px] max-w-xs bg-zinc-950/60 rounded-md p-3 cursor-pointer transition-colors`}
+                                } min-w-[300px] max-w-sm bg-zinc-950/60 rounded-md p-3 cursor-pointer transition-colors`}
                                 onClick={() => handleCardClick(card)}
                             >
                                 <CardHeader className="px-0 py-0">
