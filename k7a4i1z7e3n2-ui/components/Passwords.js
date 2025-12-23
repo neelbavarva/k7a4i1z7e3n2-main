@@ -28,7 +28,9 @@ import {
     ShieldMinus,
     ListFilter,
     X,
+    Copy,
 } from "lucide-react";
+import { toast } from "sonner";
 
 export default function Passwords({ refreshKey = 0 }) {
     // Cards state
@@ -173,12 +175,25 @@ export default function Passwords({ refreshKey = 0 }) {
             });
 
             if (!res.ok) {
-                if (res.status === 401)
+                if (res.status === 401) {
+                    toast.error("Wrong key", {
+                        description:
+                            "Card decryption failed. Please check your key.",
+                    });
                     throw new Error("Decryption failed. Wrong key?");
-                if (res.status === 423)
+                }
+                if (res.status === 423) {
+                    toast.error("Too many attempts", {
+                        description:
+                            "Card temporarily locked due to failed attempts.",
+                    });
                     throw new Error(
                         "Too many failed attempts. Please try again later."
                     );
+                }
+                toast.error("Decrypt error", {
+                    description: `Failed to decrypt card (${res.status})`,
+                });
                 throw new Error(`Failed to decrypt card: ${res.status}`);
             }
 
@@ -187,7 +202,16 @@ export default function Passwords({ refreshKey = 0 }) {
             setDecryptError(null);
         } catch (err) {
             console.error(err);
-            setDecryptError(err.message || "Could not decrypt card");
+            // toast already shown above for known statuses; show generic if needed
+            if (
+                !String(err?.message || "").includes("Decryption failed") &&
+                !String(err?.message || "").includes("Too many failed attempts")
+            ) {
+                toast.error("Decrypt error", {
+                    description: "Could not decrypt card",
+                });
+            }
+            setDecryptError(null);
             setDecryptedData(null);
         } finally {
             setDecryptLoading(false);
@@ -258,61 +282,70 @@ export default function Passwords({ refreshKey = 0 }) {
 
             {cards.length > 0 && (
                 <div className="flex gap-4 overflow-x-auto -mt-4 no-scrollbar">
-                    {cards.map((card) => (
-                        <Card
-                            key={card._id}
-                            className="min-w-[260px] max-w-xs bg-zinc-950/60 border-zinc-800 rounded-md p-3 cursor-pointer hover:border-zinc-500 transition-colors"
-                            onClick={() => handleCardClick(card)}
-                        >
-                            <CardHeader className="px-0 py-0">
-                                <div className="flex items-center justify-between">
-                                    <CardTitle className="text-xs text-zinc-300">
-                                        {card.cardName || "Card"}
-                                    </CardTitle>
-                                    <span className="text-xs text-zinc-400">
-                                        {card.bankName}
-                                    </span>
-                                </div>
-                            </CardHeader>
-                            <CardContent className="px-0 pt-0 pb-0 space-y-2">
-                                <div>
-                                    <p className="text-[11px] uppercase tracking-wide text-zinc-500">
-                                        Card Number
-                                    </p>
-                                    <p className="mt-1 mb-4 text-sm text-zinc-200">
-                                        **** **** ****{" "}
-                                        {card.lastOfNumber || "****"}
-                                    </p>
-                                </div>
-                                <div className="grid grid-cols-3 gap-2 pt-3">
+                    {cards.map((card) => {
+                        const isLocked =
+                            card?.lockedUntil &&
+                            new Date(card.lockedUntil).getTime() > Date.now();
+                        return (
+                            <Card
+                                key={card._id}
+                                className={`${
+                                    isLocked
+                                        ? "border-[#f5365c] opacity-50"
+                                        : "border-zinc-800 hover:border-zinc-500"
+                                } min-w-[260px] max-w-xs bg-zinc-950/60 rounded-md p-3 cursor-pointer transition-colors`}
+                                onClick={() => handleCardClick(card)}
+                            >
+                                <CardHeader className="px-0 py-0">
+                                    <div className="flex items-center justify-between">
+                                        <CardTitle className="text-xs text-zinc-300">
+                                            {card.cardName || "Card"}
+                                        </CardTitle>
+                                        <span className="text-xs text-zinc-400">
+                                            {card.bankName}
+                                        </span>
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="px-0 pt-0 pb-0 space-y-2">
                                     <div>
-                                        <p className="text-[11px] text-zinc-500">
-                                            Pin
+                                        <p className="text-[11px] uppercase tracking-wide text-zinc-500">
+                                            Card Number
                                         </p>
-                                        <p className="text-sm text-zinc-200">
-                                            ****
-                                        </p>
-                                    </div>
-                                    <div className="text-center">
-                                        <p className="text-[11px] text-zinc-500">
-                                            Exp Date
-                                        </p>
-                                        <p className="text-sm text-zinc-200">
-                                            **/**
+                                        <p className="mt-1 mb-4 text-sm text-zinc-200">
+                                            **** **** ****{" "}
+                                            {card.lastOfNumber || "****"}
                                         </p>
                                     </div>
-                                    <div className="text-right">
-                                        <p className="text-[11px] text-zinc-500">
-                                            CVV
-                                        </p>
-                                        <p className="text-sm text-zinc-200">
-                                            ***
-                                        </p>
+                                    <div className="grid grid-cols-3 gap-2 pt-3">
+                                        <div>
+                                            <p className="text-[11px] text-zinc-500">
+                                                Pin
+                                            </p>
+                                            <p className="text-sm text-zinc-200">
+                                                ****
+                                            </p>
+                                        </div>
+                                        <div className="text-center">
+                                            <p className="text-[11px] text-zinc-500">
+                                                Exp Date
+                                            </p>
+                                            <p className="text-sm text-zinc-200">
+                                                **/**
+                                            </p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-[11px] text-zinc-500">
+                                                CVV
+                                            </p>
+                                            <p className="text-sm text-zinc-200">
+                                                ***
+                                            </p>
+                                        </div>
                                     </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    ))}
+                                </CardContent>
+                            </Card>
+                        );
+                    })}
                 </div>
             )}
 
@@ -463,32 +496,45 @@ export default function Passwords({ refreshKey = 0 }) {
 
                         return (
                             <div className="flex flex-col gap-2">
-                                {sorted.map((pwd) => (
-                                    <div
-                                        key={pwd._id}
-                                        className="w-full flex items-center justify-between gap-3 rounded-md border bg-zinc-950/60 border-zinc-800 hover:border-zinc-500 transition-colors p-3 cursor-pointer"
-                                        onClick={() => handlePasswordClick(pwd)}
-                                        role="button"
-                                        tabIndex={0}
-                                    >
-                                        <div className="flex items-center gap-3 min-w-0">
-                                            <div className="w-8 h-8 rounded-md bg-zinc-900 text-zinc-300 flex items-center justify-center shrink-0">
-                                                {getIconForCategory(
-                                                    pwd.category
-                                                )}
-                                            </div>
-                                            <div className="min-w-0">
-                                                <div className="text-sm text-zinc-200 truncate">
-                                                    {pwd.name}
+                                {sorted.map((pwd) => {
+                                    const isLocked =
+                                        pwd?.lockedUntil &&
+                                        new Date(pwd.lockedUntil).getTime() >
+                                            Date.now();
+                                    return (
+                                        <div
+                                            key={pwd._id}
+                                            className={`w-full flex items-center justify-between gap-3 rounded-md border bg-zinc-950/60 transition-colors p-3 cursor-pointer ${
+                                                isLocked
+                                                    ? "border-[#f5365c] opacity-50"
+                                                    : "border-zinc-800 hover:border-zinc-500"
+                                            }`}
+                                            onClick={() =>
+                                                handlePasswordClick(pwd)
+                                            }
+                                            role="button"
+                                            tabIndex={0}
+                                        >
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <div className="w-8 h-8 rounded-md bg-zinc-900 text-zinc-300 flex items-center justify-center shrink-0">
+                                                    {getIconForCategory(
+                                                        pwd.category
+                                                    )}
                                                 </div>
-                                                <div className="text-xs text-zinc-500 truncate">
-                                                    {pwd.email || "No email"}
+                                                <div className="min-w-0">
+                                                    <div className="text-sm text-zinc-200 truncate">
+                                                        {pwd.name}
+                                                    </div>
+                                                    <div className="text-xs text-zinc-500 truncate">
+                                                        {pwd.email ||
+                                                            "No email"}
+                                                    </div>
                                                 </div>
                                             </div>
+                                            <ChevronRight className="w-4 h-4 text-zinc-500 shrink-0" />
                                         </div>
-                                        <ChevronRight className="w-4 h-4 text-zinc-500 shrink-0" />
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         );
                     })()}
@@ -588,11 +634,7 @@ export default function Passwords({ refreshKey = 0 }) {
                                         />
                                     </div>
 
-                                    {decryptError && (
-                                        <p className="text-xs text-red-400">
-                                            {decryptError}
-                                        </p>
-                                    )}
+                                    {/* Errors shown via toast; no inline message */}
 
                                     <Button
                                         type="submit"
@@ -644,42 +686,46 @@ export default function Passwords({ refreshKey = 0 }) {
             >
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Password details</DialogTitle>
-                        <DialogDescription>
-                            {deleteMode
-                                ? "Delete this password. This action cannot be undone."
-                                : "Enter your key to decrypt and view this password."}
-                        </DialogDescription>
+                        <DialogTitle>
+                            {selectedPassword?.name || "Password"}
+                        </DialogTitle>
+                        {selectedPassword?.email && (
+                            <DialogDescription>
+                                {selectedPassword.email}
+                            </DialogDescription>
+                        )}
                     </DialogHeader>
 
                     {selectedPassword && (
                         <div className="space-y-4 text-sm">
-                            <div>
-                                <p className="font-medium">
-                                    {selectedPassword.name}
-                                </p>
-                                {selectedPassword.email && (
-                                    <p className="text-xs text-zinc-500">
-                                        {selectedPassword.email}
-                                    </p>
-                                )}
-                                {selectedPassword.category && (
-                                    <p className="mt-1 text-xs text-zinc-400">
-                                        {selectedPassword.category}
-                                    </p>
-                                )}
-                            </div>
-
-                            {decryptedPassword && (
-                                <div className="mt-2 space-y-1 rounded-md bg-zinc-900/80 p-3 text-xs">
+                            <div className="mt-2 rounded-md bg-zinc-900/80 p-3 text-xs">
+                                <div className="flex items-center justify-between gap-2">
                                     <p>
                                         <span className="text-zinc-500">
                                             Password:
                                         </span>{" "}
-                                        {decryptedPassword}
+                                        {decryptedPassword
+                                            ? decryptedPassword
+                                            : "******"}
                                     </p>
+                                    {decryptedPassword && (
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-7 px-2 cursor-pointer"
+                                            onClick={() =>
+                                                navigator.clipboard.writeText(
+                                                    decryptedPassword
+                                                )
+                                            }
+                                            aria-label="Copy password"
+                                            title="Copy password"
+                                        >
+                                            <Copy className="w-3 h-3" />
+                                        </Button>
+                                    )}
                                 </div>
-                            )}
+                            </div>
 
                             {!deleteMode ? (
                                 <form
@@ -723,14 +769,30 @@ export default function Passwords({ refreshKey = 0 }) {
                                             });
 
                                             if (!res.ok) {
-                                                if (res.status === 401)
+                                                if (res.status === 401) {
+                                                    toast.error("Wrong key", {
+                                                        description:
+                                                            "Password decryption failed. Please check your key.",
+                                                    });
                                                     throw new Error(
                                                         "Decryption failed. Wrong key?"
                                                     );
-                                                if (res.status === 423)
+                                                }
+                                                if (res.status === 423) {
+                                                    toast.error(
+                                                        "Too many attempts",
+                                                        {
+                                                            description:
+                                                                "Password temporarily locked due to failed attempts.",
+                                                        }
+                                                    );
                                                     throw new Error(
                                                         "Too many failed attempts. Please try again later."
                                                     );
+                                                }
+                                                toast.error("Decrypt error", {
+                                                    description: `Failed to decrypt password (${res.status})`,
+                                                });
                                                 throw new Error(
                                                     `Failed to decrypt password: ${res.status}`
                                                 );
@@ -741,10 +803,24 @@ export default function Passwords({ refreshKey = 0 }) {
                                             setPasswordDecryptError(null);
                                         } catch (err) {
                                             console.error(err);
-                                            setPasswordDecryptError(
-                                                err.message ||
-                                                    "Could not decrypt password"
-                                            );
+                                            if (
+                                                !String(
+                                                    err?.message || ""
+                                                ).includes(
+                                                    "Decryption failed"
+                                                ) &&
+                                                !String(
+                                                    err?.message || ""
+                                                ).includes(
+                                                    "Too many failed attempts"
+                                                )
+                                            ) {
+                                                toast.error("Decrypt error", {
+                                                    description:
+                                                        "Could not decrypt password",
+                                                });
+                                            }
+                                            setPasswordDecryptError(null);
                                             setDecryptedPassword(null);
                                         } finally {
                                             setPasswordDecryptLoading(false);
@@ -768,11 +844,7 @@ export default function Passwords({ refreshKey = 0 }) {
                                         />
                                     </div>
 
-                                    {passwordDecryptError && (
-                                        <p className="text-xs text-red-400">
-                                            {passwordDecryptError}
-                                        </p>
-                                    )}
+                                    {/* Errors shown via toast; no inline message */}
 
                                     <Button
                                         type="submit"

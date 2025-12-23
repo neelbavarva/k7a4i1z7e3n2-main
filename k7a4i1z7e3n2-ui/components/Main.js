@@ -335,15 +335,15 @@ export default function Main({ onLogout }) {
                                     </div>
                                     <div className="space-y-1">
                                         <label className="text-xs text-zinc-400">
-                                            Email (optional)
+                                            Email
                                         </label>
                                         <Input
-                                            type="email"
+                                            type="text"
                                             value={pwEmail}
                                             onChange={(e) =>
                                                 setPwEmail(e.target.value)
                                             }
-                                            placeholder="user@example.com"
+                                            placeholder="username or email"
                                         />
                                     </div>
                                     <div className="space-y-1">
@@ -443,7 +443,7 @@ export default function Main({ onLogout }) {
                                     </div>
                                     <div className="space-y-1">
                                         <label className="text-xs text-zinc-400">
-                                            Card name (optional)
+                                            Card name
                                         </label>
                                         <Input
                                             value={cardCardName}

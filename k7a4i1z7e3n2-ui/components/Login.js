@@ -25,6 +25,7 @@ import { Spinner } from "@/components/ui/spinner";
 import AuthTimer from "./AuthTimer";
 import { Lock } from "lucide-react";
 import { s } from "motion/react-client";
+import { toast } from "sonner";
 
 export default function Login({ onSuccess }) {
     const [otp, setOtp] = useState("");
@@ -62,6 +63,7 @@ export default function Login({ onSuccess }) {
     const verifyAndSubmit = useCallback(
         async (value) => {
             if (blockedInfo && blockedInfo.blocked) return;
+            if (loading) return; // prevent double-trigger
             setLoading(true);
 
             try {
@@ -86,13 +88,17 @@ export default function Login({ onSuccess }) {
                     if (r && r.blocked) {
                         setBlockedInfo(r);
                     } else {
-                        alert("Incorrect OTP");
+                        toast.error("Incorrect code", {
+                            description: "Please check the code and try again.",
+                        });
                         setOtp("");
                         inputRef.current?.focus();
                     }
                 } catch (e) {
                     console.error("failure endpoint error", e);
-                    alert("Incorrect OTP");
+                    toast.error("Incorrect code", {
+                        description: "Please check the code and try again.",
+                    });
                     setOtp("");
                     inputRef.current?.focus();
                 }
@@ -100,7 +106,7 @@ export default function Login({ onSuccess }) {
                 setLoading(false);
             }
         },
-        [blockedInfo, onSuccess]
+        [blockedInfo, onSuccess, loading]
     );
 
     const handleChange = useCallback(
@@ -114,11 +120,7 @@ export default function Login({ onSuccess }) {
         [verifyAndSubmit]
     );
 
-    useEffect(() => {
-        if (otp.length === 6) {
-            verifyAndSubmit(otp);
-        }
-    }, [otp, verifyAndSubmit]);
+    // Removed redundant effect that re-triggered verification on every change
 
     if (blockedInfo && blockedInfo.blocked) {
         return (

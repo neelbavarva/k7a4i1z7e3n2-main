@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Login from "./Login";
 import Main from "./Main";
+import { Toaster } from "@/components/ui/sonner";
 
 export default function AppRoot() {
     const [isAuthenticated, setIsAuthenticated] = useState(null);
@@ -32,18 +33,24 @@ export default function AppRoot() {
     if (isAuthenticated === null) return null;
 
     return isAuthenticated ? (
-        <Main
-            onLogout={() => {
-                localStorage.removeItem("auth");
-                setIsAuthenticated(false);
-            }}
-        />
+        <>
+            <Toaster richColors position="top-center" />
+            <Main
+                onLogout={() => {
+                    localStorage.removeItem("auth");
+                    setIsAuthenticated(false);
+                }}
+            />
+        </>
     ) : (
-        <Login
-            onSuccess={() => {
-                localStorage.setItem("auth", String(Date.now()));
-                setIsAuthenticated(true);
-            }}
-        />
+        <>
+            <Toaster richColors position="top-center" />
+            <Login
+                onSuccess={() => {
+                    localStorage.setItem("auth", String(Date.now()));
+                    setIsAuthenticated(true);
+                }}
+            />
+        </>
     );
 }
