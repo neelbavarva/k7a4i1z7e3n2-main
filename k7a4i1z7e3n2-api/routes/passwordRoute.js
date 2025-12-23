@@ -188,7 +188,7 @@ router.post(
         body("name").isString().isLength({ min: 1, max: 256 }),
         body("password").isString().isLength({ min: 1, max: 1024 }),
         body("key").isString().isLength({ min: 1, max: 128 }),
-        body("email").optional().isEmail().isLength({ max: 320 }),
+        body("email").optional().isString().isLength({ max: 320 }),
         body("category").optional().isString().isLength({ max: 64 }),
     ],
     async (req, res) => {
@@ -266,7 +266,7 @@ router.put(
         body("name").optional().isString().isLength({ min: 1, max: 256 }),
         body("password").optional().isString().isLength({ min: 1, max: 1024 }),
         body("key").optional().isString().isLength({ min: 1, max: 128 }),
-        body("email").optional().isEmail().isLength({ max: 320 }),
+        body("email").optional().isString().isLength({ max: 320 }),
         body("category").optional().isString().isLength({ max: 64 }),
         body("archive").optional().isBoolean(),
     ],
