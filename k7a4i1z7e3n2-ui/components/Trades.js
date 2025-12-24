@@ -1,5 +1,3 @@
-"use client";
-
 import React, { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,7 +9,8 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import Image from "next/image";
-import { Loader2 } from "lucide-react";
+import { Loader2, ClockArrowUp, ClockArrowDown } from "lucide-react";
+import { TradeSymbolIconMap } from "./TradeSymbols";
 
 export default function Trades() {
     const [trades, setTrades] = useState([]);
@@ -26,9 +25,7 @@ export default function Trades() {
         const baseUrl = (base || "").replace(/\/$/, "");
         const url = `${baseUrl}/trades/getTrades`;
         setLoading(true);
-        fetch(url, {
-            headers: { "x-api-key": apiKey },
-        })
+        fetch(url, { headers: { "x-api-key": apiKey } })
             .then((res) => (res.ok ? res.json() : Promise.reject()))
             .then((result) => setTrades(Array.isArray(result) ? result : []))
             .catch(() => setTrades([]))
@@ -48,12 +45,20 @@ export default function Trades() {
         });
     }, [trades, tfFilter]);
 
-    const typeClass = (type) =>
-        type === "Long"
-            ? "text-[#4fe3c1]"
-            : type === "Short"
-            ? "text-[#ff5050]"
-            : "";
+    const typeClass = (type) => {
+        switch (type) {
+            case "Demo":
+                return "text-[#f4a522]";
+            case "Funded":
+                return "text-[#7e71f7]";
+            case "Backtest":
+                return "text-[#fa346f]";
+            case "Real":
+                return "text-[#4fe3c1]";
+            default:
+                return "";
+        }
+    };
 
     const statusClass = (status) =>
         status === "Open"
@@ -62,7 +67,21 @@ export default function Trades() {
             ? "text-[#7e71f7]"
             : "";
 
-    const gradeFor = (pct) => (pct >= 80 ? "A" : pct >= 70 ? "B" : "C");
+    const gradeLabel = (pct) => {
+        if (!pct || pct === 0) return "Cntr";
+        if (pct >= 90) return "A";
+        if (pct >= 80) return "B";
+        if (pct >= 70) return "C";
+        return "D";
+    };
+
+    const gradeColorClass = (pct) => {
+        if (!pct || pct === 0) return "text-[#ff0000]";
+        if (pct >= 90) return "text-[#4fe3c1]";
+        if (pct >= 80) return "text-[#f4a522]";
+        if (pct >= 70) return "text-[#ff0000]";
+        return "text-[#ff0000]";
+    };
 
     return (
         <div className="mt-2">
@@ -103,87 +122,126 @@ export default function Trades() {
             </Card>
 
             {/* Trades Table */}
-            <Card className="rounded-md mt-2 p-0 overflow-hidden">
+            <Card className="rounded-md mt-2 p-0">
                 {loading ? (
                     <div className="flex items-center justify-center py-10 text-[12px]">
                         <Loader2 className="animate-spin mr-2" /> Loading trades
                     </div>
                 ) : (
-                    <table className="w-full">
-                        <thead className="text-[10px] font-bold">
-                            <tr className="text-[10px] border-b border-[#1c1c1c]">
-                                <th className="text-left py-2 px-3 w-[50px]">
-                                    %
-                                </th>
-                                <th className="text-left py-2 px-3">Pair</th>
-                                <th className="text-left py-2 px-3">Type</th>
-                                <th className="text-left py-2 px-3">Date</th>
-                                <th className="text-left py-2 px-3">
-                                    Risk/Reward
-                                </th>
-                                <th className="text-left py-2 px-3">
-                                    P&L (USD)
-                                </th>
-                                <th className="text-left py-2 px-3">
-                                    Trade Status
-                                </th>
-                                <th className="text-left py-2 px-3">
-                                    Time Frame
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filtered.map((t) => (
-                                <tr
-                                    key={t._id}
-                                    className="text-[11px] border-b border-[#1c1c1c] cursor-pointer hover:bg-[#0f0f0f]"
-                                    onClick={() => {
-                                        setSelectedTrade(t);
-                                        setViewOpen(true);
-                                    }}
-                                >
-                                    <td className="py-2 px-3">
-                                        {t.totalPercentage || 0}%
-                                    </td>
-                                    <td className="py-2 px-3">
-                                        {t.tradeSymbol}
-                                    </td>
-                                    <td
-                                        className={`py-2 px-3 ${typeClass(
-                                            t.tradeType
-                                        )}`}
-                                    >
-                                        {t.tradeType}
-                                    </td>
-                                    <td className="py-2 px-3">
-                                        {t.dateOfTrade}
-                                    </td>
-                                    <td className="py-2 px-3">
-                                        {t.riskRewardRatio}
-                                    </td>
-                                    <td
-                                        className={`py-2 px-3 ${
-                                            (parseFloat(t.totalPnL) || 0) >= 0
-                                                ? "text-[#4fe3c1]"
-                                                : "text-[#ff5050]"
-                                        }`}
-                                    >
-                                        {t.totalPnL}
-                                    </td>
-                                    <td
-                                        className={`py-2 px-3 ${statusClass(
-                                            t.tradeStatus
-                                        )}`}
-                                    >
-                                        {t.tradeStatus}
-                                    </td>
-                                    <td className="py-2 px-3">
-                                        {t.isLowerTf ? "Lower" : "Higher"}
-                                    </td>
+                    <div className="w-full overflow-x-auto">
+                        <table className="min-w-max w-full">
+                            <thead className="text-[10px] font-bold">
+                                <tr className="text-[10px] border-b border-[#1c1c1c]">
+                                    <th className="text-center py-2 px-3 w-[80px]">
+                                        Grade
+                                    </th>
+                                    <th className="text-center py-2 px-3">
+                                        Pair
+                                    </th>
+                                    <th className="text-center py-2 px-3">
+                                        Type
+                                    </th>
+                                    <th className="text-center py-2 px-3">
+                                        Date
+                                    </th>
+                                    <th className="text-center py-2 px-3">
+                                        Risk/Reward
+                                    </th>
+                                    <th className="text-center py-2 px-3">
+                                        P&L (USD)
+                                    </th>
+                                    <th className="text-center py-2 px-3">
+                                        Trade Status
+                                    </th>
+                                    <th className="text-center py-2 px-3">
+                                        Time Frame
+                                    </th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {filtered.map((t) => (
+                                    <tr
+                                        key={t._id}
+                                        className="text-[11px] border-b border-[#1c1c1c] cursor-pointer hover:bg-[#0f0f0f]"
+                                        onClick={() => {
+                                            setSelectedTrade(t);
+                                            setViewOpen(true);
+                                        }}
+                                    >
+                                        <td className="py-2 px-3 text-center">
+                                            <span
+                                                className={`${gradeColorClass(
+                                                    t.totalPercentage || 0
+                                                )} text-[11px]`}
+                                            >
+                                                {gradeLabel(
+                                                    t.totalPercentage || 0
+                                                )}
+                                            </span>
+                                        </td>
+                                        <td className="py-2 px-3 text-center">
+                                            <div className="flex items-center justify-center gap-2">
+                                                {TradeSymbolIconMap[
+                                                    t.tradeSymbol
+                                                ] ? (
+                                                    <Image
+                                                        width={16}
+                                                        height={16}
+                                                        src={`/icons/${
+                                                            TradeSymbolIconMap[
+                                                                t.tradeSymbol
+                                                            ]
+                                                        }`}
+                                                        alt={`${t.tradeSymbol} icon`}
+                                                    />
+                                                ) : null}
+                                                <span>{t.tradeSymbol}</span>
+                                            </div>
+                                        </td>
+                                        <td
+                                            className={`py-2 px-3 text-center ${typeClass(
+                                                t.tradeType
+                                            )}`}
+                                        >
+                                            {t.tradeType}
+                                        </td>
+                                        <td className="py-2 px-3 text-center">
+                                            {t.dateOfTrade}
+                                        </td>
+                                        <td className="py-2 px-3 text-center">
+                                            {t.riskRewardRatio}
+                                        </td>
+                                        <td
+                                            className={`py-2 px-3 text-center ${
+                                                (parseFloat(t.totalPnL) || 0) >=
+                                                0
+                                                    ? "text-[#4fe3c1]"
+                                                    : "text-[#ff0000]"
+                                            }`}
+                                        >
+                                            {t.totalPnL}
+                                        </td>
+                                        <td
+                                            className={`py-2 px-3 text-center ${statusClass(
+                                                t.tradeStatus
+                                            )}`}
+                                        >
+                                            {t.tradeStatus}
+                                        </td>
+                                        <td className="py-2 px-3">
+                                            <div className="flex items-center justify-center">
+                                                {t.isLowerTf ? (
+                                                    <ClockArrowDown className="w-3 h-3 text-[#7e71f7]" />
+                                                ) : (
+                                                    <ClockArrowUp className="w-3 h-3 text-[#4fe3c1]" />
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 )}
             </Card>
 
@@ -200,79 +258,125 @@ export default function Trades() {
                         <DialogHeader>
                             <DialogTitle className="flex items-center">
                                 <div>{selectedTrade.tradeSymbol}</div>
-                                <div className="ml-2 text-[10px]">
-                                    <Card
-                                        className={`${typeClass(
-                                            selectedTrade.tradeType
-                                        )} px-2 py-1`}
-                                    >
-                                        {selectedTrade.tradeType}
-                                    </Card>
-                                </div>
                             </DialogTitle>
-                            <div className="flex pt-2">
-                                <div className="mr-2">
-                                    <Card
-                                        className={`${
-                                            selectedTrade.tradeStatus === "Open"
-                                                ? "text-[#4fe3c1] bg-[#4fe3c023]"
-                                                : "text-[#7e71f7] bg-[#7e71f744]"
-                                        } text-[11px] px-2 py-1`}
-                                    >
-                                        {selectedTrade.tradeStatus}
-                                    </Card>
-                                </div>
-                                <div>
-                                    <Card
-                                        className={`${
-                                            (selectedTrade.totalPercentage ||
-                                                0) >= 80
-                                                ? "text-[#4fe3c1] bg-[#4fe3c023]"
-                                                : (selectedTrade.totalPercentage ||
-                                                      0) >= 70
-                                                ? "text-[#f4a522] bg-[#f4a32224]"
-                                                : "text-[#ff5050] bg-[#ff003721]"
-                                        } text-[11px] px-2 py-1`}
-                                    >
-                                        {gradeFor(
-                                            selectedTrade.totalPercentage || 0
-                                        )}
-                                    </Card>
+                            <DialogDescription className="text-[12px] pt-1">
+                                <span
+                                    className={`${gradeColorClass(
+                                        selectedTrade.totalPercentage || 0
+                                    )}`}
+                                >
+                                    {gradeLabel(
+                                        selectedTrade.totalPercentage || 0
+                                    )}
+                                </span>
+                                <span className="mx-2">,</span>
+                                <span
+                                    className={`${typeClass(
+                                        selectedTrade.tradeType
+                                    )}`}
+                                >
+                                    {selectedTrade.tradeType}
+                                </span>
+                                <span className="mx-2">,</span>
+                                <span
+                                    className={`${statusClass(
+                                        selectedTrade.tradeStatus
+                                    )}`}
+                                >
+                                    {selectedTrade.tradeStatus}
+                                </span>
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="flex items-center flex-wrap gap-x-6 text-[12px] mt-1">
+                            <div className="flex items-center">
+                                <div>Date</div>
+                                <div className="ml-2">
+                                    {selectedTrade.dateOfTrade}
                                 </div>
                             </div>
-                        </DialogHeader>
-                        <div className="flex items-center">
-                            <div className="flex items-center text-[12px] mr-4">
-                                <div>RR</div>
+                            <div className="flex items-center">
+                                <div>Risk Ratio</div>
                                 <div className="ml-2">
                                     {selectedTrade.riskRewardRatio}
                                 </div>
                             </div>
-                            <div className="flex items-center text-[12px] mr-4">
+                            <div className="flex items-center">
                                 <div>PnL</div>
                                 <div
                                     className={`${
                                         (parseFloat(selectedTrade.totalPnL) ||
                                             0) >= 0
                                             ? "text-[#4fe3c1]"
-                                            : "text-[#ff5050]"
+                                            : "text-[#ff0000]"
                                     } ml-2`}
                                 >
-                                    {selectedTrade.totalPnL}
-                                </div>
-                            </div>
-                            <div className="flex items-center text-[12px]">
-                                <div>Points</div>
-                                <div className="ml-2">
-                                    {selectedTrade.totalPercentage || 0}%
+                                    {selectedTrade.totalPnL} USD
                                 </div>
                             </div>
                         </div>
+
+                        <div className="mt-3">
+                            <div className="text-[12px] font-semibold mb-1">
+                                Strategy Points
+                            </div>
+                            <div className="space-y-1">
+                                {(selectedTrade.responses || []).map((item) => (
+                                    <div
+                                        key={item.question}
+                                        className="text-[12px]"
+                                    >
+                                        <div className="flex items-center">
+                                            <span
+                                                className={`${
+                                                    item.checked
+                                                        ? "text-[#4fe3c1]"
+                                                        : "text-[#ff0000]"
+                                                }`}
+                                            >
+                                                {item.checked ? "✓" : "✗"}
+                                            </span>
+                                            <span className="ml-2">
+                                                {item.question}
+                                            </span>
+                                        </div>
+                                        {(item.secondaryResponses || []).map(
+                                            (child) => (
+                                                <div
+                                                    key={
+                                                        child._id ||
+                                                        child.question
+                                                    }
+                                                    className="flex items-center ml-5"
+                                                >
+                                                    <span
+                                                        className={`${
+                                                            child.checked
+                                                                ? "text-[#4fe3c1]"
+                                                                : "text-[#ff0000]"
+                                                        }`}
+                                                    >
+                                                        {child.checked
+                                                            ? "✓"
+                                                            : "✗"}
+                                                    </span>
+                                                    <span className="ml-2">
+                                                        {child.question}
+                                                    </span>
+                                                </div>
+                                            )
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
                         {selectedTrade.description ? (
-                            <div className="text-[12px] pb-2.5">
+                            <div className="text-[12px] pb-2.5 mt-3">
                                 {selectedTrade.description}
                             </div>
                         ) : null}
+
                         <div className="-mt-4">
                             {selectedTrade.lowTf ? (
                                 <div className="rounded-md mt-4">

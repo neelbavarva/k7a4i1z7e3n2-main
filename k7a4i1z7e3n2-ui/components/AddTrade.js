@@ -26,6 +26,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 // Icons intentionally omitted per request; text-only select.
+import Image from "next/image";
 
 export default function AddTrade({ inline = false }) {
     const [strategy, setStrategy] = useState(null);
@@ -331,7 +332,15 @@ export default function AddTrade({ inline = false }) {
                                     value={symbol.symbol}
                                     className="text-xs cursor-pointer"
                                 >
-                                    {symbol.symbol}
+                                    <div className="flex items-center gap-2">
+                                        <Image
+                                            width={16}
+                                            height={16}
+                                            src={`/icons/${symbol.img}`}
+                                            alt={`${symbol.symbol} icon`}
+                                        />
+                                        <span>{symbol.symbol}</span>
+                                    </div>
                                 </SelectItem>
                             ))}
                         </SelectGroup>
