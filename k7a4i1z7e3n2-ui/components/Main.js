@@ -23,6 +23,7 @@ import {
 } from "./ui/select";
 import { PASSWORD_CATEGORIES } from "@/lib/categories";
 import { LogOut, Settings2 } from "lucide-react";
+import AddTrade from "./AddTrade";
 import { toast } from "sonner";
 
 export default function Main({ onLogout }) {
@@ -373,20 +374,20 @@ export default function Main({ onLogout }) {
                     }
                 }}
             >
-                <DialogContent>
+                <DialogContent className="max-h-[90vh] overflow-y-auto no-scrollbar p-3 sm:p-4 sm:max-w-[420px]">
                     <DialogHeader>
                         <DialogTitle>Manage</DialogTitle>
                         <DialogDescription>
                             {activeTab === "passwords"
                                 ? "Manage your passwords and cards."
-                                : "Trades coming soon."}
+                                : "Add new trades."}
                         </DialogDescription>
                     </DialogHeader>
 
                     {activeTab === "trades" ? (
-                        <p className="text-xs text-zinc-400">
-                            Adding trades is coming soon.
-                        </p>
+                        <div className="text-xs">
+                            <AddTrade inline />
+                        </div>
                     ) : (
                         <div className="space-y-4">
                             <div className="flex gap-2 rounded-full bg-zinc-900 p-1 text-[10px] font-medium">
