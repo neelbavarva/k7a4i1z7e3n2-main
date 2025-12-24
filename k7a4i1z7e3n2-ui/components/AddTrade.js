@@ -202,7 +202,7 @@ export default function AddTrade({ inline = false }) {
                         timeFrame === "lower" ? "bg-[#1c1c1c]" : ""
                     }`}
                 >
-                    Lower TF
+                    Lower Time Frame
                 </Button>
                 <Button
                     onClick={() => setTimeFrame("higher")}
@@ -212,7 +212,7 @@ export default function AddTrade({ inline = false }) {
                         timeFrame === "higher" ? "bg-[#1c1c1c]" : ""
                     }`}
                 >
-                    Higher TF
+                    Higher Time Frame
                 </Button>
             </Card>
             {counterTrade ? null : (
@@ -233,7 +233,7 @@ export default function AddTrade({ inline = false }) {
                             {totalPercentage} %
                         </div>
                     </Card>
-                    <Card className="px-3 py-1 pt-7 rounded-md">
+                    <Card className="px-3 py-2 pt-7 rounded-md">
                         {(Array.isArray(
                             timeFrame === "lower" ? secondaryStrategy : strategy
                         )
@@ -242,7 +242,10 @@ export default function AddTrade({ inline = false }) {
                                 : strategy
                             : []
                         ).map((item) => (
-                            <div className="flex flex-col mt-1" key={item._id}>
+                            <div
+                                className="flex flex-col mt-1 -mb-1"
+                                key={item._id}
+                            >
                                 <div className="flex items-center -mt-5 text-[10px] leading-[16px]">
                                     <div className="flex-1 pr-3 sm:pr-4">
                                         {item.name}
