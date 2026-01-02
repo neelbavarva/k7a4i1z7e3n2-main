@@ -25,6 +25,8 @@ import { PASSWORD_CATEGORIES } from "@/lib/categories";
 import { LogOut, Settings2 } from "lucide-react";
 import AddTrade from "./AddTrade";
 import { toast } from "sonner";
+import AuthTimer from "./AuthTimer";
+import { getCurrentSession, getSessionTiming } from "../lib/session";
 
 export default function Main({ onLogout }) {
     const [activeTab, setActiveTab] = useState(() => {
@@ -351,8 +353,28 @@ export default function Main({ onLogout }) {
                 </div>
             </header>
 
+            <div className="w-full">
+                <div className="max-w-3xl mx-auto px-4 pt-3">
+                    <div className="rounded-md border border-[#1c1c1c] p-2 pb-6">
+                        <div className="flex flex-col items-center">
+                            <div className="self-start">
+                                <AuthTimer
+                                    style={{ fontSize: 8, marginTop: 0 }}
+                                />
+                            </div>
+                            <div className="text-[32px] font-semibold tracking-wide mt-1 text-center">
+                                {getCurrentSession()}
+                            </div>
+                            <div className="text-[12px] text-zinc-400 mt-1 text-center">
+                                {getSessionTiming()}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <main className="flex-1 w-full">
-                <div className="max-w-3xl mx-auto px-4 py-6">
+                <div className="max-w-3xl mx-auto px-4 pt-0 pb-6">
                     {activeTab === "passwords" ? (
                         <Passwords refreshKey={refreshKey} />
                     ) : (

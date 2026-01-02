@@ -11,11 +11,20 @@ import {
 import Image from "next/image";
 import { Loader2, ClockArrowUp, ClockArrowDown } from "lucide-react";
 import { TradeSymbolIconMap } from "./TradeSymbols";
+import {
+    Select,
+    SelectTrigger,
+    SelectContent,
+    SelectItem,
+    SelectValue,
+} from "@/components/ui/select";
 
 export default function Trades() {
     const [trades, setTrades] = useState([]);
     const [loading, setLoading] = useState(false);
     const [tfFilter, setTfFilter] = useState("all"); // all | lower | higher
+    const [typeFilter, setTypeFilter] = useState("all"); // all | Real | Funded | Demo | Backtest
+    const [pairFilter, setPairFilter] = useState("all"); // all | specific pair
     const [selectedTrade, setSelectedTrade] = useState(null);
     const [viewOpen, setViewOpen] = useState(false);
     const base = process.env.NEXT_PUBLIC_PROD_LINK;
@@ -37,13 +46,34 @@ export default function Trades() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    const allPairs = useMemo(() => {
+        const fromTrades = Array.from(
+            new Set(
+                (trades || [])
+                    .map((t) => t.tradeSymbol)
+                    .filter((s) => typeof s === "string" && s.length > 0)
+            )
+        ).sort();
+        if (fromTrades.length) return fromTrades;
+        return Object.keys(TradeSymbolIconMap).sort();
+    }, [trades]);
+
     const filtered = useMemo(() => {
-        return trades.filter((t) => {
-            if (tfFilter === "lower" && !t.isLowerTf) return false;
-            if (tfFilter === "higher" && t.isLowerTf) return false;
-            return true;
-        });
-    }, [trades, tfFilter]);
+        return trades
+            .filter((t) => {
+                if (tfFilter === "lower" && !t.isLowerTf) return false;
+                if (tfFilter === "higher" && t.isLowerTf) return false;
+                return true;
+            })
+            .filter((t) => {
+                if (typeFilter === "all") return true;
+                return String(t.tradeType) === typeFilter;
+            })
+            .filter((t) => {
+                if (pairFilter === "all") return true;
+                return String(t.tradeSymbol) === pairFilter;
+            });
+    }, [trades, tfFilter, typeFilter, pairFilter]);
 
     const typeClass = (type) => {
         switch (type) {
@@ -121,6 +151,62 @@ export default function Trades() {
                 </div>
             </Card>
 
+            {/* Trade Type Filter (similar to category container) + Pair dropdown on right */}
+            <div className="mt-2 flex items-center gap-2">
+                <div className="flex-1 flex flex-nowrap items-center gap-2 overflow-x-auto no-scrollbar border border-[#1c1c1c] rounded-[6px] p-1.5 h-10">
+                    <button
+                        type="button"
+                        className={`cursor-pointer px-3 py-1 rounded-[6px] text-[11px] font-medium transition-colors border whitespace-nowrap shrink-0 ${
+                            typeFilter === "all"
+                                ? "bg-white text-black border-white"
+                                : "bg-zinc-900 text-zinc-300 border-zinc-700 hover:bg-zinc-800"
+                        }`}
+                        onClick={() => setTypeFilter("all")}
+                    >
+                        All
+                    </button>
+                    {["Real", "Funded", "Demo", "Backtest"].map((t) => (
+                        <button
+                            key={t}
+                            type="button"
+                            className={`cursor-pointer px-3 py-1 rounded-[6px] text-[11px] font-medium transition-colors border whitespace-nowrap shrink-0 ${
+                                typeFilter === t
+                                    ? "bg-white text-black border-white"
+                                    : "bg-zinc-900 text-zinc-300 border-zinc-700 hover:bg-zinc-800"
+                            }`}
+                            onClick={() => setTypeFilter(t)}
+                        >
+                            {t}
+                        </button>
+                    ))}
+                </div>
+                <div className="shrink-0">
+                    <Select value={pairFilter} onValueChange={setPairFilter}>
+                        <SelectTrigger className="h-10 w-[120px] rounded-[6px] text-[11px] bg-zinc-900 border border-[#1c1c1c]">
+                            <SelectValue placeholder="Pair" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Pairs</SelectItem>
+                            {allPairs.map((p) => (
+                                <SelectItem key={p} value={p}>
+                                    <div className="flex items-center gap-2">
+                                        {TradeSymbolIconMap[p] ? (
+                                            <Image
+                                                width={16}
+                                                height={16}
+                                                src={`/icons/${TradeSymbolIconMap[p]}`}
+                                                alt={`${p} icon`}
+                                            />
+                                        ) : null}
+                                        <span>{p}</span>
+                                    </div>
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+            </div>
+
             {/* Trades Table */}
             <Card className="rounded-md mt-2 p-0">
                 {loading ? (
@@ -128,7 +214,7 @@ export default function Trades() {
                         <Loader2 className="animate-spin mr-2" /> Loading trades
                     </div>
                 ) : (
-                    <div className="w-full overflow-x-auto">
+                    <div className="w-full overflow-x-auto no-scrollbar">
                         <table className="min-w-max w-full">
                             <thead className="text-[10px] font-bold">
                                 <tr className="text-[10px] border-b border-[#1c1c1c]">
@@ -254,7 +340,7 @@ export default function Trades() {
                 }}
             >
                 {selectedTrade ? (
-                    <DialogContent className="max-h-[90vh] overflow-y-auto no-scrollbar p-3 sm:p-4">
+                    <DialogContent className="max-h-[90vh] overflow-y-auto no-scrollbar p-3 sm:p-4 sm:max-w-none sm:w-[560px]">
                         <DialogHeader>
                             <DialogTitle className="flex items-center">
                                 <div>{selectedTrade.tradeSymbol}</div>
@@ -317,16 +403,16 @@ export default function Trades() {
                         </div>
 
                         <div className="mt-3">
-                            <div className="text-[12px] font-semibold mb-1">
-                                Strategy Points
-                            </div>
-                            <div className="space-y-1">
+                            <div className="text-[12px] leading-loose mt-1 mb-1 rounded-md border border-[#1c1c1c] overflow-hidden p-2 space-y-[2px]">
                                 {(selectedTrade.responses || []).map((item) => (
                                     <div
                                         key={item.question}
                                         className="text-[12px]"
                                     >
                                         <div className="flex items-center">
+                                            <span className="flex-1">
+                                                {item.question}
+                                            </span>
                                             <span
                                                 className={`${
                                                     item.checked
@@ -335,9 +421,6 @@ export default function Trades() {
                                                 }`}
                                             >
                                                 {item.checked ? "✓" : "✗"}
-                                            </span>
-                                            <span className="ml-2">
-                                                {item.question}
                                             </span>
                                         </div>
                                         {(item.secondaryResponses || []).map(
@@ -349,6 +432,9 @@ export default function Trades() {
                                                     }
                                                     className="flex items-center ml-5"
                                                 >
+                                                    <span className="flex-1">
+                                                        {child.question}
+                                                    </span>
                                                     <span
                                                         className={`${
                                                             child.checked
@@ -360,9 +446,6 @@ export default function Trades() {
                                                             ? "✓"
                                                             : "✗"}
                                                     </span>
-                                                    <span className="ml-2">
-                                                        {child.question}
-                                                    </span>
                                                 </div>
                                             )
                                         )}
@@ -372,14 +455,14 @@ export default function Trades() {
                         </div>
 
                         {selectedTrade.description ? (
-                            <div className="text-[12px] pb-2.5 mt-3">
+                            <div className="text-[12px] mt-0 rounded-md border border-[#1c1c1c] overflow-hidden p-2">
                                 {selectedTrade.description}
                             </div>
                         ) : null}
 
-                        <div className="-mt-4">
+                        <div className="mt-0">
                             {selectedTrade.lowTf ? (
-                                <div className="rounded-md mt-4">
+                                <div className="rounded-md mt-3 first:mt-1 border border-[#1c1c1c] overflow-hidden">
                                     <div className="px-4 py-2 text-[12px] font-semibold">
                                         {selectedTrade.isLowerTf
                                             ? "15min"
@@ -395,7 +478,7 @@ export default function Trades() {
                                 </div>
                             ) : null}
                             {selectedTrade.midTf ? (
-                                <div className="rounded-md mt-4">
+                                <div className="rounded-md mt-3 first:mt-1 border border-[#1c1c1c] overflow-hidden">
                                     <div className="px-4 py-2 text-[12px] font-semibold">
                                         {selectedTrade.isLowerTf ? "1H" : "1D"}
                                     </div>
@@ -409,7 +492,7 @@ export default function Trades() {
                                 </div>
                             ) : null}
                             {selectedTrade.highTf ? (
-                                <div className="rounded-md mt-4">
+                                <div className="rounded-md mt-3 first:mt-1 border border-[#1c1c1c] overflow-hidden">
                                     <div className="px-4 py-2 text-[12px] font-semibold">
                                         {selectedTrade.isLowerTf ? "4H" : "W"}
                                     </div>

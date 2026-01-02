@@ -2,7 +2,11 @@
 import { useState, useEffect } from "react";
 import styles from "../css/Login.module.css";
 
-export default function AuthTimer({ target = "2027-02-01T00:00:00" }) {
+export default function AuthTimer({
+    target = "2027-02-01T00:00:00",
+    className,
+    style,
+}) {
     const [timeLeft, setTimeLeft] = useState("");
 
     useEffect(() => {
@@ -35,5 +39,12 @@ export default function AuthTimer({ target = "2027-02-01T00:00:00" }) {
         return () => clearInterval(timer);
     }, [target]);
 
-    return <div className={styles.timer}>{timeLeft}</div>;
+    return (
+        <div
+            className={[styles.timer, className].filter(Boolean).join(" ")}
+            style={style}
+        >
+            {timeLeft}
+        </div>
+    );
 }
