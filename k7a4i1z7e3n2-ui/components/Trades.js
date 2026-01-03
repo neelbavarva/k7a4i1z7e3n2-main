@@ -342,7 +342,21 @@ export default function Trades() {
                 {selectedTrade ? (
                     <DialogContent className="max-h-[90vh] overflow-y-auto no-scrollbar p-3 sm:p-4 sm:max-w-none sm:w-[560px]">
                         <DialogHeader>
-                            <DialogTitle className="flex items-center">
+                            <DialogTitle className="flex items-center gap-2">
+                                {TradeSymbolIconMap[
+                                    selectedTrade.tradeSymbol
+                                ] ? (
+                                    <Image
+                                        width={16}
+                                        height={16}
+                                        src={`/icons/${
+                                            TradeSymbolIconMap[
+                                                selectedTrade.tradeSymbol
+                                            ]
+                                        }`}
+                                        alt={`${selectedTrade.tradeSymbol} icon`}
+                                    />
+                                ) : null}
                                 <div>{selectedTrade.tradeSymbol}</div>
                             </DialogTitle>
                             <DialogDescription className="text-[12px] pt-1">
@@ -374,45 +388,43 @@ export default function Trades() {
                             </DialogDescription>
                         </DialogHeader>
 
-                        <div className="flex items-center flex-wrap gap-x-6 text-[12px] mt-1">
-                            <div className="flex items-center">
-                                <div>Date</div>
-                                <div className="ml-2">
+                        <div className="grid grid-cols-3 items-center text-[12px] mt-1 rounded-md border border-[#1c1c1c] overflow-hidden p-2">
+                            <div className="text-left flex items-center gap-2">
+                                <span className="opacity-80">
                                     {selectedTrade.dateOfTrade}
-                                </div>
+                                </span>
                             </div>
-                            <div className="flex items-center">
-                                <div>Risk Ratio</div>
-                                <div className="ml-2">
+                            <div className="text-center flex items-center justify-center gap-2">
+                                <span>Risk Ratio</span>
+                                <span className="opacity-80">
                                     {selectedTrade.riskRewardRatio}
-                                </div>
+                                </span>
                             </div>
-                            <div className="flex items-center">
-                                <div>PnL</div>
-                                <div
+                            <div className="text-right flex items-center justify-end gap-2">
+                                <span>PnL</span>
+                                <span
                                     className={`${
                                         (parseFloat(selectedTrade.totalPnL) ||
                                             0) >= 0
                                             ? "text-[#4fe3c1]"
                                             : "text-[#ff0000]"
-                                    } ml-2`}
+                                    }`}
                                 >
                                     {selectedTrade.totalPnL} USD
-                                </div>
+                                </span>
                             </div>
                         </div>
 
-                        <div className="mt-3">
-                            <div className="text-[12px] leading-loose mt-1 mb-1 rounded-md border border-[#1c1c1c] overflow-hidden p-2 space-y-[2px]">
+                        <div className="mt-1">
+                            <div className="text-[12px] leading-loose mt-1 mb-0 rounded-md border border-[#1c1c1c] overflow-hidden p-2 space-y-[2px]">
                                 {(selectedTrade.responses || []).map((item) => (
                                     <div
                                         key={item.question}
                                         className="text-[12px]"
                                     >
-                                        <div className="flex items-center">
-                                            <span className="flex-1">
-                                                {item.question}
-                                            </span>
+                                        <div className="flex items-center gap-2">
+                                            <span>{item.question}</span>
+                                            <span className="h-[1px] bg-[#1c1c1c] flex-1" />
                                             <span
                                                 className={`${
                                                     item.checked
@@ -430,11 +442,12 @@ export default function Trades() {
                                                         child._id ||
                                                         child.question
                                                     }
-                                                    className="flex items-center ml-5"
+                                                    className="flex items-center ml-5 gap-2"
                                                 >
-                                                    <span className="flex-1">
+                                                    <span>
                                                         {child.question}
                                                     </span>
+                                                    <span className="h-[1px] bg-[#1c1c1c] flex-1" />
                                                     <span
                                                         className={`${
                                                             child.checked
@@ -462,7 +475,7 @@ export default function Trades() {
 
                         <div className="mt-0">
                             {selectedTrade.lowTf ? (
-                                <div className="rounded-md mt-3 first:mt-1 border border-[#1c1c1c] overflow-hidden">
+                                <div className="rounded-md mt-3 first:mt-0 border border-[#1c1c1c] overflow-hidden">
                                     <div className="px-4 py-2 text-[12px] font-semibold">
                                         {selectedTrade.isLowerTf
                                             ? "15min"
@@ -478,7 +491,7 @@ export default function Trades() {
                                 </div>
                             ) : null}
                             {selectedTrade.midTf ? (
-                                <div className="rounded-md mt-3 first:mt-1 border border-[#1c1c1c] overflow-hidden">
+                                <div className="rounded-md mt-3 first:mt-0 border border-[#1c1c1c] overflow-hidden">
                                     <div className="px-4 py-2 text-[12px] font-semibold">
                                         {selectedTrade.isLowerTf ? "1H" : "1D"}
                                     </div>
@@ -492,7 +505,7 @@ export default function Trades() {
                                 </div>
                             ) : null}
                             {selectedTrade.highTf ? (
-                                <div className="rounded-md mt-3 first:mt-1 border border-[#1c1c1c] overflow-hidden">
+                                <div className="rounded-md mt-3 first:mt-0 border border-[#1c1c1c] overflow-hidden">
                                     <div className="px-4 py-2 text-[12px] font-semibold">
                                         {selectedTrade.isLowerTf ? "4H" : "W"}
                                     </div>

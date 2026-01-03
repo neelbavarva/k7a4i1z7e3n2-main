@@ -353,28 +353,34 @@ export default function Main({ onLogout }) {
                 </div>
             </header>
 
-            <div className="w-full">
-                <div className="max-w-3xl mx-auto px-4 pt-3">
-                    <div className="rounded-md border border-[#1c1c1c] p-2 pb-6">
-                        <div className="flex flex-col items-center">
-                            <div className="self-start">
-                                <AuthTimer
-                                    style={{ fontSize: 8, marginTop: 0 }}
-                                />
-                            </div>
-                            <div className="text-[32px] font-semibold tracking-wide mt-1 text-center">
-                                {getCurrentSession()}
-                            </div>
-                            <div className="text-[12px] text-zinc-400 mt-1 text-center">
-                                {getSessionTiming()}
+            {activeTab === "trades" ? (
+                <div className="w-full">
+                    <div className="max-w-3xl mx-auto px-4 pt-2">
+                        <div className="rounded-md border border-[#1c1c1c] p-2 pb-6">
+                            <div className="flex flex-col items-center">
+                                <div className="self-start">
+                                    <AuthTimer
+                                        style={{ fontSize: 8, marginTop: 0 }}
+                                    />
+                                </div>
+                                <div className="text-[32px] font-semibold tracking-wide mt-1 text-center">
+                                    {getCurrentSession()}
+                                </div>
+                                <div className="text-[12px] text-zinc-400 mt-1 text-center">
+                                    {getSessionTiming()}
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            ) : null}
 
             <main className="flex-1 w-full">
-                <div className="max-w-3xl mx-auto px-4 pt-0 pb-6">
+                <div
+                    className={`max-w-3xl mx-auto px-4 ${
+                        activeTab === "passwords" ? "pt-6" : "pt-0"
+                    } pb-6`}
+                >
                     {activeTab === "passwords" ? (
                         <Passwords refreshKey={refreshKey} />
                     ) : (
