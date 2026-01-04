@@ -365,17 +365,17 @@ export default function Main({ onLogout }) {
                                         style={{ fontSize: 8, marginTop: 0 }}
                                     />
                                 </div>
-                                <div className="text-[32px] font-semibold tracking-wide mt-1 text-center">
+                                <div className="text-[18px] sm:text-[24px] md:text-[32px] font-semibold tracking-wide mt-1 text-center">
                                     {getCurrentSession()}
                                 </div>
-                                <div className="text-[12px] text-zinc-400 mt-1 text-center">
+                                <div className="text-[10px] sm:text-[12px] text-zinc-400 mt-1 text-center">
                                     {getSessionTiming()}
                                 </div>
                             </div>
                         </div>
                         <div className="mt-2">
                             <Button
-                                className="w-full cursor-pointer"
+                                className="w-full h-10 cursor-pointer"
                                 onClick={() => setStrategyOpen(true)}
                             >
                                 Strategy Analysis
