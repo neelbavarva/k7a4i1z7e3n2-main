@@ -27,6 +27,7 @@ import AddTrade from "./AddTrade";
 import { toast } from "sonner";
 import AuthTimer from "./AuthTimer";
 import { getCurrentSession, getSessionTiming } from "../lib/session";
+import StrategyAnalysis from "./StrategyAnalysis";
 
 export default function Main({ onLogout }) {
     const [activeTab, setActiveTab] = useState(() => {
@@ -48,6 +49,7 @@ export default function Main({ onLogout }) {
 
     const [addOpen, setAddOpen] = useState(false);
     const [addMode, setAddMode] = useState("password");
+    const [strategyOpen, setStrategyOpen] = useState(false);
 
     const [pwName, setPwName] = useState("");
     const [pwEmail, setPwEmail] = useState("");
@@ -370,6 +372,14 @@ export default function Main({ onLogout }) {
                                     {getSessionTiming()}
                                 </div>
                             </div>
+                        </div>
+                        <div className="mt-2">
+                            <Button
+                                className="w-full cursor-pointer"
+                                onClick={() => setStrategyOpen(true)}
+                            >
+                                Strategy Analysis
+                            </Button>
                         </div>
                     </div>
                 </div>
@@ -1023,6 +1033,15 @@ export default function Main({ onLogout }) {
                             )}
                         </div>
                     )}
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={strategyOpen} onOpenChange={setStrategyOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Strategy Analysis</DialogTitle>
+                    </DialogHeader>
+                    <StrategyAnalysis />
                 </DialogContent>
             </Dialog>
         </div>

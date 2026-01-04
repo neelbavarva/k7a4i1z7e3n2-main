@@ -1,5 +1,6 @@
 .loginCard {
     display: flex;
+    flex-direction: column;
     width: 275px !important;
     height: 320px !important;
     padding-left: 0.5rem;

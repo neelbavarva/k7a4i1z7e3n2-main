@@ -26,12 +26,21 @@ import AuthTimer from "./AuthTimer";
 import { Lock } from "lucide-react";
 import { s } from "motion/react-client";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+} from "@/components/ui/dialog";
 
 export default function Login({ onSuccess }) {
     const [otp, setOtp] = useState("");
     const [loading, setLoading] = useState(false);
     const [blockedInfo, setBlockedInfo] = useState(null);
     const [initializing, setInitializing] = useState(true); // NEW
+    const [strategyOpen, setStrategyOpen] = useState(false);
     const inputRef = useRef(null);
 
     // Initial check: cache + IP/block status
@@ -177,6 +186,16 @@ export default function Login({ onSuccess }) {
                     )}
                 </form>
             </Card>
+            <Dialog open={strategyOpen} onOpenChange={setStrategyOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Strategy Analysis</DialogTitle>
+                        <DialogDescription>
+                            This dialog will be implemented soon.
+                        </DialogDescription>
+                    </DialogHeader>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
