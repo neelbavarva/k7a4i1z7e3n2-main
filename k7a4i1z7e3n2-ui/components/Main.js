@@ -22,7 +22,7 @@ import {
     SelectItem,
 } from "./ui/select";
 import { PASSWORD_CATEGORIES } from "@/lib/categories";
-import { LogOut, Settings2 } from "lucide-react";
+import { LogOut, Settings2, Sparkles } from "lucide-react";
 import AddTrade from "./AddTrade";
 import { toast } from "sonner";
 import AuthTimer from "./AuthTimer";
@@ -85,6 +85,38 @@ export default function Main({ onLogout }) {
         if (typeof window === "undefined") return;
         localStorage.setItem("mainActiveSection", activeTab);
     }, [activeTab]);
+
+    function generateRandomPassword() {
+        const length = 32;
+        const uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        const lowercase = "abcdefghijklmnopqrstuvwxyz";
+        const numbers = "0123456789";
+        const special = "!@#$%^&*()_+-=[]{}|;:,.<>?";
+        const allChars = uppercase + lowercase + numbers + special;
+
+        let password = "";
+        // Ensure at least one of each type
+        password += uppercase[Math.floor(Math.random() * uppercase.length)];
+        password += lowercase[Math.floor(Math.random() * lowercase.length)];
+        password += numbers[Math.floor(Math.random() * numbers.length)];
+        password += special[Math.floor(Math.random() * special.length)];
+
+        // Fill the rest randomly
+        for (let i = password.length; i < length; i++) {
+            password += allChars[Math.floor(Math.random() * allChars.length)];
+        }
+
+        // Shuffle the password
+        password = password
+            .split("")
+            .sort(() => Math.random() - 0.5)
+            .join("");
+
+        setPwPassword(password);
+        toast.success("Password generated", {
+            description: "A secure 32-character password has been generated.",
+        });
+    }
 
     function resetForms() {
         setPwName("");
@@ -526,21 +558,36 @@ export default function Main({ onLogout }) {
                                         <label className="text-xs text-zinc-400">
                                             Password
                                         </label>
-                                        <Input
-                                            type="password"
-                                            value={pwPassword}
-                                            onChange={(e) =>
-                                                setPwPassword(e.target.value)
-                                            }
-                                            placeholder="Enter password to encrypt"
-                                        />
+                                        <div className="flex gap-2">
+                                            <Input
+                                                type="text"
+                                                value={pwPassword}
+                                                onChange={(e) =>
+                                                    setPwPassword(
+                                                        e.target.value
+                                                    )
+                                                }
+                                                placeholder="Enter password to encrypt"
+                                                className="flex-1"
+                                            />
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="icon"
+                                                onClick={generateRandomPassword}
+                                                className="shrink-0 h-8 w-8 cursor-pointer"
+                                                title="Generate secure password"
+                                            >
+                                                <Sparkles className="h-4 w-4" />
+                                            </Button>
+                                        </div>
                                     </div>
                                     <div className="space-y-1">
                                         <label className="text-xs text-zinc-400">
                                             Encryption key
                                         </label>
                                         <Input
-                                            type="password"
+                                            type="text"
                                             value={pwKey}
                                             onChange={(e) =>
                                                 setPwKey(e.target.value)
