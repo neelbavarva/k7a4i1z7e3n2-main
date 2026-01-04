@@ -217,7 +217,14 @@ export default function StrategyAnalysis() {
                         style={{ aspectRatio: "1 / 1" }}
                     >
                         <div className="h-full w-full px-2 py-3 flex items-center justify-center">
-                            <CircleStat label="Accuracy" value={selectedAcc} />
+                            {loading ? (
+                                <CircleLoader size={100} stroke={6} />
+                            ) : (
+                                <CircleStat
+                                    label="Accuracy"
+                                    value={selectedAcc}
+                                />
+                            )}
                         </div>
                     </div>
                     <div className="mt-2 text-center text-[11px]">Accuracy</div>
@@ -228,10 +235,14 @@ export default function StrategyAnalysis() {
                         style={{ aspectRatio: "1 / 1" }}
                     >
                         <div className="h-full w-full px-2 py-3 flex items-center justify-center">
-                            <CircleStat
-                                label="Profit Accuracy"
-                                value={getProfitAccuracy()}
-                            />
+                            {loading ? (
+                                <CircleLoader size={100} stroke={6} />
+                            ) : (
+                                <CircleStat
+                                    label="Profit Accuracy"
+                                    value={getProfitAccuracy()}
+                                />
+                            )}
                         </div>
                     </div>
                     <div className="mt-2 text-center text-[11px]">
@@ -278,6 +289,44 @@ function CircleStat({ label, value, size = 100, stroke = 6 }) {
                         {clamped.toFixed(1)}%
                     </div>
                 </div>
+            </div>
+        </div>
+    );
+}
+
+function CircleLoader({ size = 100, stroke = 6 }) {
+    const radius = (size - stroke) / 2;
+    const circumference = 2 * Math.PI * radius;
+    const dash = 0.33 * circumference; // 33% arc
+    const center = size / 2;
+    return (
+        <div className="flex items-center justify-center">
+            <div className="relative" style={{ width: size, height: size }}>
+                <svg width={size} height={size}>
+                    <circle
+                        cx={center}
+                        cy={center}
+                        r={radius}
+                        stroke="#222"
+                        strokeWidth={stroke}
+                        fill="none"
+                    />
+                    <g
+                        className="animate-spin"
+                        style={{ transformOrigin: `${center}px ${center}px` }}
+                    >
+                        <circle
+                            cx={center}
+                            cy={center}
+                            r={radius}
+                            stroke="#ffffff"
+                            strokeWidth={stroke}
+                            fill="none"
+                            strokeLinecap="round"
+                            strokeDasharray={`${dash} ${circumference - dash}`}
+                        />
+                    </g>
+                </svg>
             </div>
         </div>
     );
