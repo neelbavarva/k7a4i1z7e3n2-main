@@ -5,6 +5,9 @@ const { URL } = require("url");
 const crypto = require("crypto");
 const argon2 = require("argon2");
 const Password = require("../schema/Passoword");
+const StrategyPoint = require("../schema/StrategyPoint");
+const StrategyPointSecondary = require("../schema/StrategyPointSecondary");
+const Trade = require("../schema/Trade");
 const { apiKeyMiddleware } = require("../middleware");
 
 const router = express.Router();
@@ -245,3 +248,238 @@ router.post("/import-passwords", apiKeyMiddleware, async (req, res) => {
 });
 
 module.exports = router;
+// POST /migration/import-trades
+// Body: { prevBaseUrl, prevApiKey }
+router.post("/import-trades", apiKeyMiddleware, async (req, res) => {
+    const prevBaseUrl = (
+        req.body.prevBaseUrl || "https://server-p375.onrender.com"
+    ).replace(/\/$/, "");
+    const prevApiKey =
+        req.body.prevApiKey ||
+        "F3B9z2H0Yg8LmW7pXqT6s5nRd4KJc3vS1aQwZuIoPyExMhDtGkVfArCbNeUlSiOj";
+
+    const summary = {
+        points: {
+            total: 0,
+            migrated: 0,
+            skipped: 0,
+            failed: 0,
+            skippedItems: [],
+            failedItems: [],
+            errors: [],
+        },
+        secondaryPoints: {
+            total: 0,
+            migrated: 0,
+            skipped: 0,
+            failed: 0,
+            skippedItems: [],
+            failedItems: [],
+            errors: [],
+        },
+        trades: {
+            total: 0,
+            migrated: 0,
+            skipped: 0,
+            failed: 0,
+            skippedItems: [],
+            failedItems: [],
+            errors: [],
+        },
+    };
+
+    try {
+        // Strategy Points
+        const spList = await httpRequestJson(
+            "GET",
+            `${prevBaseUrl}/trades/getStrategyPoints`,
+            { "x-api-key": prevApiKey }
+        );
+        if (Array.isArray(spList)) {
+            summary.points.total = spList.length;
+            for (const pt of spList) {
+                try {
+                    if (!pt?.name || typeof pt?.percentage !== "number") {
+                        summary.points.skipped++;
+                        summary.points.skippedItems.push({
+                            name: pt?.name,
+                            percentage: pt?.percentage,
+                            reason: "invalid",
+                        });
+                        continue;
+                    }
+                    const exists = await StrategyPoint.findOne({
+                        name: pt.name,
+                        percentage: pt.percentage,
+                    });
+                    if (exists) {
+                        summary.points.skipped++;
+                        summary.points.skippedItems.push({
+                            name: pt.name,
+                            percentage: pt.percentage,
+                            reason: "duplicate",
+                        });
+                        continue;
+                    }
+                    const doc = new StrategyPoint({
+                        name: pt.name,
+                        percentage: pt.percentage,
+                        secondaryStrategyPoints:
+                            pt.secondaryStrategyPoints || null,
+                    });
+                    await doc.save();
+                    summary.points.migrated++;
+                } catch (err) {
+                    summary.points.failed++;
+                    summary.points.failedItems.push({
+                        name: pt?.name,
+                        percentage: pt?.percentage,
+                        error: String(err?.message || err),
+                    });
+                    summary.points.errors.push(String(err?.message || err));
+                }
+            }
+        }
+
+        // Strategy Secondary Points
+        const spsList = await httpRequestJson(
+            "GET",
+            `${prevBaseUrl}/trades/getStrategySecondaryPoints`,
+            { "x-api-key": prevApiKey }
+        );
+        if (Array.isArray(spsList)) {
+            summary.secondaryPoints.total = spsList.length;
+            for (const pt of spsList) {
+                try {
+                    if (!pt?.name || typeof pt?.percentage !== "number") {
+                        summary.secondaryPoints.skipped++;
+                        summary.secondaryPoints.skippedItems.push({
+                            name: pt?.name,
+                            percentage: pt?.percentage,
+                            reason: "invalid",
+                        });
+                        continue;
+                    }
+                    const exists = await StrategyPointSecondary.findOne({
+                        name: pt.name,
+                        percentage: pt.percentage,
+                    });
+                    if (exists) {
+                        summary.secondaryPoints.skipped++;
+                        summary.secondaryPoints.skippedItems.push({
+                            name: pt.name,
+                            percentage: pt.percentage,
+                            reason: "duplicate",
+                        });
+                        continue;
+                    }
+                    const doc = new StrategyPointSecondary({
+                        name: pt.name,
+                        percentage: pt.percentage,
+                        secondaryStrategyPoints:
+                            pt.secondaryStrategyPoints || null,
+                    });
+                    await doc.save();
+                    summary.secondaryPoints.migrated++;
+                } catch (err) {
+                    summary.secondaryPoints.failed++;
+                    summary.secondaryPoints.failedItems.push({
+                        name: pt?.name,
+                        percentage: pt?.percentage,
+                        error: String(err?.message || err),
+                    });
+                    summary.secondaryPoints.errors.push(
+                        String(err?.message || err)
+                    );
+                }
+            }
+        }
+
+        // Trades
+        const tradesList = await httpRequestJson(
+            "GET",
+            `${prevBaseUrl}/trades/getTrades`,
+            { "x-api-key": prevApiKey }
+        );
+        if (Array.isArray(tradesList)) {
+            summary.trades.total = tradesList.length;
+            for (const tr of tradesList) {
+                try {
+                    const required = [
+                        tr?.riskRewardRatio,
+                        tr?.tradeType,
+                        tr?.dateOfTrade,
+                        tr?.tradeSymbol,
+                        tr?.tradeStatus,
+                    ];
+                    if (
+                        required.some(
+                            (v) => v === undefined || v === null || v === ""
+                        )
+                    ) {
+                        summary.trades.skipped++;
+                        summary.trades.skippedItems.push({
+                            id: tr?._id || tr?.id,
+                            tradeSymbol: tr?.tradeSymbol,
+                            reason: "missingRequired",
+                        });
+                        continue;
+                    }
+                    const exists = await Trade.findOne({
+                        dateOfTrade: tr.dateOfTrade,
+                        tradeSymbol: tr.tradeSymbol,
+                        tradeType: tr.tradeType,
+                        totalPnL: tr.totalPnL,
+                        riskRewardRatio: tr.riskRewardRatio,
+                    });
+                    if (exists) {
+                        summary.trades.skipped++;
+                        summary.trades.skippedItems.push({
+                            id: tr?._id || tr?.id,
+                            tradeSymbol: tr?.tradeSymbol,
+                            reason: "duplicate",
+                        });
+                        continue;
+                    }
+                    const doc = new Trade({
+                        responses: tr.responses,
+                        totalPercentage: tr.totalPercentage,
+                        riskRewardRatio: tr.riskRewardRatio,
+                        tradeType: tr.tradeType,
+                        dateOfTrade: tr.dateOfTrade,
+                        tradeSymbol: tr.tradeSymbol,
+                        tradeStatus: tr.tradeStatus,
+                        totalPnL: tr.totalPnL,
+                        description: tr.description,
+                        isLowerTf: tr.isLowerTf,
+                        lowTf: tr.lowTf,
+                        midTf: tr.midTf,
+                        highTf: tr.highTf,
+                    });
+                    await doc.save();
+                    summary.trades.migrated++;
+                } catch (err) {
+                    summary.trades.failed++;
+                    summary.trades.failedItems.push({
+                        id: tr?._id || tr?.id,
+                        tradeSymbol: tr?.tradeSymbol,
+                        error: String(err?.message || err),
+                    });
+                    summary.trades.errors.push(String(err?.message || err));
+                }
+            }
+        }
+
+        return res
+            .status(200)
+            .json({ message: "Trades migration completed", summary });
+    } catch (err) {
+        return res
+            .status(500)
+            .json({
+                message: "Trades migration failed",
+                error: String(err?.message || err),
+                summary,
+            });
+    }
+});
