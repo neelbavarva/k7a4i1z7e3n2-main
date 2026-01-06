@@ -281,7 +281,7 @@ export default function Passwords({ refreshKey = 0 }) {
                                     isLocked
                                         ? "border-[#f5365c] opacity-50"
                                         : "border-zinc-800 hover:border-zinc-500"
-                                } min-w-[300px] max-w-sm bg-zinc-950/60 rounded-md p-3 cursor-pointer transition-colors`}
+                                } min-w-[360px] max-w-sm bg-zinc-950/60 rounded-md p-3 cursor-pointer transition-colors`}
                                 onClick={() => handleCardClick(card)}
                             >
                                 <CardHeader className="px-0 py-0">
