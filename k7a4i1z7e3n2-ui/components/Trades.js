@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
     Dialog,
     DialogContent,
@@ -9,7 +10,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import Image from "next/image";
-import { Loader2, ClockArrowUp, ClockArrowDown } from "lucide-react";
+import { Loader2, ClockArrowUp, ClockArrowDown, Minus, Check, X } from "lucide-react";
 import { TradeSymbolIconMap } from "./TradeSymbols";
 import {
     Select,
@@ -359,32 +360,33 @@ export default function Trades() {
                                 ) : null}
                                 <div>{selectedTrade.tradeSymbol}</div>
                             </DialogTitle>
-                            <DialogDescription className="text-[12px] pt-1">
-                                <span
+                            <DialogDescription className="text-[12px] pt-1 flex items-center gap-2">
+                                <Badge
+                                    variant="outline"
                                     className={`${gradeColorClass(
                                         selectedTrade.totalPercentage || 0
-                                    )}`}
+                                    )} border-current`}
                                 >
                                     {gradeLabel(
                                         selectedTrade.totalPercentage || 0
                                     )}
-                                </span>
-                                <span className="mx-2">,</span>
-                                <span
+                                </Badge>
+                                <Badge
+                                    variant="outline"
                                     className={`${typeClass(
                                         selectedTrade.tradeType
-                                    )}`}
+                                    )} border-current`}
                                 >
                                     {selectedTrade.tradeType}
-                                </span>
-                                <span className="mx-2">,</span>
-                                <span
+                                </Badge>
+                                <Badge
+                                    variant="outline"
                                     className={`${statusClass(
                                         selectedTrade.tradeStatus
-                                    )}`}
+                                    )} border-current`}
                                 >
                                     {selectedTrade.tradeStatus}
-                                </span>
+                                </Badge>
                             </DialogDescription>
                         </DialogHeader>
 
@@ -425,15 +427,11 @@ export default function Trades() {
                                         <div className="flex items-center gap-2">
                                             <span>{item.question}</span>
                                             <span className="h-[1px] bg-[#1c1c1c] flex-1" />
-                                            <span
-                                                className={`${
-                                                    item.checked
-                                                        ? "text-[#4fe3c1]"
-                                                        : "text-[#ff0000]"
-                                                }`}
-                                            >
-                                                {item.checked ? "✓" : "✗"}
-                                            </span>
+                                            {item.checked ? (
+                                                <Check size={16} color="#4fe3c1" />
+                                            ) : (
+                                                <X size={16} color="#ff0000" />
+                                            )}
                                         </div>
                                         {(item.secondaryResponses || []).map(
                                             (child) => (
@@ -444,21 +442,16 @@ export default function Trades() {
                                                     }
                                                     className="flex items-center ml-5 gap-2"
                                                 >
+                                                    <Minus size={16} color="rgba(85,85,85)" />
                                                     <span>
                                                         {child.question}
                                                     </span>
                                                     <span className="h-[1px] bg-[#1c1c1c] flex-1" />
-                                                    <span
-                                                        className={`${
-                                                            child.checked
-                                                                ? "text-[#4fe3c1]"
-                                                                : "text-[#ff0000]"
-                                                        }`}
-                                                    >
-                                                        {child.checked
-                                                            ? "✓"
-                                                            : "✗"}
-                                                    </span>
+                                                    {child.checked ? (
+                                                        <Check size={16} color="#4fe3c1" />
+                                                    ) : (
+                                                        <X size={16} color="#ff0000" />
+                                                    )}
                                                 </div>
                                             )
                                         )}

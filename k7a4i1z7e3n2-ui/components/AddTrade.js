@@ -188,11 +188,21 @@ export default function AddTrade({ inline = false }) {
         <div className="space-y-2">
             <Card className="w-full flex flex-row items-center px-2 py-2">
                 <div className="text-[12px]">Counter Trade</div>
-                <Switch
-                    className="ml-auto"
-                    checked={counterTrade}
-                    onCheckedChange={setCounterTrade}
-                />
+                <button
+                    type="button"
+                    onClick={() => setCounterTrade(!counterTrade)}
+                    className={`ml-auto relative inline-flex h-5 w-9 items-center justify-start rounded-full transition-colors focus-visible:outline-none border cursor-pointer ${
+                        counterTrade 
+                            ? "bg-[#ff0000] border-[#ff0000]" 
+                            : "bg-black border-[#1c1c1c]"
+                    }`}
+                >
+                    <span
+                        className={`inline-block h-3 w-3 rounded-full bg-white transition-transform ${
+                            counterTrade ? "translate-x-5" : "translate-x-1"
+                        }`}
+                    />
+                </button>
             </Card>
             <Card className="w-full flex flex-row items-center gap-1 px-1 py-1">
                 <Button
@@ -247,11 +257,12 @@ export default function AddTrade({ inline = false }) {
                                 className="flex flex-col mt-1 -mb-1"
                                 key={item._id}
                             >
-                                <div className="flex items-center -mt-5 text-[10px] leading-[16px]">
-                                    <div className="flex-1 pr-3 sm:pr-4">
+                                <div className="flex items-center -mt-5 text-[10px] leading-[16px] gap-2">
+                                    <div className="pr-3 sm:pr-4">
                                         {item.name}
                                     </div>
-                                    <div className="ml-auto flex items-center pl-3 gap-2">
+                                    <span className="h-[1px] bg-[#1c1c1c] flex-1" />
+                                    <div className="flex items-center gap-2">
                                         <div className="text-[10px]">
                                             {item.percentage}%
                                         </div>
@@ -277,16 +288,17 @@ export default function AddTrade({ inline = false }) {
                                             {item.secondaryStrategyPoints.map(
                                                 (child) => (
                                                     <div
-                                                        className="flex items-center mt-[2px]"
+                                                        className="flex items-center mt-[2px] gap-2"
                                                         key={child._id}
                                                     >
-                                                        <div className="flex items-center justify-start gap-2 flex-1 pr-3 sm:pr-4">
+                                                        <div className="flex items-center justify-start gap-2 pr-3 sm:pr-4">
                                                             <Minus color="rgba(85,85,85)" />
                                                             <div className="text-[10px]">
                                                                 {child.name}
                                                             </div>
                                                         </div>
-                                                        <div className="ml-auto flex items-center pl-3 gap-2">
+                                                        <span className="h-[1px] bg-[#1c1c1c] flex-1" />
+                                                        <div className="flex items-center gap-2">
                                                             <div className="text-[10px]">
                                                                 {
                                                                     child.percentage
