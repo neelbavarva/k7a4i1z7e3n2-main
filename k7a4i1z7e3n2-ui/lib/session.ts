@@ -1,3 +1,23 @@
+function isMarketClosed(): boolean {
+    const now = new Date();
+    const day = now.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
+    const currentMinutes = hours * 60 + minutes;
+    const marketOpenTime = 17 * 60; // 5:00 PM ET (17:00)
+
+    // Market is closed on Saturday (all day)
+    if (day === 6) return true;
+    
+    // Market is closed on Friday after 5:00 PM ET
+    if (day === 5 && currentMinutes >= marketOpenTime) return true;
+    
+    // Market is closed on Sunday before 5:00 PM ET
+    if (day === 0 && currentMinutes < marketOpenTime) return true;
+    
+    return false;
+}
+
 export function getCurrentSession(marketPointer?: any): string {
     const now = new Date();
     const hours = now.getHours();
@@ -5,6 +25,10 @@ export function getCurrentSession(marketPointer?: any): string {
     const currentMinutes = hours * 60 + minutes;
 
     if (marketPointer != null && marketPointer.currencies?.fx === "closed") {
+        return "Market is Closed";
+    }
+
+    if (isMarketClosed()) {
         return "Market is Closed";
     }
 
@@ -37,12 +61,38 @@ export function getCurrentSession(marketPointer?: any): string {
 
 export function getSessionTiming(marketPointer?: any): string {
     const now = new Date();
+    const day = now.getDay();
     const hours = now.getHours();
     const minutes = now.getMinutes();
     const currentMinutes = hours * 60 + minutes;
 
     if (marketPointer != null && marketPointer.currencies?.fx === "closed") {
         return "Analyze and mark you Zones";
+    }
+
+    if (isMarketClosed()) {
+        // Calculate time until market opens (Sunday 5:00 PM ET)
+        const marketOpenTime = 17 * 60; // 5:00 PM
+        let minutesUntilOpen: number;
+
+        if (day === 6) {
+            // Saturday: calculate to Sunday 5:00 PM
+            minutesUntilOpen = (24 * 60 - currentMinutes) + marketOpenTime;
+        } else if (day === 5 && currentMinutes >= marketOpenTime) {
+            // Friday after 5:00 PM: calculate to Sunday 5:00 PM
+            const minutesUntilMidnight = 24 * 60 - currentMinutes;
+            const saturdayMinutes = 24 * 60; // All of Saturday
+            minutesUntilOpen = minutesUntilMidnight + saturdayMinutes + marketOpenTime;
+        } else if (day === 0 && currentMinutes < marketOpenTime) {
+            // Sunday before 5:00 PM
+            minutesUntilOpen = marketOpenTime - currentMinutes;
+        } else {
+            minutesUntilOpen = 0;
+        }
+
+        const h = Math.floor(minutesUntilOpen / 60);
+        const m = minutesUntilOpen % 60;
+        return `Market will open in ${h}hrs ${m}min`;
     }
 
     const sessions = [
