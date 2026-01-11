@@ -10,7 +10,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import Image from "next/image";
-import { Loader2, ClockArrowUp, ClockArrowDown, Minus, Check, X } from "lucide-react";
+import { Loader2, ClockArrowUp, ClockArrowDown, Minus, Check, X, Download } from "lucide-react";
 import { TradeSymbolIconMap } from "./TradeSymbols";
 import {
     Select,
@@ -512,6 +512,30 @@ export default function Trades() {
                                 </div>
                             ) : null}
                         </div>
+
+                        {/* Download button if no images */}
+                        {!selectedTrade.lowTf &&
+                        !selectedTrade.midTf &&
+                        !selectedTrade.highTf ? (
+                            <div className="-mt-3">
+                                <Button
+                                    onClick={() => {
+                                        // Download Forex.zip from public folder
+                                        const a = document.createElement("a");
+                                        a.href = "/Forex.zip";
+                                        a.download = "Forex.zip";
+                                        document.body.appendChild(a);
+                                        a.click();
+                                        document.body.removeChild(a);
+                                    }}
+                                    className="w-full cursor-pointer"
+                                    variant="outline"
+                                >
+                                    <Download className="mr-2 h-4 w-4" />
+                                    Download Old Trades Data
+                                </Button>
+                            </div>
+                        ) : null}
                     </DialogContent>
                 ) : null}
             </Dialog>
