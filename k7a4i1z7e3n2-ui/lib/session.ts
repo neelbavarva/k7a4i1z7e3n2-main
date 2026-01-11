@@ -1,9 +1,16 @@
-function isMarketClosed(): boolean {
+function getETTime(): { day: number; hours: number; minutes: number; currentMinutes: number } {
     const now = new Date();
-    const day = now.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-    const hours = now.getHours();
-    const minutes = now.getMinutes();
+    // Convert to ET timezone
+    const etTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    const day = etTime.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    const hours = etTime.getHours();
+    const minutes = etTime.getMinutes();
     const currentMinutes = hours * 60 + minutes;
+    return { day, hours, minutes, currentMinutes };
+}
+
+function isMarketClosed(): boolean {
+    const { day, currentMinutes } = getETTime();
     const marketOpenTime = 17 * 60; // 5:00 PM ET (17:00)
 
     // Market is closed on Saturday (all day)
@@ -19,10 +26,7 @@ function isMarketClosed(): boolean {
 }
 
 export function getCurrentSession(marketPointer?: any): string {
-    const now = new Date();
-    const hours = now.getHours();
-    const minutes = now.getMinutes();
-    const currentMinutes = hours * 60 + minutes;
+    const { currentMinutes } = getETTime();
 
     if (marketPointer != null && marketPointer.currencies?.fx === "closed") {
         return "Market is Closed";
@@ -60,11 +64,7 @@ export function getCurrentSession(marketPointer?: any): string {
 }
 
 export function getSessionTiming(marketPointer?: any): string {
-    const now = new Date();
-    const day = now.getDay();
-    const hours = now.getHours();
-    const minutes = now.getMinutes();
-    const currentMinutes = hours * 60 + minutes;
+    const { day, currentMinutes } = getETTime();
 
     if (marketPointer != null && marketPointer.currencies?.fx === "closed") {
         return "Analyze and mark you Zones";
