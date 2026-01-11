@@ -191,14 +191,14 @@ export default function AddTrade({ inline = false }) {
                 <button
                     type="button"
                     onClick={() => setCounterTrade(!counterTrade)}
-                    className={`ml-auto relative inline-flex h-5 w-9 items-center justify-start rounded-full transition-colors focus-visible:outline-none border cursor-pointer ${
+                    className={`ml-auto relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus-visible:outline-none border cursor-pointer ${
                         counterTrade 
-                            ? "bg-[#ff0000] border-[#ff0000]" 
+                            ? "bg-[#fa346f] border-[#fa346f]" 
                             : "bg-black border-[#1c1c1c]"
                     }`}
                 >
                     <span
-                        className={`inline-block h-3 w-3 rounded-full bg-white transition-transform ${
+                        className={`inline-block h-3 w-3 rounded-full bg-white transition-transform mb-[1px] px-[1px] ${
                             counterTrade ? "translate-x-5" : "translate-x-1"
                         }`}
                     />
