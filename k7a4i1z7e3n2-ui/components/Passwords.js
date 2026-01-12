@@ -587,8 +587,12 @@ export default function Passwords({ refreshKey = 0 }) {
                                             Exp Date
                                         </p>
                                         <p className="text-xs text-zinc-200 tracking-wider">
-                                            {decryptedData?.validTill ||
-                                                "**/**"}
+                                            {decryptedData?.validTill
+                                                ? (() => {
+                                                      const val = decryptedData.validTill.replace(/\D/g, '');
+                                                      return val.length >= 2 ? val.slice(0, 2) + '/' + val.slice(2, 4) : val;
+                                                  })()
+                                                : "**/**"}
                                         </p>
                                     </div>
                                     <div className="text-right">

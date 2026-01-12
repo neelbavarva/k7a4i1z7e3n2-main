@@ -662,12 +662,15 @@ export default function Main({ onLogout }) {
                                             </label>
                                             <Input
                                                 value={cardValidTill}
-                                                onChange={(e) =>
-                                                    setCardValidTill(
-                                                        e.target.value
-                                                    )
-                                                }
+                                                onChange={(e) => {
+                                                    let value = e.target.value.replace(/\D/g, '');
+                                                    if (value.length >= 2) {
+                                                        value = value.slice(0, 2) + '/' + value.slice(2, 4);
+                                                    }
+                                                    setCardValidTill(value.slice(0, 5));
+                                                }}
                                                 placeholder="MM/YY"
+                                                maxLength={5}
                                             />
                                         </div>
                                         <div className="w-20 space-y-1">
@@ -922,12 +925,15 @@ export default function Main({ onLogout }) {
                                             </label>
                                             <Input
                                                 value={editCardValidTill}
-                                                onChange={(e) =>
-                                                    setEditCardValidTill(
-                                                        e.target.value
-                                                    )
-                                                }
+                                                onChange={(e) => {
+                                                    let value = e.target.value.replace(/\D/g, '');
+                                                    if (value.length >= 2) {
+                                                        value = value.slice(0, 2) + '/' + value.slice(2, 4);
+                                                    }
+                                                    setEditCardValidTill(value.slice(0, 5));
+                                                }}
                                                 placeholder="MM/YY"
+                                                maxLength={5}
                                             />
                                         </div>
                                     </div>
