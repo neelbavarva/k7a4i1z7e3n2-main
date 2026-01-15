@@ -13,11 +13,13 @@ const cardRoute = require("./routes/cardRoute");
 const otpRoute = require("./routes/otpRoute");
 const tradeRoute = require("./routes/tradeRoute");
 const migrationRoute = require("./routes/migrationRoute2");
+const balanceRoute = require("./routes/balanceRoute");
 app.use("/passwords", passwordRoute);
 app.use("/cards", cardRoute);
 app.use("/otp", otpRoute);
 app.use("/trades", tradeRoute);
 app.use("/migration", migrationRoute);
+app.use("/balance", balanceRoute);
 
 app.get("/", (req, res) => {
     res.status(200).json("Welcome to server project of @k7a4i1z7e3n2");
