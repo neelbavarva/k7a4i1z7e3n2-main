@@ -28,6 +28,7 @@ import { toast } from "sonner";
 import AuthTimer from "./AuthTimer";
 import { getCurrentSession, getSessionTiming } from "../lib/session";
 import StrategyAnalysis from "./StrategyAnalysis";
+import BalanceCard, { BalanceContainer, BalanceDialog, useBalance } from "./BalanceCard";
 
 export default function Main({ onLogout }) {
     const [activeTab, setActiveTab] = useState(() => {
@@ -50,6 +51,9 @@ export default function Main({ onLogout }) {
     const [addOpen, setAddOpen] = useState(false);
     const [addMode, setAddMode] = useState("password");
     const [strategyOpen, setStrategyOpen] = useState(false);
+    const [balanceExpanded, setBalanceExpanded] = useState(false);
+    
+    const balanceHook = useBalance();
 
     const [pwName, setPwName] = useState("");
     const [pwEmail, setPwEmail] = useState("");
@@ -389,7 +393,7 @@ export default function Main({ onLogout }) {
 
             {activeTab === "trades" ? (
                 <div className="w-full">
-                    <div className="max-w-3xl mx-auto px-4 pt-2">
+                    <div className="max-w-3xl mx-auto px-4 pt-2 relative">
                         <div className="rounded-md border border-[#1c1c1c] px-2 pt-6 pb-6">
                             <div className="flex flex-col items-center">
                                 <div className="text-[18px] sm:text-[24px] md:text-[32px] font-semibold tracking-wide mt-1 text-center">
@@ -401,13 +405,28 @@ export default function Main({ onLogout }) {
                             </div>
                         </div>
                         <div className="mt-2">
-                            <Button
-                                className="w-full h-10 cursor-pointer"
-                                onClick={() => setStrategyOpen(true)}
-                            >
-                                Strategy Analysis
-                            </Button>
+                            <div className="flex gap-2">
+                                <Button
+                                    className="flex-1 h-7 cursor-pointer text-xs"
+                                    onClick={() => setStrategyOpen(true)}
+                                >
+                                    Strategy Analysis
+                                </Button>
+                                <BalanceCard 
+                                    isExpanded={balanceExpanded}
+                                    setIsExpanded={setBalanceExpanded}
+                                    setDialogOpen={balanceHook.setDialogOpen}
+                                    balance={balanceHook.balance}
+                                />
+                            </div>
+                            <BalanceContainer 
+                                isExpanded={balanceExpanded}
+                                balance={balanceHook.balance}
+                                formatCurrency={balanceHook.formatCurrency}
+                                onEdit={() => balanceHook.setDialogOpen(true)}
+                            />
                         </div>
+                        <BalanceDialog {...balanceHook} />
                     </div>
                 </div>
             ) : null}
