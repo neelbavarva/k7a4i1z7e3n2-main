@@ -229,6 +229,82 @@ export function BalanceDialog({
                             />
                         </div>
                     </div>
+                    
+                    {/* Flip Progression Table */}
+                    <div className="mt-0 mb-2 max-h-[300px] overflow-y-auto">
+                        <table className="w-full text-xs border-collapse">
+                            <thead className="sticky top-0 bg-zinc-900 z-10">
+                                <tr className="border-b border-zinc-800">
+                                    <th className="text-left py-2 px-2 font-semibold text-zinc-400">Flip</th>
+                                    <th className="text-right py-2 px-2 font-semibold text-zinc-400">Multiplier</th>
+                                    <th className="text-right py-2 px-2 font-semibold text-zinc-400">Account</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
+                                    <td className="py-2 px-2 text-zinc-300">Start</td>
+                                    <td className="py-2 px-2 text-right text-zinc-500">—</td>
+                                    <td className="py-2 px-2 text-right font-medium text-[#4fe3c1]">$1,000.00</td>
+                                </tr>
+                                <tr className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
+                                    <td className="py-2 px-2 text-zinc-300">1</td>
+                                    <td className="py-2 px-2 text-right font-mono text-zinc-400">2.0000000000</td>
+                                    <td className="py-2 px-2 text-right font-medium text-[#4fe3c1]">$2,000.00</td>
+                                </tr>
+                                <tr className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
+                                    <td className="py-2 px-2 text-zinc-300">2</td>
+                                    <td className="py-2 px-2 text-right font-mono text-zinc-400">1.9965000000</td>
+                                    <td className="py-2 px-2 text-right font-medium text-[#4fe3c1]">$3,993.00</td>
+                                </tr>
+                                <tr className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
+                                    <td className="py-2 px-2 text-zinc-300">3</td>
+                                    <td className="py-2 px-2 text-right font-mono text-zinc-400">1.9862643824</td>
+                                    <td className="py-2 px-2 text-right font-medium text-[#4fe3c1]">$7,930.07</td>
+                                </tr>
+                                <tr className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
+                                    <td className="py-2 px-2 text-zinc-300">4</td>
+                                    <td className="py-2 px-2 text-right font-mono text-zinc-400">1.9671034457</td>
+                                    <td className="py-2 px-2 text-right font-medium text-[#4fe3c1]">$15,610.23</td>
+                                </tr>
+                                <tr className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
+                                    <td className="py-2 px-2 text-zinc-300">5</td>
+                                    <td className="py-2 px-2 text-right font-mono text-zinc-400">1.9443479127</td>
+                                    <td className="py-2 px-2 text-right font-medium text-[#4fe3c1]">$30,345.89</td>
+                                </tr>
+                                <tr className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
+                                    <td className="py-2 px-2 text-zinc-300">6</td>
+                                    <td className="py-2 px-2 text-right font-mono text-zinc-400">1.9115484677</td>
+                                    <td className="py-2 px-2 text-right font-medium text-[#4fe3c1]">$58,035.34</td>
+                                </tr>
+                                <tr className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
+                                    <td className="py-2 px-2 text-zinc-300">7</td>
+                                    <td className="py-2 px-2 text-right font-mono text-zinc-400">1.8748657041</td>
+                                    <td className="py-2 px-2 text-right font-medium text-[#4fe3c1]">$108,755.00</td>
+                                </tr>
+                                <tr className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
+                                    <td className="py-2 px-2 text-zinc-300">8</td>
+                                    <td className="py-2 px-2 text-right font-mono text-zinc-400">1.8282662532</td>
+                                    <td className="py-2 px-2 text-right font-medium text-[#4fe3c1]">$198,850.25</td>
+                                </tr>
+                                <tr className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
+                                    <td className="py-2 px-2 text-zinc-300">9</td>
+                                    <td className="py-2 px-2 text-right font-mono text-zinc-400">1.7751800063</td>
+                                    <td className="py-2 px-2 text-right font-medium text-[#4fe3c1]">$353,138.31</td>
+                                </tr>
+                                <tr className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
+                                    <td className="py-2 px-2 text-zinc-300">10</td>
+                                    <td className="py-2 px-2 text-right font-mono text-zinc-400">1.7157767871</td>
+                                    <td className="py-2 px-2 text-right font-medium text-[#4fe3c1]">$606,117.56</td>
+                                </tr>
+                                <tr className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
+                                    <td className="py-2 px-2 text-zinc-300">11</td>
+                                    <td className="py-2 px-2 text-right font-mono text-zinc-400">1.6499994817</td>
+                                    <td className="py-2 px-2 text-right font-medium text-[#f4a522]">$1,000,000.00</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
                     <DialogFooter className="-mt-2">
                         <Button
                             type="button"
