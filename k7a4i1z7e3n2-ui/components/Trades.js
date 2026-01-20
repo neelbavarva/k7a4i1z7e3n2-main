@@ -2,6 +2,9 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import {
     Dialog,
     DialogContent,
@@ -28,6 +31,14 @@ export default function Trades() {
     const [pairFilter, setPairFilter] = useState("all"); // all | specific pair
     const [selectedTrade, setSelectedTrade] = useState(null);
     const [viewOpen, setViewOpen] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [editFormData, setEditFormData] = useState({
+        totalPnL: "",
+        description: "",
+        lowTf: "",
+        midTf: "",
+        highTf: "",
+    });
     const base = process.env.NEXT_PUBLIC_PROD_LINK;
     const apiKey = process.env.NEXT_PUBLIC_SERVER_KEY || "";
 
@@ -46,6 +57,67 @@ export default function Trades() {
         fetchTrades();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    const handleCloseTrade = async () => {
+        if (!selectedTrade) return;
+        
+        setIsSubmitting(true);
+        const baseUrl = (base || "").replace(/\/$/, "");
+        const url = `${baseUrl}/trades/updateTrade/${selectedTrade._id}`;
+        
+        try {
+            const updateData = {
+                tradeStatus: "Closed",
+                totalPnL: editFormData.totalPnL || selectedTrade.totalPnL,
+                description: editFormData.description || selectedTrade.description,
+                lowTf: editFormData.lowTf || selectedTrade.lowTf,
+                midTf: editFormData.midTf || selectedTrade.midTf,
+                highTf: editFormData.highTf || selectedTrade.highTf,
+                riskRewardRatio: selectedTrade.riskRewardRatio,
+            };
+
+            const response = await fetch(url, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    "x-api-key": apiKey,
+                },
+                body: JSON.stringify(updateData),
+            });
+
+            if (response.ok) {
+                await fetchTrades();
+                setViewOpen(false);
+                setSelectedTrade(null);
+                setEditFormData({
+                    totalPnL: "",
+                    description: "",
+                    lowTf: "",
+                    midTf: "",
+                    highTf: "",
+                });
+            }
+        } catch (error) {
+            console.error("Error closing trade:", error);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const isTradeOpen = selectedTrade?.tradeStatus === "Open";
+
+    useEffect(() => {
+        if (selectedTrade && isTradeOpen) {
+            setEditFormData({
+                totalPnL: selectedTrade.totalPnL || "",
+                description: selectedTrade.description || "",
+                lowTf: selectedTrade.lowTf || "",
+                midTf: selectedTrade.midTf || "",
+                highTf: selectedTrade.highTf || "",
+            });
+        }
+    }, [selectedTrade, isTradeOpen]);
+
 
     const allPairs = useMemo(() => {
         const fromTrades = Array.from(
@@ -417,125 +489,224 @@ export default function Trades() {
                             </div>
                         </div>
 
-                        <div className="mt-1">
-                            <div className="text-[12px] leading-loose mt-1 mb-0 rounded-md border border-[#1c1c1c] overflow-hidden p-2 space-y-[2px]">
-                                {(selectedTrade.responses || []).map((item) => (
-                                    <div
-                                        key={item.question}
-                                        className="text-[12px]"
-                                    >
-                                        <div className="flex items-center gap-2">
-                                            <span>{item.question}</span>
-                                            <span className="h-[1px] bg-[#1c1c1c] flex-1" />
-                                            {item.checked ? (
-                                                <Check size={16} color="#4fe3c1" />
-                                            ) : (
-                                                <X size={16} color="#ff0000" />
+                        {(!selectedTrade.totalPercentage || selectedTrade.totalPercentage === 0) ? null : (
+                            <div className="mt-1">
+                                <div className="text-[12px] leading-loose mt-1 mb-0 rounded-md border border-[#1c1c1c] overflow-hidden p-2 space-y-[2px]">
+                                    {(selectedTrade.responses || []).map((item) => (
+                                        <div
+                                            key={item.question}
+                                            className="text-[12px]"
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <span>{item.question}</span>
+                                                <span className="h-[1px] bg-[#1c1c1c] flex-1" />
+                                                {item.checked ? (
+                                                    <Check size={16} color="#4fe3c1" />
+                                                ) : (
+                                                    <X size={16} color="#ff0000" />
+                                                )}
+                                            </div>
+                                            {(item.secondaryResponses || []).map(
+                                                (child) => (
+                                                    <div
+                                                        key={
+                                                            child._id ||
+                                                            child.question
+                                                        }
+                                                        className="flex items-center ml-5 gap-2"
+                                                    >
+                                                        <Minus size={16} color="rgba(85,85,85)" />
+                                                        <span>
+                                                            {child.question}
+                                                        </span>
+                                                        <span className="h-[1px] bg-[#1c1c1c] flex-1" />
+                                                        {child.checked ? (
+                                                            <Check size={16} color="#4fe3c1" />
+                                                        ) : (
+                                                            <X size={16} color="#ff0000" />
+                                                        )}
+                                                    </div>
+                                                )
                                             )}
                                         </div>
-                                        {(item.secondaryResponses || []).map(
-                                            (child) => (
-                                                <div
-                                                    key={
-                                                        child._id ||
-                                                        child.question
-                                                    }
-                                                    className="flex items-center ml-5 gap-2"
-                                                >
-                                                    <Minus size={16} color="rgba(85,85,85)" />
-                                                    <span>
-                                                        {child.question}
-                                                    </span>
-                                                    <span className="h-[1px] bg-[#1c1c1c] flex-1" />
-                                                    {child.checked ? (
-                                                        <Check size={16} color="#4fe3c1" />
-                                                    ) : (
-                                                        <X size={16} color="#ff0000" />
-                                                    )}
-                                                </div>
-                                            )
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Edit form for open trades */}
+                        {isTradeOpen ? (
+                            <div className="space-y-1">
+                                <div className="mt-1">
+                                    <Label className="text-[12px]">Total PnL</Label>
+                                    <Input
+                                        className="text-[12px]"
+                                        value={editFormData.totalPnL}
+                                        onChange={(e) =>
+                                            setEditFormData((prev) => ({
+                                                ...prev,
+                                                totalPnL: e.target.value,
+                                            }))
+                                        }
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <div>
+                                        <Label className="text-[12px]">
+                                            {selectedTrade.isLowerTf ? "15min" : "4H"}
+                                        </Label>
+                                        <Input
+                                            className="text-[12px]"
+                                            placeholder="https://s3.tradingview.com/snapshots/X/XXXXXXXX.png"
+                                            value={editFormData.lowTf}
+                                            onChange={(e) =>
+                                                setEditFormData((prev) => ({
+                                                    ...prev,
+                                                    lowTf: e.target.value,
+                                                }))
+                                            }
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label className="text-[12px]">
+                                            {selectedTrade.isLowerTf ? "1H" : "1D"}
+                                        </Label>
+                                        <Input
+                                            className="text-[12px]"
+                                            placeholder="https://s3.tradingview.com/snapshots/X/XXXXXXXX.png"
+                                            value={editFormData.midTf}
+                                            onChange={(e) =>
+                                                setEditFormData((prev) => ({
+                                                    ...prev,
+                                                    midTf: e.target.value,
+                                                }))
+                                            }
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label className="text-[12px]">
+                                            {selectedTrade.isLowerTf ? "4H" : "W"}
+                                        </Label>
+                                        <Input
+                                            className="text-[12px]"
+                                            placeholder="https://s3.tradingview.com/snapshots/X/XXXXXXXX.png"
+                                            value={editFormData.highTf}
+                                            onChange={(e) =>
+                                                setEditFormData((prev) => ({
+                                                    ...prev,
+                                                    highTf: e.target.value,
+                                                }))
+                                            }
+                                        />
+                                    </div>
+                                </div>
+                                <div className="mt-1">
+                                    <Label className="text-[12px]">Description</Label>
+                                    <Textarea
+                                        className="text-[12px]"
+                                        placeholder="Add your description to Trade"
+                                        value={editFormData.description}
+                                        onChange={(e) =>
+                                            setEditFormData((prev) => ({
+                                                ...prev,
+                                                description: e.target.value,
+                                            }))
+                                        }
+                                    />
+                                </div>
+                                <div className="mt-3">
+                                    <Button
+                                        onClick={handleCloseTrade}
+                                        disabled={isSubmitting}
+                                        className="w-full cursor-pointer"
+                                    >
+                                        Submit{" "}
+                                        {isSubmitting && (
+                                            <Loader2 className="animate-spin ml-2" />
                                         )}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {selectedTrade.description ? (
-                            <div className="text-[12px] mt-0 rounded-md border border-[#1c1c1c] overflow-hidden p-2">
-                                {selectedTrade.description}
-                            </div>
-                        ) : null}
-
-                        <div className="mt-0">
-                            {selectedTrade.lowTf ? (
-                                <div className="rounded-md mt-3 first:mt-0 border border-[#1c1c1c] overflow-hidden">
-                                    <div className="px-4 py-2 text-[12px] font-semibold">
-                                        {selectedTrade.isLowerTf
-                                            ? "15min"
-                                            : "4H"}
-                                    </div>
-                                    <Image
-                                        className="rounded-b-md"
-                                        src={selectedTrade.lowTf}
-                                        alt="chart"
-                                        width={900}
-                                        height={500}
-                                    />
+                                    </Button>
                                 </div>
-                            ) : null}
-                            {selectedTrade.midTf ? (
-                                <div className="rounded-md mt-3 first:mt-0 border border-[#1c1c1c] overflow-hidden">
-                                    <div className="px-4 py-2 text-[12px] font-semibold">
-                                        {selectedTrade.isLowerTf ? "1H" : "1D"}
-                                    </div>
-                                    <Image
-                                        className="rounded-b-md"
-                                        src={selectedTrade.midTf}
-                                        alt="chart"
-                                        width={900}
-                                        height={500}
-                                    />
-                                </div>
-                            ) : null}
-                            {selectedTrade.highTf ? (
-                                <div className="rounded-md mt-3 first:mt-0 border border-[#1c1c1c] overflow-hidden">
-                                    <div className="px-4 py-2 text-[12px] font-semibold">
-                                        {selectedTrade.isLowerTf ? "4H" : "W"}
-                                    </div>
-                                    <Image
-                                        className="rounded-b-md"
-                                        src={selectedTrade.highTf}
-                                        alt="chart"
-                                        width={900}
-                                        height={500}
-                                    />
-                                </div>
-                            ) : null}
-                        </div>
-
-                        {/* Download button if no images */}
-                        {!selectedTrade.lowTf &&
-                        !selectedTrade.midTf &&
-                        !selectedTrade.highTf ? (
-                            <div className="-mt-3">
-                                <Button
-                                    onClick={() => {
-                                        // Download Forex.zip from public folder
-                                        const a = document.createElement("a");
-                                        a.href = "/Forex.zip";
-                                        a.download = "Forex.zip";
-                                        document.body.appendChild(a);
-                                        a.click();
-                                        document.body.removeChild(a);
-                                    }}
-                                    className="w-full cursor-pointer"
-                                    variant="outline"
-                                >
-                                    <Download className="mr-2 h-4 w-4" />
-                                    Download Old Trades Data
-                                </Button>
                             </div>
-                        ) : null}
+                        ) : (
+                            <>
+                                {selectedTrade.description ? (
+                                    <div className="text-[12px] mt-0 rounded-md border border-[#1c1c1c] overflow-hidden p-2">
+                                        {selectedTrade.description}
+                                    </div>
+                                ) : null}
+
+                                <div className="mt-0">
+                                    {selectedTrade.lowTf ? (
+                                        <div className="rounded-md mt-3 first:mt-0 border border-[#1c1c1c] overflow-hidden">
+                                            <div className="px-4 py-2 text-[12px] font-semibold">
+                                                {selectedTrade.isLowerTf
+                                                    ? "15min"
+                                                    : "4H"}
+                                            </div>
+                                            <Image
+                                                className="rounded-b-md"
+                                                src={selectedTrade.lowTf}
+                                                alt="chart"
+                                                width={900}
+                                                height={500}
+                                            />
+                                        </div>
+                                    ) : null}
+                                    {selectedTrade.midTf ? (
+                                        <div className="rounded-md mt-3 first:mt-0 border border-[#1c1c1c] overflow-hidden">
+                                            <div className="px-4 py-2 text-[12px] font-semibold">
+                                                {selectedTrade.isLowerTf ? "1H" : "1D"}
+                                            </div>
+                                            <Image
+                                                className="rounded-b-md"
+                                                src={selectedTrade.midTf}
+                                                alt="chart"
+                                                width={900}
+                                                height={500}
+                                            />
+                                        </div>
+                                    ) : null}
+                                    {selectedTrade.highTf ? (
+                                        <div className="rounded-md mt-3 first:mt-0 border border-[#1c1c1c] overflow-hidden">
+                                            <div className="px-4 py-2 text-[12px] font-semibold">
+                                                {selectedTrade.isLowerTf ? "4H" : "W"}
+                                            </div>
+                                            <Image
+                                                className="rounded-b-md"
+                                                src={selectedTrade.highTf}
+                                                alt="chart"
+                                                width={900}
+                                                height={500}
+                                            />
+                                        </div>
+                                    ) : null}
+                                </div>
+
+                                {/* Download button if no images */}
+                                {!selectedTrade.lowTf &&
+                                !selectedTrade.midTf &&
+                                !selectedTrade.highTf ? (
+                                    <div className="-mt-3">
+                                        <Button
+                                            onClick={() => {
+                                                // Download Forex.zip from public folder
+                                                const a = document.createElement("a");
+                                                a.href = "/Forex.zip";
+                                                a.download = "Forex.zip";
+                                                document.body.appendChild(a);
+                                                a.click();
+                                                document.body.removeChild(a);
+                                            }}
+                                            className="w-full cursor-pointer"
+                                            variant="outline"
+                                        >
+                                            <Download className="mr-2 h-4 w-4" />
+                                            Download Old Trades Data
+                                        </Button>
+                                    </div>
+                                ) : null}
+                            </>
+                        )}
                     </DialogContent>
                 ) : null}
             </Dialog>
