@@ -354,7 +354,7 @@ export function Dashboard({ initialData, initialAiCapitalFlow = null }: { initia
       <section className="py-2">
         {selectedModes.has('ai-capital') && !hasAiObservations ? (
           <Card className="overflow-hidden">
-            <div className="flex overflow-x-auto border-b border-slate-100 bg-slate-100/70 p-1 gap-1">
+            <div className="flex overflow-x-auto no-scrollbar border-b border-slate-100 bg-slate-100/70 p-1 gap-1">
               {views.map(view => {
                 const isActive = selectedModes.has(view.id);
                 return (
@@ -388,7 +388,7 @@ export function Dashboard({ initialData, initialAiCapitalFlow = null }: { initia
             height={selectedModes.has('valuation') && selectedModes.size === 1 ? 'h-[440px]' : undefined}
             legend={activeLegend}
             toolbar={
-              <div className="flex max-w-[560px] items-center gap-1 overflow-x-auto rounded-md border border-slate-200 bg-slate-100/70 p-0.5">
+              <div className="flex max-w-[560px] items-center gap-1 overflow-x-auto no-scrollbar rounded-md border border-slate-200 bg-slate-100/70 p-0.5">
                 {views.map(view => {
                   const isActive = selectedModes.has(view.id);
                   return (

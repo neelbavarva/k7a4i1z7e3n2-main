@@ -12,6 +12,10 @@ body { margin: 0; background: #f8fafc; color: #172033; font-family: "Roboto Mono
 ::selection { background: #dbeafe; color: #172033; }
 .grain { background-image: radial-gradient(rgba(255,255,255,.035) .7px, transparent .7px); background-size: 5px 5px; }
 .metric-value { font-variant-numeric: tabular-nums; letter-spacing: -.04em; }
+
+/* Hide scrollbars while maintaining scroll functionality */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 .light-ui { background: #f8fafc; color: #172033; }
 .light-ui header { background: rgba(255,255,255,.94) !important; border-color: #dce3ed !important; }
 .light-ui article { background: #fff !important; border-color: #dce3ed !important; }
