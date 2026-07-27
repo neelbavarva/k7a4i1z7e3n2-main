@@ -354,16 +354,24 @@ export function Dashboard({ initialData, initialAiCapitalFlow = null }: { initia
       <section className="py-2">
         {selectedModes.has('ai-capital') && !hasAiObservations ? (
           <Card className="overflow-hidden">
-            <div className="flex overflow-x-auto border-b border-slate-100 bg-slate-50 p-1">
-              {views.map(view => (
-                <button
-                  key={view.id}
-                  onClick={() => toggleMode(view.id)}
-                  className={`shrink-0 rounded px-2 py-1 font-mono text-[10px] transition-colors ${selectedModes.has(view.id) ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-                >
-                  {view.label}
-                </button>
-              ))}
+            <div className="flex overflow-x-auto border-b border-slate-100 bg-slate-100/70 p-1 gap-1">
+              {views.map(view => {
+                const isActive = selectedModes.has(view.id);
+                return (
+                  <button
+                    key={view.id}
+                    onClick={() => toggleMode(view.id)}
+                    className={`inline-flex shrink-0 items-center gap-1.5 rounded px-2.5 py-1 font-mono text-[10px] font-medium transition-all ${
+                      isActive
+                        ? 'bg-slate-900 text-white shadow-sm ring-1 ring-slate-900/10'
+                        : 'text-slate-600 hover:bg-slate-200/70 hover:text-slate-900'
+                    }`}
+                  >
+                    <span className={`h-1.5 w-1.5 rounded-full ${isActive ? 'bg-blue-400' : 'bg-slate-400/50'}`} />
+                    {view.label}
+                  </button>
+                );
+              })}
             </div>
             <div className="grid min-h-[230px] place-items-center p-5 text-center">
               <div>
@@ -380,17 +388,20 @@ export function Dashboard({ initialData, initialAiCapitalFlow = null }: { initia
             height={selectedModes.has('valuation') && selectedModes.size === 1 ? 'h-[440px]' : undefined}
             legend={activeLegend}
             toolbar={
-              <div className="flex max-w-[520px] items-center gap-1 overflow-x-auto rounded-md border border-slate-200 bg-slate-50 p-0.5">
+              <div className="flex max-w-[560px] items-center gap-1 overflow-x-auto rounded-md border border-slate-200 bg-slate-100/70 p-0.5">
                 {views.map(view => {
                   const isActive = selectedModes.has(view.id);
                   return (
                     <button
                       key={view.id}
                       onClick={() => toggleMode(view.id)}
-                      className={`shrink-0 rounded px-2 py-1 font-mono text-[10px] transition-colors ${
-                        isActive ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                      className={`inline-flex shrink-0 items-center gap-1.5 rounded px-2.5 py-1 font-mono text-[10px] font-medium transition-all ${
+                        isActive
+                          ? 'bg-slate-900 text-white shadow-sm ring-1 ring-slate-900/10'
+                          : 'text-slate-600 hover:bg-slate-200/70 hover:text-slate-900'
                       }`}
                     >
+                      <span className={`h-1.5 w-1.5 rounded-full ${isActive ? 'bg-blue-400' : 'bg-slate-400/50'}`} />
                       {view.label}
                     </button>
                   );

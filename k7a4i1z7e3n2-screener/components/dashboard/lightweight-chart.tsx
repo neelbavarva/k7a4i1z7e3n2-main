@@ -100,7 +100,7 @@ function ValuationScatter({ series }: { series: SeriesOption[] }) {
     {xAxis.ticks.map(value => <g key={`x-${value}`}><line x1={x(value)} x2={x(value)} y1={top} y2={top + height} stroke="#e7edf4" strokeDasharray="4 4" /><text x={x(value)} y={top + height + 14} textAnchor="middle" fill="#475569" fontFamily={FONT} fontSize="8">{value.toFixed(1)}%</text></g>)}
     {zeroX !== null && <line x1={zeroX} x2={zeroX} y1={top} y2={top + height} stroke="#64748b" strokeWidth="1.25" strokeDasharray="5 4" />}
     {buffettReferenceY !== null && <line x1={left} x2={1000 - right} y1={buffettReferenceY} y2={buffettReferenceY} stroke="#64748b" strokeWidth="1.25" strokeDasharray="5 4" />}
-    {points.map((point, index) => <circle key={`${point.name}-${index}`} cx={x(point.x)} cy={y(point.y)} r="4.5" fill={point.color} fillOpacity=".84"><title>{`${point.name}: GDP growth ${point.x.toFixed(2)}%, Buffett ${point.y.toFixed(1)}%`}</title></circle>)}
+    {points.map((point, index) => <circle key={`${point.name}-${index}`} cx={x(point.x)} cy={y(point.y)} r="5" fill={point.color} fillOpacity=".9" stroke="#ffffff" strokeWidth="1.5"><title>{`${point.name}: GDP growth ${point.x.toFixed(2)}%, Buffett ${point.y.toFixed(1)}%`}</title></circle>)}
   </svg>;
 }
 
@@ -251,6 +251,27 @@ export function LightweightChart({ option, className = '', resetKey = 0 }: { opt
         }
         if (lower.length < 2) continue;
         context.beginPath(); context.moveTo(lower[0][0], lower[0][1]); lower.slice(1).forEach(point => context.lineTo(point[0], point[1])); upper.reverse().forEach(point => context.lineTo(point[0], point[1])); context.closePath(); context.fillStyle = withOpacity(band.color, .18); context.fill();
+      }
+      // Render clearly visible data point markers (filled dots) along active series lines
+      for (const [, meta] of metadata.entries()) {
+        const line = lineByName.get(meta.name);
+        if (!line) continue;
+        context.fillStyle = meta.color;
+        context.strokeStyle = '#ffffff';
+        context.lineWidth = 1.5;
+        for (let index = 0; index < categories.length; index++) {
+          const time = toTime(categories[index]);
+          const value = meta.values.get(time);
+          if (value === undefined || value === null) continue;
+          const x = chart.timeScale().timeToCoordinate(time);
+          const y = line.priceToCoordinate(value / valueScale);
+          if (x !== null && y !== null) {
+            context.beginPath();
+            context.arc(x, y, 3.5, 0, 2 * Math.PI);
+            context.fill();
+            context.stroke();
+          }
+        }
       }
       // Lightweight Charts deliberately keeps histogram columns centred on a
       // timestamp. The prior renderer uses grouped columns for each market;
