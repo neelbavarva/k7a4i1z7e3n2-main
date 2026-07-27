@@ -1,0 +1,43 @@
+{
+  "id": "dotcom",
+  "name": "Dot-com bubble",
+  "benchmark": "NASDAQ Composite",
+  "startYear": 1995,
+  "peakYear": 2000,
+  "crashYear": 2000,
+  "recoveryYear": 2015,
+  "durationYears": 5,
+  "largestDrawdownPercent": -77.93,
+  "recoveryTimeYears": 15,
+  "peakValuation": "NASDAQ Composite 5,048.62 (10 Mar 2000)",
+  "capitalInflow": null,
+  "mainTrigger": "Rapid repricing of internet-related equities as public-market participation and IPO activity expanded.",
+  "mainCause": "Expectations for internet-era growth ran materially ahead of proven earnings and viable business models.",
+  "historicalSummary": "The NASDAQ Composite peaked at 5,048.62 on 10 March 2000 and reached 1,114.11 on 9 October 2002. The library uses those published benchmark observations; it does not infer a single aggregate capital-inflow figure.",
+  "keyLessons": [
+    "A compelling technology can be economically transformative while many contemporaneous valuations remain unsustainable.",
+    "Narrative strength and capital access should be evaluated separately from revenue durability and unit economics."
+  ],
+  "timeline": [
+    { "year": 1995, "title": "Commercial internet acceleration", "detail": "The reference period begins; this is a historical framing date, not a claim of a single start point." },
+    { "year": 2000, "title": "NASDAQ peak", "detail": "NASDAQ Composite closed at 5,048.62 on 10 March 2000." },
+    { "year": 2002, "title": "Post-bust low", "detail": "NASDAQ Composite reached 1,114.11 on 9 October 2002." },
+    { "year": 2015, "title": "Peak reclaimed", "detail": "The benchmark later exceeded its March 2000 closing high." }
+  ],
+  "chart": {
+    "method": "Published NASDAQ Composite observations normalized to the March 2000 peak = 100. This is a comparison index only; it is not market capitalization or a capital-flow estimate.",
+    "points": [
+      { "year": 2000, "value": 100, "sourceValue": 5048.62 },
+      { "year": 2002, "value": 22.07, "sourceValue": 1114.11 },
+      { "year": 2015, "value": 100.15, "sourceValue": 5056.06 }
+    ]
+  },
+  "sources": [
+    { "name": "NASDAQ Composite (NASDAQCOM)", "organization": "Federal Reserve Bank of St. Louis / NASDAQ", "url": "https://fred.stlouisfed.org/series/NASDAQCOM", "note": "Daily index level series." },
+    { "name": "Dot-com peak and trough reference", "organization": "U.S. Securities and Exchange Commission", "url": "https://www.sec.gov/files/rules/other/265-23/lfhacking083105.pdf", "note": "Records the 5,048.62 high and 1,114.11 low used here." }
+  ],
+  "limitations": [
+    "NASDAQ Composite is a benchmark, not a complete measure of every internet-company valuation or capital inflow.",
+    "No single official aggregate capital-inflow estimate is supplied."
+  ]
+}

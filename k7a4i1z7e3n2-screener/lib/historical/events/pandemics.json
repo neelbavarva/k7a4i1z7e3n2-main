@@ -1,0 +1,44 @@
+[
+  {
+    "id": "pandemic-1918-flu",
+    "title": "1918 Spanish Flu Pandemic",
+    "description": "Global influenza pandemic infecting one-third of the world's population, causing major labour supply disruptions following World War I.",
+    "category": "pandemic",
+    "importance": 5,
+    "startDate": 1918,
+    "endDate": 1920,
+    "peakDate": 1918,
+    "affectedDatasets": ["gdp", "gdpGrowth"],
+    "affectedCountries": ["WLD", "US"],
+    "tags": ["flu", "health_shock"],
+    "references": [{ "name": "CDC Historical Pandemic Overview", "organization": "CDC" }]
+  },
+  {
+    "id": "pandemic-1957-asian-flu",
+    "title": "1957 Asian Flu Pandemic",
+    "description": "H2N2 flu outbreak causing worldwide mortality and temporary supply/production shocks.",
+    "category": "pandemic",
+    "importance": 3,
+    "startDate": 1957,
+    "endDate": 1958,
+    "peakDate": 1957,
+    "affectedDatasets": ["gdpGrowth"],
+    "affectedCountries": ["WLD", "US"],
+    "tags": ["flu"],
+    "references": [{ "name": "WHO Historical Pandemics", "organization": "WHO" }]
+  },
+  {
+    "id": "pandemic-2020-covid",
+    "title": "2020 COVID-19 Global Health Crisis",
+    "description": "Global SARS-CoV-2 pandemic leading to worldwide travel restrictions, business closures, and unprecedented remote-work shifts.",
+    "category": "pandemic",
+    "importance": 5,
+    "startDate": 2020,
+    "endDate": 2022,
+    "peakDate": 2020,
+    "affectedDatasets": ["gdp", "marketCap", "buffett", "gdpGrowth", "aiInvestment"],
+    "affectedCountries": ["WLD", "US", "IN", "CN", "GB", "JP"],
+    "tags": ["covid19", "lockdown", "remote_work"],
+    "references": [{ "name": "WHO Coronavirus Dashboard", "organization": "WHO", "url": "https://covid19.who.int/" }]
+  }
+]

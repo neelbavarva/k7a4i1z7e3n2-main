@@ -1,0 +1,72 @@
+[
+  {
+    "id": "war-ww1",
+    "title": "World War I",
+    "description": "Global conflict reshaping European borders, trade routes, sovereign debts, and industrial production models.",
+    "category": "war",
+    "importance": 5,
+    "startDate": 1914,
+    "endDate": 1918,
+    "peakDate": 1918,
+    "affectedDatasets": ["gdp", "gdpGrowth"],
+    "affectedCountries": ["WLD", "GB"],
+    "tags": ["war", "geopolitics", "europe"],
+    "references": [{ "name": "Imperial War Museums Economic Archive", "organization": "IWM" }]
+  },
+  {
+    "id": "war-ww2",
+    "title": "World War II",
+    "description": "Total war engaging major world powers, leading to industrial rearmament, price controls, and the postwar Bretton Woods financial system.",
+    "category": "war",
+    "importance": 5,
+    "startDate": 1939,
+    "endDate": 1945,
+    "peakDate": 1945,
+    "affectedDatasets": ["gdp", "gdpGrowth", "marketCap"],
+    "affectedCountries": ["WLD", "US", "GB", "JP", "CN"],
+    "tags": ["war", "bretton_woods", "industrial_mobilization"],
+    "references": [{ "name": "US National Archives World War II Records", "organization": "US National Archives" }]
+  },
+  {
+    "id": "war-vietnam",
+    "title": "Vietnam War & Fiscal Expansion",
+    "description": "Prolonged military conflict accompanied by US domestic spending initiatives, contributing to late-1960s inflation and pressure on the gold standard.",
+    "category": "war",
+    "importance": 4,
+    "startDate": 1965,
+    "endDate": 1973,
+    "peakDate": 1968,
+    "affectedDatasets": ["gdp", "gdpGrowth"],
+    "affectedCountries": ["US", "WLD"],
+    "tags": ["war", "fiscal_expansion", "inflation"],
+    "references": [{ "name": "US Department of State Office of the Historian", "organization": "US State Dept" }]
+  },
+  {
+    "id": "war-gulf-1990",
+    "title": "Gulf War Oil Shock",
+    "description": "Conflict following Iraq's invasion of Kuwait, causing short-term oil supply disruptions and energy price spikes.",
+    "category": "war",
+    "importance": 3,
+    "startDate": 1990,
+    "endDate": 1991,
+    "peakDate": 1990,
+    "affectedDatasets": ["gdpGrowth", "marketCap"],
+    "affectedCountries": ["WLD", "US"],
+    "tags": ["oil", "gulf_war", "energy"],
+    "references": [{ "name": "EIA Petroleum Supply History", "organization": "US EIA" }]
+  },
+  {
+    "id": "war-ukraine-2022",
+    "title": "Russia-Ukraine Conflict & Commodity Shock",
+    "description": "Major conflict in Eastern Europe triggering global food and energy supply dislocations, natural gas shocks in Europe, and broad inflation pressures.",
+    "category": "war",
+    "importance": 5,
+    "startDate": 2022,
+    "endDate": null,
+    "peakDate": 2022,
+    "affectedDatasets": ["gdp", "gdpGrowth", "marketCap", "buffett"],
+    "affectedCountries": ["WLD", "US", "RU", "GB"],
+    "tags": ["ukraine", "energy_crisis", "sanctions", "commodities"],
+    "references": [{ "name": "World Bank Commodity Markets Outlook", "organization": "World Bank", "url": "https://www.worldbank.org/en/research/commodity-markets" }]
+  }
+]

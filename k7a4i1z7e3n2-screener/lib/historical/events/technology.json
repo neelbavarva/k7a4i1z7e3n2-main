@@ -1,0 +1,58 @@
+[
+  {
+    "id": "tech-pc-revolution-1981",
+    "title": "IBM PC Launch & Personal Computing Era",
+    "description": "Introduction of the IBM Personal Computer (Model 5150) establishing architecture standards for personal and enterprise computing.",
+    "category": "technology",
+    "importance": 4,
+    "startDate": 1981,
+    "endDate": 1990,
+    "peakDate": 1981,
+    "affectedDatasets": ["gdp", "marketCap", "aiInvestment"],
+    "affectedCountries": ["US", "WLD"],
+    "tags": ["computing", "hardware", "ibm"],
+    "references": [{ "name": "IBM Archives: The Birth of the Personal Computer", "organization": "IBM" }]
+  },
+  {
+    "id": "tech-commercial-internet-1995",
+    "title": "Netscape IPO & Commercial Internet Explosion",
+    "description": "Netscape Communications IPO on 9 August 1995 catalyzed public and venture investment into World Wide Web infrastructure and enterprise software.",
+    "category": "technology",
+    "importance": 5,
+    "startDate": 1995,
+    "endDate": 2000,
+    "peakDate": 1995,
+    "affectedDatasets": ["gdp", "marketCap", "buffett", "aiInvestment", "bubbles"],
+    "affectedCountries": ["US", "WLD"],
+    "tags": ["internet", "web", "netscape", "venture_capital"],
+    "references": [{ "name": "SEC Netscape Registration Statement", "organization": "US SEC" }]
+  },
+  {
+    "id": "tech-smartphone-2007",
+    "title": "iPhone Launch & Mobile Ecosystem Era",
+    "description": "Apple unveils the iPhone, driving the transition from desktop-centric to mobile-first cloud architectures and mobile app economies.",
+    "category": "technology",
+    "importance": 5,
+    "startDate": 2007,
+    "endDate": 2015,
+    "peakDate": 2007,
+    "affectedDatasets": ["gdp", "marketCap", "aiInvestment"],
+    "affectedCountries": ["US", "WLD"],
+    "tags": ["mobile", "iphone", "apple", "cloud"],
+    "references": [{ "name": "Apple Keynote Archive 2007", "organization": "Apple Inc." }]
+  },
+  {
+    "id": "tech-genai-2022",
+    "title": "ChatGPT Release & Generative AI Investment Wave",
+    "description": "OpenAI releases ChatGPT, triggering massive capital re-allocation toward artificial intelligence infrastructure, GPUs, foundational models, and datacenter energy.",
+    "category": "technology",
+    "importance": 5,
+    "startDate": 2022,
+    "endDate": null,
+    "peakDate": 2023,
+    "affectedDatasets": ["gdp", "marketCap", "aiInvestment"],
+    "affectedCountries": ["US", "WLD", "GB", "JP"],
+    "tags": ["ai", "chatgpt", "openai", "semiconductors", "vc_flow"],
+    "references": [{ "name": "OECD.AI Policy Observatory", "organization": "OECD", "url": "https://oecd.ai/" }]
+  }
+]

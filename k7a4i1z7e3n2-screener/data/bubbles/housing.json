@@ -1,0 +1,42 @@
+{
+  "id": "us-housing",
+  "name": "U.S. housing bubble",
+  "benchmark": "S&P Cotality Case-Shiller U.S. National Home Price Index",
+  "startYear": 2000,
+  "peakYear": 2006,
+  "crashYear": 2007,
+  "recoveryYear": 2012,
+  "durationYears": 6,
+  "largestDrawdownPercent": null,
+  "recoveryTimeYears": null,
+  "peakValuation": "Case-Shiller national index: 184.62 (Jul 2006; Jan 2000 = 100)",
+  "capitalInflow": null,
+  "mainTrigger": "A prolonged housing-price expansion alongside abundant mortgage credit and growth in mortgage securitization.",
+  "mainCause": "Highly leveraged housing finance, weakening underwriting and a repricing of mortgage credit risk.",
+  "historicalSummary": "The reference series is the monthly national Case-Shiller index. It is shown as a source-backed historical benchmark; the library does not convert it into an aggregate housing-market capitalization or infer a capital-flow total.",
+  "keyLessons": [
+    "Asset-price momentum can coexist with leverage and underwriting risks that do not show up in the headline index.",
+    "Credit conditions and transmission channels matter alongside the asset-price path."
+  ],
+  "timeline": [
+    { "year": 2000, "title": "Reference base", "detail": "The published index uses January 2000 = 100." },
+    { "year": 2006, "title": "National index peak", "detail": "The not-seasonally-adjusted national index recorded 184.62 in July 2006." },
+    { "year": 2007, "title": "Housing downturn", "detail": "The historical reference classifies the post-peak period as the bust phase." },
+    { "year": 2012, "title": "Post-crisis trough period", "detail": "The library records the trough year only; no unsupported recovery statistic is calculated." }
+  ],
+  "chart": {
+    "method": "Published monthly Case-Shiller observations normalized to the July 2006 reading = 100. Values are annual timeline anchors, not a reconstructed monthly series.",
+    "points": [
+      { "year": 2000, "value": 54.17, "sourceValue": 100 },
+      { "year": 2006, "value": 100, "sourceValue": 184.62 }
+    ]
+  },
+  "sources": [
+    { "name": "S&P Cotality Case-Shiller U.S. National Home Price Index (CSUSHPINSA)", "organization": "S&P Dow Jones Indices LLC, distributed by the Federal Reserve Bank of St. Louis", "url": "https://fred.stlouisfed.org/series/CSUSHPINSA", "note": "Monthly, not seasonally adjusted; Jan 2000 = 100." },
+    { "name": "Index observation archive", "organization": "U.S. federal court filing reproducing FRED observation", "url": "https://www.barclaysbankplcsecuritieslitigation.com/media/934797/sharan_nirmul_exhibits_211-234.pdf", "note": "Documents the July 2006 reading of 184.62." }
+  ],
+  "limitations": [
+    "The underlying index is monthly and copyrighted; only sparse, source-attributed anchor observations are stored here.",
+    "Largest drawdown and recovery time remain unavailable in this static version rather than being independently calculated."
+  ]
+}

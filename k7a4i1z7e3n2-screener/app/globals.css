@@ -1,0 +1,39 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+ :root { color-scheme: light; }
+* { border-color: rgb(47 52 65); }
+html { background: #0b0d12; }
+body { margin: 0; background: #f8fafc; color: #172033; font-family: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: -0.025em; }
+.kaizen-wordmark { font-family: ui-serif, Georgia, Cambria, "Times New Roman", serif; font-style: italic; font-weight: 700; letter-spacing: -.055em; }
+::selection { background: #dbeafe; color: #172033; }
+.grain { background-image: radial-gradient(rgba(255,255,255,.035) .7px, transparent .7px); background-size: 5px 5px; }
+.metric-value { font-variant-numeric: tabular-nums; letter-spacing: -.04em; }
+.light-ui { background: #f8fafc; color: #172033; }
+.light-ui header { background: rgba(255,255,255,.94) !important; border-color: #dce3ed !important; }
+.light-ui article { background: #fff !important; border-color: #dce3ed !important; }
+.light-ui .grain { background-image: radial-gradient(rgba(22,32,51,.05) .6px, transparent .6px); }
+.light-ui .text-\[\#f4f5f7\], .light-ui .text-\[\#f5f6f8\], .light-ui .text-\[\#ccd0d9\] { color: #172033 !important; }
+.light-ui .text-\[\#9198a6\], .light-ui .text-\[\#9aa1ae\], .light-ui .text-\[\#858c9a\], .light-ui .text-\[\#78808e\], .light-ui .text-\[\#737b89\], .light-ui .text-\[\#777f8f\], .light-ui .text-\[\#7b8290\], .light-ui .text-\[\#7e8593\] { color: #667085 !important; }
+.light-ui .border-\[\#292e3a\], .light-ui .border-\[\#292f3b\], .light-ui .border-\[\#282d39\], .light-ui .border-\[\#303644\], .light-ui .border-\[\#353b4a\] { border-color: #dce3ed !important; }
+.light-ui .bg-\[\#242a36\] { background: #e9eef8 !important; }
+.ui-control { height: 2rem; border: 1px solid #dbe2ea; border-radius: .375rem; background: #fff; padding: 0 .55rem; color: #334155; font-size: .75rem; outline: none; transition: border-color .16s ease, box-shadow .16s ease, background-color .16s ease; }
+.ui-control:hover { background: #f8fafc; }
+.ui-control:focus { border-color: #93c5fd; box-shadow: 0 0 0 3px rgba(59,130,246,.12); }
+.ui-button { border-radius: .3rem; color: #64748b; transition: color .16s ease, background-color .16s ease; }
+.ui-button:hover { background: #f1f5f9; color: #172033; }
+.ui-button, .ui-control, button, select, input[type="checkbox"] { cursor: pointer; }
+.ui-panel { border: 1px solid #e2e8f0; border-radius: .5rem; background: rgba(255,255,255,.92); box-shadow: 0 1px 2px rgba(15,23,42,.025); }
+.soft-enter { animation: soft-enter .38s ease-out both; }
+@keyframes soft-enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+.menu-enter { transform-origin: top right; animation: menu-enter .14s ease-out both; }
+@keyframes menu-enter { from { opacity: 0; transform: translateY(-3px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.dialog-enter { animation: dialog-enter .16s ease-out both; }
+@keyframes dialog-enter { from { opacity: 0; } to { opacity: 1; } }
+summary:focus-visible, button:focus-visible, a:focus-visible, select:focus-visible { outline: 2px solid #64748b; outline-offset: 2px; }
+details > div { animation: source-reveal .18s ease-out both; }
+@keyframes source-reveal { from { opacity: 0; transform: translateY(-2px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; } }

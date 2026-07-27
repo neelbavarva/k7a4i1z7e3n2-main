@@ -1,0 +1,72 @@
+[
+  {
+    "id": "monetary-fed-founding-1913",
+    "title": "Federal Reserve System Established",
+    "description": "US Congress passes the Federal Reserve Act, establishing the central bank of the United States to manage monetary policy and lender-of-last-resort functions.",
+    "category": "monetary",
+    "importance": 5,
+    "startDate": 1913,
+    "endDate": 1913,
+    "peakDate": 1913,
+    "affectedDatasets": ["gdp", "marketCap", "buffett", "gdpGrowth"],
+    "affectedCountries": ["US", "WLD"],
+    "tags": ["federal_reserve", "central_banking"],
+    "references": [{ "name": "Federal Reserve Act of 1913", "organization": "US Congress" }]
+  },
+  {
+    "id": "monetary-plaza-accord-1985",
+    "title": "Plaza Accord Currency Agreement",
+    "description": "France, West Germany, Japan, UK, and US agree to depreciate the US dollar relative to the Japanese yen and German mark, accelerating Japanese domestic asset inflation.",
+    "category": "monetary",
+    "importance": 4,
+    "startDate": 1985,
+    "endDate": 1987,
+    "peakDate": 1985,
+    "affectedDatasets": ["gdp", "marketCap", "buffett"],
+    "affectedCountries": ["US", "JP", "GB", "WLD"],
+    "tags": ["plaza_accord", "forex", "japan", "yen"],
+    "references": [{ "name": "Plaza Accord Announcement 1985", "organization": "G5 Finance Ministers" }]
+  },
+  {
+    "id": "monetary-euro-1999",
+    "title": "Launch of the Euro",
+    "description": "The Euro is introduced as an accounting currency in 11 European member states, creating the world's second-largest monetary union.",
+    "category": "monetary",
+    "importance": 5,
+    "startDate": 1999,
+    "endDate": 2002,
+    "peakDate": 1999,
+    "affectedDatasets": ["gdp", "marketCap", "buffett", "gdpGrowth"],
+    "affectedCountries": ["WLD", "GB"],
+    "tags": ["euro", "ecb", "europe"],
+    "references": [{ "name": "European Central Bank History", "organization": "ECB", "url": "https://www.ecb.europa.eu/" }]
+  },
+  {
+    "id": "monetary-qe1-2008",
+    "title": "Quantitative Easing (QE) Launch",
+    "description": "Federal Reserve initiates large-scale asset purchases (QE1), buying Treasury bonds and agency mortgage-backed securities to lower long-term interest rates.",
+    "category": "monetary",
+    "importance": 5,
+    "startDate": 2008,
+    "endDate": 2014,
+    "peakDate": 2008,
+    "affectedDatasets": ["gdp", "marketCap", "buffett", "aiInvestment"],
+    "affectedCountries": ["US", "WLD"],
+    "tags": ["qe", "balance_sheet", "central_bank"],
+    "references": [{ "name": "Fed Reserve Balance Sheet History", "organization": "Federal Reserve" }]
+  },
+  {
+    "id": "monetary-rate-hikes-2022",
+    "title": "Global Anti-Inflation Hiking Cycle",
+    "description": "Federal Reserve, ECB, and global central banks execute the fastest interest rate hiking cycle in 40 years to combat post-COVID inflation.",
+    "category": "monetary",
+    "importance": 5,
+    "startDate": 2022,
+    "endDate": 2024,
+    "peakDate": 2023,
+    "affectedDatasets": ["gdp", "marketCap", "buffett", "gdpGrowth", "aiInvestment"],
+    "affectedCountries": ["US", "WLD", "GB", "JP", "CN", "IN"],
+    "tags": ["interest_rates", "fed_hikes", "inflation"],
+    "references": [{ "name": "BIS 94th Annual Report", "organization": "Bank for International Settlements", "url": "https://www.bis.org/" }]
+  }
+]

@@ -1,0 +1,44 @@
+{
+  "id": "japan-asset-bubble",
+  "name": "Japanese asset bubble",
+  "benchmark": "Nikkei 225",
+  "startYear": 1987,
+  "peakYear": 1989,
+  "crashYear": 1990,
+  "recoveryYear": null,
+  "durationYears": 3,
+  "largestDrawdownPercent": -63.23,
+  "recoveryTimeYears": null,
+  "peakValuation": "Nikkei 225: ¥38,915 at end-1989",
+  "capitalInflow": "Combined stock and land capital gains were reported as 452% of nominal GDP during the bubble period.",
+  "mainTrigger": "Rapid asset-price appreciation amid easy credit, financial liberalization and bullish expectations.",
+  "mainCause": "Credit expansion and reinforced expectations lifted stock and land prices beyond what the cited Bank of Japan analysis could explain through fundamentals alone.",
+  "historicalSummary": "Bank of Japan research defines 1987–1990 as the emergence and expansion period. Its published account reports a Nikkei 225 peak of ¥38,915 at end-1989, followed by ¥14,309 in August 1992—more than 60% below the peak.",
+  "keyLessons": [
+    "Stable consumer-price inflation can coexist with destabilising asset-price and credit dynamics.",
+    "Equity and land markets can amplify each other through collateral and lending channels."
+  ],
+  "timeline": [
+    { "year": 1987, "title": "Acceleration", "detail": "The Bank of Japan identifies 1987–1990 as the expansion period." },
+    { "year": 1989, "title": "Nikkei peak", "detail": "Nikkei 225 reached ¥38,915 at end-1989." },
+    { "year": 1990, "title": "Burst begins", "detail": "The cited Bank of Japan account records sharp equity losses in 1990." },
+    { "year": 1992, "title": "Post-peak decline", "detail": "Nikkei 225 was ¥14,309 in August 1992." }
+  ],
+  "chart": {
+    "method": "Published Bank of Japan Nikkei 225 reference observations normalized to the end-1989 peak = 100.",
+    "points": [
+      { "year": 1985, "value": 32.37, "sourceValue": 12598 },
+      { "year": 1989, "value": 100, "sourceValue": 38915 },
+      { "year": 1990, "value": 51.97, "sourceValue": 20222 },
+      { "year": 1992, "value": 36.77, "sourceValue": 14309 }
+    ]
+  },
+  "sources": [
+    { "name": "The Asset Price Bubble and Monetary Policy: Japan’s Experience in the Late 1980s and the Lessons", "organization": "Institute for Monetary and Economic Studies, Bank of Japan", "url": "https://www.imes.boj.or.jp/research/papers/english/me19-s1-14.pdf", "note": "Published reference values and discussion of the bubble period." },
+    { "name": "Explaining Asset Bubbles in Japan", "organization": "Institute for Monetary and Economic Studies, Bank of Japan", "url": "https://www.imes.boj.or.jp/research/abstracts/english/me14-1-6.html", "note": "Analysis of stock prices, land prices, credit and monetary policy." }
+  ],
+  "limitations": [
+    "Recovery year is deliberately left unavailable: a benchmark recovery definition must be selected before it is stated.",
+    "The stored points are source reference observations, not a continuous Nikkei history."
+  ]
+}

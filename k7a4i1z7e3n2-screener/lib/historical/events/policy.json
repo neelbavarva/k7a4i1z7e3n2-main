@@ -1,0 +1,58 @@
+[
+  {
+    "id": "policy-bretton-woods-1944",
+    "title": "Bretton Woods Agreement",
+    "description": "Delegates from 44 nations establish the post-WWII international monetary order, pegging global currencies to the US dollar backed by gold at $35/ounce.",
+    "category": "policy",
+    "importance": 5,
+    "startDate": 1944,
+    "endDate": 1971,
+    "peakDate": 1944,
+    "affectedDatasets": ["gdp", "marketCap", "gdpGrowth"],
+    "affectedCountries": ["US", "WLD", "GB"],
+    "tags": ["bretton_woods", "imf", "gold_standard"],
+    "references": [{ "name": "IMF History: Bretton Woods", "organization": "IMF" }]
+  },
+  {
+    "id": "policy-nixon-shock-1971",
+    "title": "Nixon Shock & Fiat Era Transition",
+    "description": "President Richard Nixon unilaterally terminates the convertibility of US dollars into gold, ending the Bretton Woods system and initiating floating fiat exchange rates.",
+    "category": "policy",
+    "importance": 5,
+    "startDate": 1971,
+    "endDate": 1973,
+    "peakDate": 1971,
+    "affectedDatasets": ["gdp", "marketCap", "buffett", "gdpGrowth"],
+    "affectedCountries": ["US", "WLD"],
+    "tags": ["nixon_shock", "fiat_currency", "gold"],
+    "references": [{ "name": "Federal Reserve History: Nixon Shock", "organization": "Federal Reserve Bank of St. Louis" }]
+  },
+  {
+    "id": "policy-greenspan-put-1987",
+    "title": "1987 Black Monday & Greenspan Put Paradigm",
+    "description": "Following the October 1987 stock crash (-22.6% single day), Fed Chairman Alan Greenspan liquidity injections set the precedent for central bank intervention during market panics.",
+    "category": "policy",
+    "importance": 4,
+    "startDate": 1987,
+    "endDate": 1987,
+    "peakDate": 1987,
+    "affectedDatasets": ["marketCap", "buffett"],
+    "affectedCountries": ["US", "WLD"],
+    "tags": ["black_monday", "greenspan", "liquidity"],
+    "references": [{ "name": "Federal Reserve 1987 Crash Statement", "organization": "Federal Reserve" }]
+  },
+  {
+    "id": "policy-covid-stimulus-2020",
+    "title": "COVID CARES Act & Unprecedented Fiscal Expansion",
+    "description": "US enacts the $2.2T CARES Act combined with Fed emergency asset purchases, delivering massive direct household transfers and liquidity support.",
+    "category": "policy",
+    "importance": 5,
+    "startDate": 2020,
+    "endDate": 2021,
+    "peakDate": 2020,
+    "affectedDatasets": ["gdp", "marketCap", "buffett", "gdpGrowth", "aiInvestment"],
+    "affectedCountries": ["US", "WLD"],
+    "tags": ["stimulus", "cares_act", "fiscal"],
+    "references": [{ "name": "US Department of the Treasury CARES Act Archive", "organization": "US Treasury" }]
+  }
+]
