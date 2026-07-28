@@ -44,31 +44,143 @@ function latest(records: EconomicRecord[]) {
 }
 
 function MarketSnapshot({ markets }: { markets: { country: string; name: string; records: EconomicRecord[] }[] }) {
-  return <Card className="overflow-hidden">
-    <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
-      <p className="font-mono text-[10px] font-medium uppercase tracking-[.1em] text-slate-500">Selected markets</p>
-      <span className="font-mono text-[10px] text-slate-400">latest in selected range</span>
-    </div>
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[720px] border-collapse text-left">
-        <thead className="border-b border-slate-100 bg-slate-50/70"><tr className="font-mono text-[10px] uppercase tracking-[.08em] text-slate-400"><th className="px-3 py-2 font-medium">Market</th><th className="px-3 py-2 font-medium">GDP</th><th className="px-3 py-2 font-medium">Market cap</th><th className="px-3 py-2 font-medium">Buffett</th><th className="px-3 py-2 font-medium">GDP growth</th></tr></thead>
-        <tbody>{markets.map((market, index) => {
+  return (
+    <Card className="overflow-hidden">
+      <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
+        <p className="font-mono text-[10px] font-medium uppercase tracking-[.1em] text-slate-500">Selected markets</p>
+        <span className="font-mono text-[10px] text-slate-400">latest in selected range</span>
+      </div>
+
+      {/* Mobile Card Grid View (< sm) */}
+      <div className="grid grid-cols-1 gap-2 p-2 sm:hidden">
+        {markets.map((market, index) => {
           const current = latest(market.records);
           const previous = current ? market.records.find(record => record.year === current.year - 1) : undefined;
           if (!current) return null;
-          const cell = (value: string, change: number | null) => <td className="px-3 py-2"><p className="metric-value text-sm font-semibold text-slate-800">{value}</p><p className={`mt-0.5 text-[10px] font-medium ${change !== null && change < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{change === null ? '—' : `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`}</p></td>;
-          return <tr key={market.country} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/70"><td className="px-3 py-2"><div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: colorFor(market.country, index) }} /><div><p className="text-xs font-semibold text-slate-800">{market.name}</p><p className="font-mono text-[10px] text-slate-400">{current.year}</p></div></div></td>{cell(compactCurrency(current.gdp), delta(current.gdp, previous?.gdp ?? null))}{cell(compactCurrency(current.marketCap), delta(current.marketCap, previous?.marketCap ?? null))}{cell(percent(current.buffettIndicator), delta(current.buffettIndicator, previous?.buffettIndicator ?? null))}{cell(percent(current.gdpGrowth, 1), delta(current.gdpGrowth, previous?.gdpGrowth ?? null))}</tr>;
-        })}</tbody>
-      </table>
-    </div>
-  </Card>;
+
+          const gdpDelta = delta(current.gdp, previous?.gdp ?? null);
+          const capDelta = delta(current.marketCap, previous?.marketCap ?? null);
+          const buffettDelta = delta(current.buffettIndicator, previous?.buffettIndicator ?? null);
+          const growthDelta = delta(current.gdpGrowth, previous?.gdpGrowth ?? null);
+
+          const item = (label: string, val: string, chg: number | null) => (
+            <div className="rounded border border-slate-100 bg-slate-50/60 p-2">
+              <p className="font-mono text-[9px] uppercase tracking-[.06em] text-slate-400">{label}</p>
+              <p className="metric-value mt-0.5 text-xs font-semibold text-slate-800">{val}</p>
+              <p className={`mt-0.5 text-[9px] font-medium ${chg !== null && chg < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                {chg === null ? '—' : `${chg >= 0 ? '+' : ''}${chg.toFixed(1)}%`}
+              </p>
+            </div>
+          );
+
+          return (
+            <div key={market.country} className="rounded-md border border-slate-200/80 bg-white p-2.5 shadow-2xs">
+              <div className="mb-2 flex items-center justify-between border-b border-slate-100 pb-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: colorFor(market.country, index) }} />
+                  <div>
+                    <h3 className="text-xs font-semibold text-slate-800">{market.name}</h3>
+                    <span className="font-mono text-[10px] text-slate-400">Year {current.year}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                {item('GDP', compactCurrency(current.gdp), gdpDelta)}
+                {item('Market Cap', compactCurrency(current.marketCap), capDelta)}
+                {item('Buffett', percent(current.buffettIndicator), buffettDelta)}
+                {item('GDP Growth', percent(current.gdpGrowth, 1), growthDelta)}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Desktop Table View (>= sm) */}
+      <div className="hidden overflow-x-auto sm:block">
+        <table className="w-full min-w-[720px] border-collapse text-left">
+          <thead className="border-b border-slate-100 bg-slate-50/70">
+            <tr className="font-mono text-[10px] uppercase tracking-[.08em] text-slate-400">
+              <th className="px-3 py-2 font-medium">Market</th>
+              <th className="px-3 py-2 font-medium">GDP</th>
+              <th className="px-3 py-2 font-medium">Market cap</th>
+              <th className="px-3 py-2 font-medium">Buffett</th>
+              <th className="px-3 py-2 font-medium">GDP growth</th>
+            </tr>
+          </thead>
+          <tbody>
+            {markets.map((market, index) => {
+              const current = latest(market.records);
+              const previous = current ? market.records.find(record => record.year === current.year - 1) : undefined;
+              if (!current) return null;
+              const cell = (value: string, change: number | null) => (
+                <td className="px-3 py-2">
+                  <p className="metric-value text-sm font-semibold text-slate-800">{value}</p>
+                  <p className={`mt-0.5 text-[10px] font-medium ${change !== null && change < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                    {change === null ? '—' : `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`}
+                  </p>
+                </td>
+              );
+              return (
+                <tr key={market.country} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/70">
+                  <td className="px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: colorFor(market.country, index) }} />
+                      <div>
+                        <p className="text-xs font-semibold text-slate-800">{market.name}</p>
+                        <p className="font-mono text-[10px] text-slate-400">{current.year}</p>
+                      </div>
+                    </div>
+                  </td>
+                  {cell(compactCurrency(current.gdp), delta(current.gdp, previous?.gdp ?? null))}
+                  {cell(compactCurrency(current.marketCap), delta(current.marketCap, previous?.marketCap ?? null))}
+                  {cell(percent(current.buffettIndicator), delta(current.buffettIndicator, previous?.buffettIndicator ?? null))}
+                  {cell(percent(current.gdpGrowth, 1), delta(current.gdpGrowth, previous?.gdpGrowth ?? null))}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  );
 }
 
 function ChartPanel({ title, subtitle, option, height, toolbar, legend }: { title: string; subtitle: string; option: Record<string, unknown>; height?: string; toolbar?: React.ReactNode; legend?: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [resetKey, setResetKey] = useState(0);
   const [expandedResetKey, setExpandedResetKey] = useState(0);
-  return <><Card className="soft-enter overflow-hidden"><div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-3 py-2"><div className="min-w-0"><h2 className="text-xs font-semibold text-slate-800">{title}</h2><p className="mt-0.5 text-[10px] text-slate-400">{subtitle}</p></div><div className="flex items-center gap-2">{toolbar}<Button variant="outline" size="sm" onClick={() => setResetKey(key => key + 1)} className="h-7 shrink-0 gap-1 px-2 text-[11px]" title="Reset chart view"><RotateCcw size={12} />Reset</Button><Button variant="outline" size="sm" onClick={() => setOpen(true)} className="h-7 shrink-0 gap-1 px-2 text-[11px]"><Maximize2 size={12} />Expand</Button></div></div>{legend && <div className="border-b border-slate-100 bg-slate-50/40 px-3 py-1.5">{legend}</div>}<div className="p-1"><Chart option={option} className={height} resetKey={resetKey} /></div></Card><Dialog open={open} onOpenChange={setOpen} title={title} actions={<Button variant="outline" size="sm" onClick={() => setExpandedResetKey(key => key + 1)} className="h-7 shrink-0 gap-1 px-2 text-[11px]" title="Reset chart view"><RotateCcw size={12} />Reset</Button>}><Chart option={option} className="h-[calc(100dvh-72px)]" resetKey={expandedResetKey} /></Dialog></>;
+  return (
+    <>
+      <Card className="soft-enter overflow-hidden">
+        <div className="flex flex-col gap-2.5 border-b border-slate-100 p-2.5 sm:flex-row sm:items-center sm:justify-between sm:px-3 sm:py-2">
+          <div className="min-w-0">
+            <h2 className="text-xs font-semibold text-slate-800 sm:text-sm">{title}</h2>
+            <p className="mt-0.5 text-[10px] text-slate-400">{subtitle}</p>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
+            {toolbar}
+            <div className="flex items-center gap-1.5 shrink-0 ml-auto sm:ml-0">
+              <Button variant="outline" size="sm" onClick={() => setResetKey(key => key + 1)} className="h-8 sm:h-7 shrink-0 gap-1 px-2.5 sm:px-2 text-[11px]" title="Reset chart view">
+                <RotateCcw size={12} />
+                <span>Reset</span>
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setOpen(true)} className="h-8 sm:h-7 shrink-0 gap-1 px-2.5 sm:px-2 text-[11px]">
+                <Maximize2 size={12} />
+                <span>Expand</span>
+              </Button>
+            </div>
+          </div>
+        </div>
+        {legend && <div className="border-b border-slate-100 bg-slate-50/40 p-2 sm:px-3 sm:py-1.5">{legend}</div>}
+        <div className="p-1">
+          <Chart option={option} className={height ?? "h-[360px] sm:h-[480px] md:h-[620px]"} resetKey={resetKey} />
+        </div>
+      </Card>
+      <Dialog open={open} onOpenChange={setOpen} title={title} actions={<Button variant="outline" size="sm" onClick={() => setExpandedResetKey(key => key + 1)} className="h-8 sm:h-7 shrink-0 gap-1 px-2 text-[11px]" title="Reset chart view"><RotateCcw size={12} />Reset</Button>}>
+        <Chart option={option} className="h-[calc(100dvh-72px)]" resetKey={expandedResetKey} />
+      </Dialog>
+    </>
+  );
 }
 
 export function Dashboard({ initialData, initialAiCapitalFlow = null }: { initialData: EconomicsResponse | null; initialAiCapitalFlow?: AiCapitalFlowResponse | null }) {
@@ -304,10 +416,10 @@ export function Dashboard({ initialData, initialAiCapitalFlow = null }: { initia
       </span>
     );
   });
-  const marketLegend = <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-nowrap sm:items-start"><div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">{marketBadges}</div><div className="flex shrink-0 items-center sm:justify-end"><span className="inline-flex h-6 whitespace-nowrap items-center rounded-md border border-slate-200 bg-white px-2 font-mono text-[10px] text-slate-500">{axisHint}</span></div></div>;
-  const relativeLegend = <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-nowrap sm:items-start"><div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5"><span className="inline-flex h-6 items-center rounded-md border border-slate-200 bg-white px-2 text-[10px] text-slate-600">solid GDP · patterned market cap</span>{visible.map((market, index) => { const color = colorFor(market.country, index); return <span key={market.country} className="inline-flex h-6 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-medium text-slate-700"><span className="h-2 w-2 rounded-[2px]" style={{ backgroundColor: color, border: `1px solid ${color}` }} /><span className="h-2 w-2 rounded-[2px]" style={{ backgroundColor: `${color}24`, border: `1px solid ${color}`, backgroundImage: `repeating-linear-gradient(-45deg, transparent 0 2px, ${color} 2px 3px)` }} />{market.name}</span>; })}</div><div className="flex shrink-0 items-center sm:justify-end"><span className="inline-flex h-6 whitespace-nowrap items-center rounded-md border border-slate-200 bg-white px-2 font-mono text-[10px] text-slate-500">{axisHint}</span></div></div>;
-  const aiLegend = <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-nowrap sm:items-start"><div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5"><span className="inline-flex h-6 items-center rounded-md border border-slate-200 bg-white px-2 text-[10px] text-slate-600">{aiMode === 'intensity' ? 'observed AI VC / GDP · dashed 5Y baseline' : 'observed annual AI VC · no interpolation'}</span>{aiVisible.map((market, index) => { const color = colorFor(market.country, index); return <span key={market.country} className="inline-flex h-6 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-medium text-slate-700"><span className="h-2 w-2 rounded-[2px]" style={{ backgroundColor: color, border: `1px solid ${color}` }} />{market.name}</span>; })}</div><div className="flex shrink-0 items-center gap-1 sm:justify-end"><div className="flex h-6 items-center rounded-md border border-slate-200 bg-slate-50 p-0.5"><button onClick={() => setAiMode('intensity')} className={`h-5 rounded px-1.5 font-mono text-[9px] ${aiMode === 'intensity' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>AI / GDP</button><button onClick={() => setAiMode('flow')} className={`h-5 rounded px-1.5 font-mono text-[9px] ${aiMode === 'flow' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>Raw VC</button></div><span className="inline-flex h-6 whitespace-nowrap items-center rounded-md border border-slate-200 bg-white px-2 font-mono text-[10px] text-slate-500">{axisHint}</span></div></div>;
-  const bubbleLegend = <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-nowrap sm:items-start"><div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5"><span className="inline-flex h-6 items-center rounded-md border border-slate-200 bg-white px-2 text-[10px] text-slate-600">source observations · each benchmark normalized to peak = 100</span>{BUBBLE_LIBRARY.filter(bubble => bubble.chart).map((bubble, index) => <span key={bubble.id} className="inline-flex h-6 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-medium text-slate-700"><span className="h-2 w-2 rounded-[2px]" style={{ backgroundColor: palette[index % palette.length], border: `1px solid ${palette[index % palette.length]}` }} />{bubble.name}</span>)}</div><div className="flex shrink-0 items-center sm:justify-end"><span className="inline-flex h-6 whitespace-nowrap items-center rounded-md border border-slate-200 bg-white px-2 font-mono text-[10px] text-slate-500">{axisHint}</span></div></div>;
+  const marketLegend = <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><div className="flex flex-wrap items-center gap-1.5">{marketBadges}</div><div className="flex shrink-0 items-center"><span className="inline-flex h-6 whitespace-nowrap items-center rounded-md border border-slate-200 bg-white px-2 font-mono text-[10px] text-slate-500">{axisHint}</span></div></div>;
+  const relativeLegend = <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><div className="flex flex-wrap items-center gap-1.5"><span className="inline-flex h-6 items-center rounded-md border border-slate-200 bg-white px-2 text-[10px] text-slate-600">solid GDP · patterned market cap</span>{visible.map((market, index) => { const color = colorFor(market.country, index); return <span key={market.country} className="inline-flex h-6 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-medium text-slate-700"><span className="h-2 w-2 rounded-[2px]" style={{ backgroundColor: color, border: `1px solid ${color}` }} /><span className="h-2 w-2 rounded-[2px]" style={{ backgroundColor: `${color}24`, border: `1px solid ${color}`, backgroundImage: `repeating-linear-gradient(-45deg, transparent 0 2px, ${color} 2px 3px)` }} />{market.name}</span>; })}</div><div className="flex shrink-0 items-center"><span className="inline-flex h-6 whitespace-nowrap items-center rounded-md border border-slate-200 bg-white px-2 font-mono text-[10px] text-slate-500">{axisHint}</span></div></div>;
+  const aiLegend = <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><div className="flex flex-wrap items-center gap-1.5"><span className="inline-flex h-6 items-center rounded-md border border-slate-200 bg-white px-2 text-[10px] text-slate-600">{aiMode === 'intensity' ? 'observed AI VC / GDP · dashed 5Y baseline' : 'observed annual AI VC · no interpolation'}</span>{aiVisible.map((market, index) => { const color = colorFor(market.country, index); return <span key={market.country} className="inline-flex h-6 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-medium text-slate-700"><span className="h-2 w-2 rounded-[2px]" style={{ backgroundColor: color, border: `1px solid ${color}` }} />{market.name}</span>; })}</div><div className="flex shrink-0 items-center gap-1.5"><div className="flex h-6 items-center rounded-md border border-slate-200 bg-slate-50 p-0.5"><button onClick={() => setAiMode('intensity')} className={`h-5 rounded px-2 font-mono text-[9px] font-medium ${aiMode === 'intensity' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'}`}>AI / GDP</button><button onClick={() => setAiMode('flow')} className={`h-5 rounded px-2 font-mono text-[9px] font-medium ${aiMode === 'flow' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'}`}>Raw VC</button></div><span className="inline-flex h-6 whitespace-nowrap items-center rounded-md border border-slate-200 bg-white px-2 font-mono text-[10px] text-slate-500">{axisHint}</span></div></div>;
+  const bubbleLegend = <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><div className="flex flex-wrap items-center gap-1.5"><span className="inline-flex h-6 items-center rounded-md border border-slate-200 bg-white px-2 text-[10px] text-slate-600">source observations · peak = 100</span>{BUBBLE_LIBRARY.filter(bubble => bubble.chart).map((bubble, index) => <span key={bubble.id} className="inline-flex h-6 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-medium text-slate-700"><span className="h-2 w-2 rounded-[2px]" style={{ backgroundColor: palette[index % palette.length], border: `1px solid ${palette[index % palette.length]}` }} />{bubble.name}</span>)}</div><div className="flex shrink-0 items-center"><span className="inline-flex h-6 whitespace-nowrap items-center rounded-md border border-slate-200 bg-white px-2 font-mono text-[10px] text-slate-500">{axisHint}</span></div></div>;
 
   const aiMetrics = aiVisible.map((market, index) => {
     const current = [...market.records].reverse().find(record => record.aiInvestment !== null || record.aiVentureCapitalInvestment !== null);
@@ -331,27 +443,91 @@ export function Dashboard({ initialData, initialAiCapitalFlow = null }: { initia
     : marketLegend;
 
   return <main className="light-ui min-h-screen bg-[#fafbfc]">
-    <header className="sticky top-0 z-30"><div className="mx-auto flex min-h-14 max-w-[1120px] flex-wrap items-center gap-2 px-3 py-2">
-      <div className="mr-auto flex items-center gap-1.5" aria-label="Kaizen Screener"><span className="kaizen-wordmark text-[17px] leading-none text-slate-900">Kaizen</span><span className="flex h-4 translate-y-px items-center border-l border-slate-200 pl-1.5 font-mono text-[10px] font-medium uppercase leading-none tracking-[.12em] text-slate-500">Screener</span></div>
-      <div className="relative" ref={marketMenuRef}><Button variant="outline" size="sm" className="gap-1.5 font-mono" onClick={() => setMarketOpen(open => !open)}>Markets <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px]">{selectedMarkets.length}</span><ChevronDown size={13} /></Button>{marketOpen && <div className="menu-enter absolute right-0 top-9 z-40 w-64 rounded-md border border-slate-200 bg-white p-1.5 shadow-lg"><div className="flex flex-col gap-1 rounded-md border border-[#d6deeb] p-1">{RESEARCH_MARKETS.filter(([id]) => countryCodes.has(id)).map(([id, name]) => <button key={id} onClick={() => toggleMarket(id)} className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition-colors ${selectedMarkets.includes(id) ? 'bg-[#465d86] text-white hover:bg-[#394e73]' : 'text-slate-700 hover:bg-[#f6f8fc]'}`}><span className={`h-1.5 w-1.5 rounded-full ${selectedMarkets.includes(id) ? 'bg-white/80' : 'bg-[#465d86]'}`} />{name}</button>)}</div><div className="mt-1.5 flex flex-col gap-1 rounded-md border border-[#d9e3ce] p-1">{RESEARCH_MARKETS.filter(([id]) => !countryCodes.has(id)).map(([id, name]) => <button key={id} onClick={() => toggleMarket(id)} className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition-colors ${selectedMarkets.includes(id) ? 'bg-[#5d7847] text-white hover:bg-[#4e673b]' : 'text-slate-700 hover:bg-[#f7faf4]'}`}><span className={`h-1.5 w-1.5 rounded-full ${selectedMarkets.includes(id) ? 'bg-white/80' : 'bg-[#5d7847]'}`} />{name}</button>)}</div></div>}</div>
-      <div className="relative" ref={timeframeRef}>
-        <button aria-expanded={timeframeOpen} onClick={toggleTimeframe} className={`inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 font-mono text-[11px] transition-colors ${timeframeOpen || period === 'CUSTOM' ? 'border-[#5b6fc9] bg-[#5b6fc9] text-white shadow-sm' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}><CalendarRange size={13} /><span>{timeframeLabel}</span><ChevronDown size={12} /></button>
-        {timeframeOpen && <div className="menu-enter absolute right-0 top-9 z-40 w-[278px] rounded-md border border-slate-200 bg-white p-2 shadow-lg">
-          <div className="mb-1.5 flex items-center justify-between px-1"><span className="font-mono text-[9px] font-medium uppercase tracking-[.09em] text-slate-500">Time range</span><span className="font-mono text-[10px] text-slate-400">{rangeLabel}</span></div>
-          <div className="grid grid-cols-4 gap-1">{periods.map(item => <button key={item} onClick={() => { setPeriod(item); setTimeframeOpen(false); }} className={`rounded border px-1.5 py-1.5 font-mono text-[10px] transition-colors ${period === item ? 'border-[#5b6fc9] bg-[#5b6fc9] text-white' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>{item === 'MAX' ? 'MAX' : `${item}Y`}</button>)}</div>
-          <div className="my-1.5 border-t border-slate-100" />
-          <div className="mb-0.5 flex items-center justify-between px-1"><span className="font-mono text-[9px] font-medium uppercase tracking-[.09em] text-slate-500">Custom annual range</span><span className="font-mono text-[9px] text-slate-400">{earliestYear}–{latestYear}</span></div>
-          <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-1.5"><label className="grid gap-1"><span className="font-mono text-[9px] uppercase tracking-[.08em] text-slate-400">From</span><select value={rangeDraft.start || String(rangeStart)} onChange={event => selectRangePart('start', event.target.value)} className="h-7 rounded border border-slate-200 bg-white px-1.5 font-mono text-[10px] text-slate-700 outline-none focus:border-[#5b6fc9]">{allYears.map(year => <option key={year} value={year}>{year}</option>)}</select></label><span className="pb-1.5 text-[10px] text-slate-400">—</span><label className="grid gap-1"><span className="font-mono text-[9px] uppercase tracking-[.08em] text-slate-400">To</span><select value={rangeDraft.end || String(rangeEnd)} onChange={event => selectRangePart('end', event.target.value)} className="h-7 rounded border border-slate-200 bg-white px-1.5 font-mono text-[10px] text-slate-700 outline-none focus:border-[#5b6fc9]">{allYears.map(year => <option key={year} value={year}>{year}</option>)}</select></label></div>
-          {!rangeIsValid && <p className="mt-1 font-mono text-[9px] text-rose-600">End year must be on or after start year.</p>}
-        </div>}
+    <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 backdrop-blur-md">
+      <div className="mx-auto flex h-12 sm:h-14 max-w-[1120px] items-center justify-between gap-2 px-3 py-1.5 sm:py-2">
+        <div className="flex items-center gap-1.5" aria-label="Kaizen Screener">
+          <span className="kaizen-wordmark text-[16px] sm:text-[17px] leading-none text-slate-900">Kaizen</span>
+          <span className="flex h-4 translate-y-px items-center border-l border-slate-200 pl-1.5 font-mono text-[10px] font-medium uppercase leading-none tracking-[.12em] text-slate-500">Screener</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="relative" ref={marketMenuRef}>
+            <Button variant="outline" size="sm" className="h-8 sm:h-8 gap-1.5 font-mono text-[11px] px-2.5" onClick={() => setMarketOpen(open => !open)}>
+              Markets <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px]">{selectedMarkets.length}</span>
+              <ChevronDown size={13} />
+            </Button>
+            {marketOpen && (
+              <div className="menu-enter absolute right-0 top-10 sm:top-9 z-40 w-64 max-w-[calc(100vw-24px)] rounded-lg border border-slate-200 bg-white p-1.5 shadow-xl">
+                <div className="flex flex-col gap-1 rounded-md border border-[#d6deeb] p-1">
+                  {RESEARCH_MARKETS.filter(([id]) => countryCodes.has(id)).map(([id, name]) => (
+                    <button key={id} onClick={() => toggleMarket(id)} className={`flex min-h-[36px] w-full items-center gap-2 rounded px-2.5 py-1.5 text-left text-xs transition-colors ${selectedMarkets.includes(id) ? 'bg-[#465d86] text-white hover:bg-[#394e73]' : 'text-slate-700 hover:bg-[#f6f8fc]'}`}>
+                      <span className={`h-1.5 w-1.5 rounded-full ${selectedMarkets.includes(id) ? 'bg-white/80' : 'bg-[#465d86]'}`} />
+                      {name}
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-1.5 flex flex-col gap-1 rounded-md border border-[#d9e3ce] p-1">
+                  {RESEARCH_MARKETS.filter(([id]) => !countryCodes.has(id)).map(([id, name]) => (
+                    <button key={id} onClick={() => toggleMarket(id)} className={`flex min-h-[36px] w-full items-center gap-2 rounded px-2.5 py-1.5 text-left text-xs transition-colors ${selectedMarkets.includes(id) ? 'bg-[#5d7847] text-white hover:bg-[#4e673b]' : 'text-slate-700 hover:bg-[#f7faf4]'}`}>
+                      <span className={`h-1.5 w-1.5 rounded-full ${selectedMarkets.includes(id) ? 'bg-white/80' : 'bg-[#5d7847]'}`} />
+                      {name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="relative" ref={timeframeRef}>
+            <button aria-expanded={timeframeOpen} onClick={toggleTimeframe} className={`inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 font-mono text-[11px] transition-colors ${timeframeOpen || period === 'CUSTOM' ? 'border-[#5b6fc9] bg-[#5b6fc9] text-white shadow-sm' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}>
+              <CalendarRange size={13} />
+              <span>{timeframeLabel}</span>
+              <ChevronDown size={12} />
+            </button>
+            {timeframeOpen && (
+              <div className="menu-enter absolute right-0 top-10 sm:top-9 z-40 w-[280px] max-w-[calc(100vw-24px)] rounded-lg border border-slate-200 bg-white p-2.5 shadow-xl">
+                <div className="mb-1.5 flex items-center justify-between px-1">
+                  <span className="font-mono text-[9px] font-medium uppercase tracking-[.09em] text-slate-500">Time range</span>
+                  <span className="font-mono text-[10px] text-slate-400">{rangeLabel}</span>
+                </div>
+                <div className="grid grid-cols-4 gap-1">
+                  {periods.map(item => (
+                    <button key={item} onClick={() => { setPeriod(item); setTimeframeOpen(false); }} className={`min-h-[36px] rounded border px-1.5 py-1.5 font-mono text-[10px] transition-colors ${period === item ? 'border-[#5b6fc9] bg-[#5b6fc9] text-white font-medium' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
+                      {item === 'MAX' ? 'MAX' : `${item}Y`}
+                    </button>
+                  ))}
+                </div>
+                <div className="my-2 border-t border-slate-100" />
+                <div className="mb-1 flex items-center justify-between px-1">
+                  <span className="font-mono text-[9px] font-medium uppercase tracking-[.09em] text-slate-500">Custom annual range</span>
+                  <span className="font-mono text-[9px] text-slate-400">{earliestYear}–{latestYear}</span>
+                </div>
+                <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-1.5">
+                  <label className="grid gap-1">
+                    <span className="font-mono text-[9px] uppercase tracking-[.08em] text-slate-400">From</span>
+                    <select value={rangeDraft.start || String(rangeStart)} onChange={event => selectRangePart('start', event.target.value)} className="h-8 rounded border border-slate-200 bg-white px-1.5 font-mono text-[10px] text-slate-700 outline-none focus:border-[#5b6fc9]">
+                      {allYears.map(year => <option key={year} value={year}>{year}</option>)}
+                    </select>
+                  </label>
+                  <span className="pb-1.5 text-[10px] text-slate-400">—</span>
+                  <label className="grid gap-1">
+                    <span className="font-mono text-[9px] uppercase tracking-[.08em] text-slate-400">To</span>
+                    <select value={rangeDraft.end || String(rangeEnd)} onChange={event => selectRangePart('end', event.target.value)} className="h-8 rounded border border-slate-200 bg-white px-1.5 font-mono text-[10px] text-slate-700 outline-none focus:border-[#5b6fc9]">
+                      {allYears.map(year => <option key={year} value={year}>{year}</option>)}
+                    </select>
+                  </label>
+                </div>
+                {!rangeIsValid && <p className="mt-1.5 font-mono text-[9px] text-rose-600">End year must be on or after start year.</p>}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
-    </div></header>
+    </header>
     <div className="grain"><div className="mx-auto max-w-[1120px] px-3 pb-6">
-      <section className="py-2"><Card className="flex flex-wrap items-center gap-1.5 px-2 py-1.5">{selectedMarkets.map((code, index) => <span key={code} className="inline-flex h-6 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-medium text-slate-700"><span className="h-2 w-2 rounded-[2px]" style={{ backgroundColor: colorFor(code, index), border: `1px solid ${colorFor(code, index)}` }} />{marketName(code)}</span>)}</Card></section>
-      <section className="py-2"><MarketSnapshot markets={visible} /></section>
-      {selectedModes.has('ai-capital') && <section className="py-2"><Card className="overflow-hidden"><div className="flex items-center justify-between border-b border-slate-100 px-3 py-2"><p className="font-mono text-[10px] uppercase tracking-[.1em] text-slate-500">AI capital flow</p><span className="font-mono text-[10px] text-slate-400">latest annual observation</span></div><div className="overflow-x-auto"><table className="w-full min-w-[940px] border-collapse text-left"><thead className="border-b border-slate-100 bg-slate-50/60 font-mono text-[10px] uppercase tracking-[.07em] text-slate-400"><tr><th className="px-3 py-2 font-medium">Market</th><th className="px-3 py-2 font-medium">AI investment</th><th className="px-3 py-2 font-medium">AI VC</th><th className="px-3 py-2 font-medium">AI VC / GDP</th><th className="px-3 py-2 font-medium">5Y VC CAGR</th><th className="px-3 py-2 font-medium">AI VC YoY</th><th className="px-3 py-2 font-medium">AI share of VC</th></tr></thead><tbody>{aiMetrics.map(({ market, index, current, aiToGdp, cagr }) => <tr key={market.country} className="border-b border-slate-100 last:border-0"><td className="px-3 py-2"><div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: colorFor(market.country, index) }} /><div><p className="text-[11px] font-semibold text-slate-800">{market.name}</p><p className="font-mono text-[10px] text-slate-400">{current?.year ?? '—'}</p></div></div></td><td className="px-3 py-2"><p className="text-sm font-semibold text-slate-800">{compactCurrency(current?.aiInvestment ?? null)}</p></td><td className="px-3 py-2"><p className="text-sm font-semibold text-slate-800">{compactCurrency(current?.aiVentureCapitalInvestment ?? null)}</p></td><td className="px-3 py-2"><p className="text-sm font-semibold text-slate-800">{percent(aiToGdp, 2)}</p></td><td className="px-3 py-2"><p className="text-sm font-semibold text-slate-800">{percent(cagr, 1)}</p></td><td className="px-3 py-2"><p className="text-sm font-semibold text-slate-800">{percent(current?.aiInvestmentGrowth ?? null, 1)}</p></td><td className="px-3 py-2"><p className="text-sm font-semibold text-slate-800">{percent(current?.aiShareOfTotalVc ?? null, 1)}</p></td></tr>)}</tbody></table></div></Card></section>}
+      <section className="py-1.5 sm:py-2"><Card className="flex items-center gap-1.5 overflow-x-auto no-scrollbar px-2.5 py-2">{selectedMarkets.map((code, index) => <span key={code} className="inline-flex h-6 shrink-0 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-medium text-slate-700"><span className="h-2 w-2 rounded-[2px]" style={{ backgroundColor: colorFor(code, index), border: `1px solid ${colorFor(code, index)}` }} />{marketName(code)}</span>)}</Card></section>
+      <section className="py-1.5 sm:py-2"><MarketSnapshot markets={visible} /></section>
+      {selectedModes.has('ai-capital') && <section className="py-1.5 sm:py-2"><Card className="overflow-hidden"><div className="flex items-center justify-between border-b border-slate-100 px-3 py-2"><p className="font-mono text-[10px] uppercase tracking-[.1em] text-slate-500">AI capital flow</p><span className="font-mono text-[10px] text-slate-400">latest annual observation</span></div><div className="overflow-x-auto no-scrollbar"><table className="w-full min-w-[940px] border-collapse text-left"><thead className="border-b border-slate-100 bg-slate-50/60 font-mono text-[10px] uppercase tracking-[.07em] text-slate-400"><tr><th className="px-3 py-2 font-medium">Market</th><th className="px-3 py-2 font-medium">AI investment</th><th className="px-3 py-2 font-medium">AI VC</th><th className="px-3 py-2 font-medium">AI VC / GDP</th><th className="px-3 py-2 font-medium">5Y VC CAGR</th><th className="px-3 py-2 font-medium">AI VC YoY</th><th className="px-3 py-2 font-medium">AI share of VC</th></tr></thead><tbody>{aiMetrics.map(({ market, index, current, aiToGdp, cagr }) => <tr key={market.country} className="border-b border-slate-100 last:border-0"><td className="px-3 py-2"><div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: colorFor(market.country, index) }} /><div><p className="text-[11px] font-semibold text-slate-800">{market.name}</p><p className="font-mono text-[10px] text-slate-400">{current?.year ?? '—'}</p></div></div></td><td className="px-3 py-2"><p className="text-sm font-semibold text-slate-800">{compactCurrency(current?.aiInvestment ?? null)}</p></td><td className="px-3 py-2"><p className="text-sm font-semibold text-slate-800">{compactCurrency(current?.aiVentureCapitalInvestment ?? null)}</p></td><td className="px-3 py-2"><p className="text-sm font-semibold text-slate-800">{percent(aiToGdp, 2)}</p></td><td className="px-3 py-2"><p className="text-sm font-semibold text-slate-800">{percent(cagr, 1)}</p></td><td className="px-3 py-2"><p className="text-sm font-semibold text-slate-800">{percent(current?.aiInvestmentGrowth ?? null, 1)}</p></td><td className="px-3 py-2"><p className="text-sm font-semibold text-slate-800">{percent(current?.aiShareOfTotalVc ?? null, 1)}</p></td></tr>)}</tbody></table></div></Card></section>}
       {selectedModes.has('bubbles') && <BubbleLibrary bubbles={BUBBLE_LIBRARY} />}
-      <section className="py-2">
+      <section className="py-1.5 sm:py-2">
         {selectedModes.has('ai-capital') && !hasAiObservations ? (
           <Card className="overflow-hidden">
             <div className="flex overflow-x-auto no-scrollbar border-b border-slate-100 bg-slate-100/70 p-1 gap-1">
@@ -385,10 +561,10 @@ export function Dashboard({ initialData, initialAiCapitalFlow = null }: { initia
             title={currentView.title}
             subtitle={currentView.subtitle}
             option={currentView.option}
-            height={selectedModes.has('valuation') && selectedModes.size === 1 ? 'h-[440px]' : undefined}
+            height={selectedModes.has('valuation') && selectedModes.size === 1 ? 'h-[360px] sm:h-[440px]' : undefined}
             legend={activeLegend}
             toolbar={
-              <div className="flex max-w-[560px] items-center gap-1 overflow-x-auto no-scrollbar rounded-md border border-slate-200 bg-slate-100/70 p-0.5">
+              <div className="flex max-w-full items-center gap-1 overflow-x-auto no-scrollbar rounded-md border border-slate-200 bg-slate-100/70 p-0.5">
                 {views.map(view => {
                   const isActive = selectedModes.has(view.id);
                   return (
@@ -411,12 +587,12 @@ export function Dashboard({ initialData, initialAiCapitalFlow = null }: { initia
           />
         )}
       </section>
-      <section className="mb-3 flex items-start gap-2 rounded-md border border-blue-100 bg-blue-50/50 px-3 py-2 text-[11px] leading-5 text-slate-600">
-        <Info size={14} className="mt-0.5 shrink-0 text-blue-600" />
+      <section className="mb-3 flex items-start gap-2.5 rounded-lg border border-blue-100 bg-blue-50/50 p-3 text-xs leading-relaxed text-slate-600 sm:text-[11px] sm:leading-5">
+        <Info size={16} className="mt-0.5 shrink-0 text-blue-600" />
         {selectedModes.has('buffett') ? (
           <p><span className="font-semibold text-slate-800">Reading flow equilibrium:</span> the visible band is each market’s rolling 10-year Buffett average ± two standard deviations—a broader historical envelope—while its dashed centre line is the adaptive baseline. The 100% line is a reference centre only, not a universal fair-value target. A line outside its own band signals an unusually large market-cap/GDP gap versus that market’s history.</p>
         ) : selectedModes.has('ai-capital') ? (
-          <p><span className="font-semibold text-slate-800">AI capital intensity:</span> the default view normalizes reported AI VC by GDP, so a rise means AI-directed venture funding is becoming larger relative to the economy. Compare it with Buffett separately for context—this view does not claim that AI funding causes market valuations. Points are observed annual values; the dashed line is a 5-year baseline. Source: <a className="underline" href={initialAiCapitalFlow?.source.url ?? 'https://oecd.ai/en/data'} target="_blank" rel="noreferrer">{initialAiCapitalFlow?.source.name ?? 'OECD.AI'}</a>{initialAiCapitalFlow?.source.latestObservationYear ? ` · latest observation ${initialAiCapitalFlow.source.latestObservationYear}` : ''}.</p>
+          <p><span className="font-semibold text-slate-800">AI capital intensity:</span> the default view normalizes reported AI VC by GDP, so a rise means AI-directed venture funding is becoming larger relative to the economy. Compare it with Buffett separately for context—this view does not claim that AI funding causes market valuations. Points are observed annual values; the dashed line is a 5-year baseline. Source: <a className="underline break-all" href={initialAiCapitalFlow?.source.url ?? 'https://oecd.ai/en/data'} target="_blank" rel="noreferrer">{initialAiCapitalFlow?.source.name ?? 'OECD.AI'}</a>{initialAiCapitalFlow?.source.latestObservationYear ? ` · latest observation ${initialAiCapitalFlow.source.latestObservationYear}` : ''}.</p>
         ) : selectedModes.has('bubbles') ? (
           <p><span className="font-semibold text-slate-800">Reading the bubble library:</span> each plotted benchmark is independently normalized to its own published peak = 100, so its path is comparable but its level is not a shared valuation measure. The library is static, source-backed historical reference data and does not respond to the selected markets or timeframe.</p>
         ) : (

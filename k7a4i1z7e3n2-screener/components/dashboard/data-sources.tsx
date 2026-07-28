@@ -21,7 +21,7 @@ export function DataSources({ aiSource }: { aiSource: AiCapitalFlowResponse['sou
       <div className="border-b border-slate-200 px-3 py-2"><h2 className="text-xs font-semibold text-slate-800">Data sources</h2><p className="mt-0.5 text-[10px] text-slate-400">Definitions, providers, coverage, and limitations</p></div>
       <div className="divide-y divide-slate-200">
         {entries.map(entry => <details key={entry.feature} className="group">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-[11px] font-medium text-slate-700 hover:bg-slate-50"><span>{entry.feature}</span><span className="font-mono text-[10px] text-slate-400 transition-transform group-open:rotate-45">+</span></summary>
+          <summary className="flex min-h-[44px] select-none cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 text-[11px] font-medium text-slate-700 hover:bg-slate-50 active:bg-slate-100/80"><span>{entry.feature}</span><span className="font-mono text-[10px] text-slate-400 transition-transform group-open:rotate-45">+</span></summary>
           <div className="grid gap-3 border-t border-slate-200 bg-slate-50/50 px-3 py-3 text-[10px] leading-5 text-slate-600 lg:grid-cols-[minmax(0,.9fr)_minmax(0,1.2fr)_minmax(0,1.55fr)]">
             <div><p><span className="font-medium text-slate-800">Source:</span> {entry.source}</p><p className="mt-1"><span className="font-medium text-slate-800">Maintained by:</span> {entry.organization}</p></div>
             <div><p><span className="font-medium text-slate-800">What it measures:</span> {entry.description}</p></div>
