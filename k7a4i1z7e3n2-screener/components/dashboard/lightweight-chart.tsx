@@ -303,12 +303,21 @@ export function LightweightChart({ option, className = '', resetKey = 0 }: { opt
     // Set bar spacing from the actual plot width (not the outer card width),
     // making logical index 0 and the final logical index meet the two edges.
     const pinTimeRange = () => {
-      if (categories.length > 1) {
-        // Lightweight Charts centres the first/last bar by half a bar. Use the
-        // canvas width plus a half-bar offset to pin those annual points to the
-        // two plotting edges, matching the legacy renderer's coordinate model.
-        chart.timeScale().setVisibleLogicalRange({ from: 0, to: categories.length - 1 });
-        chart.timeScale().applyOptions({ barSpacing: host.clientWidth / (categories.length - 1), rightOffset: -0.5 });
+      try {
+        chart.timeScale().fitContent();
+        if (categories.length > 1 && host.clientWidth > 0) {
+          const from = 0;
+          const to = categories.length - 1;
+          if (to >= from) {
+            chart.timeScale().setVisibleLogicalRange({ from, to });
+            const spacing = host.clientWidth / (categories.length - 1);
+            if (Number.isFinite(spacing) && spacing > 0) {
+              chart.timeScale().applyOptions({ barSpacing: spacing, rightOffset: -0.5 });
+            }
+          }
+        }
+      } catch {
+        try { chart.timeScale().fitContent(); } catch { /* ignore */ }
       }
       drawOverlays();
       setReady(true);
