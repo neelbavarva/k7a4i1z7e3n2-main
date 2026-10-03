@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 
+const pad = (n) => String(n).padStart(2, "0");
+
+/** "120d 04:26:51": days, then a clock, so the width never jumps. */
 function left(target) {
     const diff = new Date(target).getTime() - Date.now();
     if (diff <= 0) return "Time’s up!";
@@ -9,8 +12,7 @@ function left(target) {
     const h = Math.floor((diff % 864e5) / 36e5);
     const m = Math.floor((diff % 36e5) / 6e4);
     const s = Math.floor((diff % 6e4) / 1000);
-    const ms = Math.floor((diff % 1000) / 10);
-    return `${d}d ${h}h ${m}m ${s}s ${String(ms).padStart(2, "0")}ms`;
+    return `${d}d ${pad(h)}:${pad(m)}:${pad(s)}`;
 }
 
 export default function AuthTimer({ target = "2027-02-01T00:00:00", className, style }) {
@@ -18,7 +20,7 @@ export default function AuthTimer({ target = "2027-02-01T00:00:00", className, s
     useEffect(() => {
         const update = () => setTimeLeft(left(target));
         update();
-        const id = setInterval(update, 100);
+        const id = setInterval(update, 1000);
         return () => clearInterval(id);
     }, [target]);
     return (

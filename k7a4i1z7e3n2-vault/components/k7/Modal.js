@@ -7,7 +7,7 @@ import { X } from "lucide-react";
  * The one dialog shell: blurred backdrop, a card that drops in from above,
  * a bottom sheet on phones. Radix keeps focus inside and Esc closes it.
  */
-export default function Modal({ open, onClose, title, sub, wide, className = "", head = true, foot, children, label }) {
+export default function Modal({ open, onClose, title, sub, icon, wide, className = "", head = true, foot, children, label }) {
     return (
         <Dialog.Root open={open} onOpenChange={(o) => !o && onClose?.()}>
             <Dialog.Portal>
@@ -17,7 +17,8 @@ export default function Modal({ open, onClose, title, sub, wide, className = "",
                         {...(sub ? {} : { "aria-describedby": undefined })}
                     >
                         {head ? (
-                            <div className="modal-head">
+                            <div className={`modal-head${icon ? " has-icon" : ""}`}>
+                                {icon && <span className="modal-icon">{icon}</span>}
                                 <div>
                                     <Dialog.Title className="modal-title">{title}</Dialog.Title>
                                     {sub && <Dialog.Description className="modal-sub">{sub}</Dialog.Description>}

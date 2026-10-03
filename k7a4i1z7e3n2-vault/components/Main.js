@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Lock, Plus } from "lucide-react";
+import { Lock, Plus, Vault } from "lucide-react";
 import Passwords from "./Passwords";
 import Trades from "./Trades";
 import ManageVault from "./ManageVault";
@@ -52,8 +52,8 @@ export default function Main({ onLogout }) {
                     <Seg className="tabs" label="Section" options={TABS} value={activeTab} onChange={setActiveTab} />
                     <div className="topbar-actions">
                         <button type="button" className="btn btn-primary" onClick={openNew}>
-                            <Plus aria-hidden="true" />
-                            <span className="btn-label">{isVault ? "Add to vault" : "New trade"}</span>
+                            {isVault ? <Vault aria-hidden="true" /> : <Plus aria-hidden="true" />}
+                            <span className="btn-label">{isVault ? "Manage vault" : "New trade"}</span>
                             <kbd>N</kbd>
                         </button>
                         <button
@@ -88,7 +88,7 @@ export default function Main({ onLogout }) {
                     <p className="keys" aria-hidden="true">
                         <span>
                             <kbd>N</kbd>
-                            {isVault ? "add" : "new trade"}
+                            {isVault ? "manage vault" : "new trade"}
                         </span>
                         <span>
                             <kbd>{isVault ? "/" : "P"}</kbd>

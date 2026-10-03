@@ -1,41 +1,91 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import {
-    Archive,
-    ArrowDownUp,
-    Check,
-    ChevronRight,
-    Copy,
-    CreditCard,
-    Globe,
-    KeyRound,
-    Mail,
-    Search,
-    Trash2,
-    X,
-} from "lucide-react";
+import { Check, ChevronRight, Copy, KeyRound, Nfc, Plus, Search, ShieldAlert, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { PASSWORD_CATEGORIES } from "@/lib/categories";
 import { http } from "@/lib/http";
 import { fmtAgo, fmtDate } from "@/lib/format";
+import { detectNetwork, groupNumber, parseBankName } from "@/lib/cards";
+import BreachCheck from "./BreachCheck";
 import Modal from "./k7/Modal";
+import NetworkMark from "./k7/NetworkMark";
 import Seg from "./k7/Seg";
+import SecretInput from "./k7/SecretInput";
+import ServiceIcon, { CATEGORY_ICON, tintFor } from "./k7/ServiceIcon";
 import { useKey } from "./k7/hooks";
 
-const CAT_ICON = { "web-app": Globe, email: Mail, banking: CreditCard };
 const catLabel = (v) => PASSWORD_CATEGORIES.find((c) => c.value === v)?.label || "Others";
 const catKey = (v) => (PASSWORD_CATEGORIES.some((c) => c.value === v) ? v : "other");
+const CatIcon = ({ cat }) => {
+    const Icon = CATEGORY_ICON[cat] || KeyRound;
+    return <Icon aria-hidden="true" />;
+};
 const isLocked = (x) => x?.lockedUntil && new Date(x.lockedUntil).getTime() > Date.now();
-const SORTS = { none: "Default order", desc: "Newest first", asc: "Oldest first" };
-const NEXT_SORT = { none: "desc", desc: "asc", asc: "none" };
+const SORTS = [
+    { value: "none", label: "Default" },
+    { value: "desc", label: "Newest" },
+    { value: "asc", label: "Oldest" },
+];
+/** A revealed secret hides itself again after this long. */
+const REVEAL_SECONDS = 30;
 
-/** Decrypt errors, said plainly. Returns true when handled. */
+/** Decrypt errors, said plainly. */
 function decryptError(err, what) {
     if (err?.status === 401) toast.error("Wrong key", { description: `${what} decryption failed. Check your key.` });
     else if (err?.status === 423)
         toast.error("Too many attempts", { description: `${what} is locked for now after failed attempts.` });
     else toast.error("Decrypt error", { description: `Could not decrypt ${what.toLowerCase()}${err?.status ? ` (${err.status})` : ""}.` });
+}
+
+/** Seconds left before a revealed secret hides itself; calls onHide at zero. */
+function useAutoHide(active, onHide) {
+    const [left, setLeft] = useState(REVEAL_SECONDS);
+    const hide = useRef(onHide);
+    useEffect(() => {
+        hide.current = onHide;
+    });
+    useEffect(() => {
+        if (!active) return;
+        const started = Date.now();
+        const id = setInterval(() => {
+            const l = REVEAL_SECONDS - Math.floor((Date.now() - started) / 1000);
+            setLeft(l);
+            if (l <= 0) {
+                clearInterval(id);
+                hide.current();
+            }
+        }, 250);
+        return () => {
+            clearInterval(id);
+            setLeft(REVEAL_SECONDS);
+        };
+    }, [active]);
+    return left;
+}
+
+/** Copy to the clipboard with a brief "Copied" state on the button. */
+function CopyButton({ value, label = "Copy", what }) {
+    const [copied, setCopied] = useState(false);
+    return (
+        <button
+            type="button"
+            className="btn btn-sm"
+            aria-label={`Copy ${what || label}`}
+            onClick={async () => {
+                try {
+                    await navigator.clipboard.writeText(value);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 1600);
+                } catch {
+                    toast.error("Could not copy");
+                }
+            }}
+        >
+            {copied ? <Check aria-hidden="true" color="var(--ok)" /> : <Copy aria-hidden="true" />}
+            {copied ? "Copied" : label}
+        </button>
+    );
 }
 
 export default function Passwords({ refreshKey = 0, onManage }) {
@@ -51,6 +101,7 @@ export default function Passwords({ refreshKey = 0, onManage }) {
 
     const [openCard, setOpenCard] = useState(null);
     const [openPassword, setOpenPassword] = useState(null);
+    const [breachOpen, setBreachOpen] = useState(false);
     const search = useRef(null);
 
     useEffect(() => {
@@ -111,42 +162,41 @@ export default function Passwords({ refreshKey = 0, onManage }) {
         <div className={deleteMode ? "delete-mode" : ""}>
             <section className="overview">
                 <h1 className="overview-title">Your vault</h1>
-                <p className="overview-lede">
-                    {passwords.length} password{passwords.length === 1 ? "" : "s"} and {cards.length} card
-                    {cards.length === 1 ? "" : "s"}, each encrypted with your key. Open one and enter the key to reveal it.
-                </p>
+                <hr className="rule" />
             </section>
 
             {deleteMode && (
-                <div className="statusbar is-idle fade-in" role="status" style={{ borderColor: "color-mix(in srgb, var(--bear) 35%, transparent)" }}>
-                    <Trash2 aria-hidden="true" width={14} height={14} color="var(--bear)" />
+                <div className="statusbar is-danger fade-in" role="status">
+                    <Trash2 aria-hidden="true" />
                     <p>
                         <b>Delete mode is on.</b> Opening a password or card now offers to delete it instead of revealing it.
                     </p>
-                    <button type="button" className="btn" style={{ height: 28 }} onClick={() => setDeleteMode(false)}>
+                    <button type="button" className="btn btn-sm" onClick={() => setDeleteMode(false)}>
                         Done
                     </button>
                 </div>
             )}
 
-            {(cards.length > 0 || error.cards) && (
-                <section className="group" style={{ marginTop: 6 }} aria-labelledby="g-cards">
-                    <div className="group-head">
-                        <h2 id="g-cards">Cards</h2>
-                        <span className="count">{cards.length}</span>
-                    </div>
-                    {error.cards && <p className="form-error" style={{ marginTop: 8 }}>{error.cards}</p>}
-                    {cards.length > 0 && (
-                        <div className="cards-strip stagger">
-                            {cards.map((card, i) => (
-                                <BankCard key={card._id} card={card} style={{ "--i": i }} onClick={() => setOpenCard(card)} />
-                            ))}
-                        </div>
-                    )}
-                </section>
-            )}
+            <section className="group" style={{ marginTop: 22 }} aria-labelledby="g-cards">
+                <div className="group-head">
+                    <h2 id="g-cards">Cards</h2>
+                    <span className="count">{cards.length}</span>
+                </div>
+                {error.cards && <p className="form-error" style={{ marginTop: 8 }}>{error.cards}</p>}
+                <div className="cards-strip stagger">
+                    {cards.map((card, i) => (
+                        <BankCard key={card._id} card={card} style={{ "--i": i }} onClick={() => setOpenCard(card)} />
+                    ))}
+                    <button type="button" className="add-card" style={{ "--i": cards.length }} onClick={() => onManage?.("card")}>
+                        <span className="add-card-plus" aria-hidden="true">
+                            <Plus />
+                        </span>
+                        Add a card
+                    </button>
+                </div>
+            </section>
 
-            <section className="group" aria-labelledby="g-passwords">
+            <section className="group" style={{ marginTop: 4 }} aria-labelledby="g-passwords">
                 <div className="group-head" style={{ marginBottom: 10 }}>
                     <h2 id="g-passwords">Passwords</h2>
                     <span className="count">{passwords.length}</span>
@@ -182,23 +232,25 @@ export default function Passwords({ refreshKey = 0, onManage }) {
 
                 <div className="toolbar">
                     <Seg
+                        className="seg-icons"
                         label="Category"
                         value={categoryFilter}
                         onChange={setCategoryFilter}
                         options={[
                             { value: "all", label: "All", count: counts.all },
-                            ...PASSWORD_CATEGORIES.map((c) => ({ value: c.value, label: c.label, count: counts[c.value] || 0 })),
+                            ...PASSWORD_CATEGORIES.map((c) => ({
+                                value: c.value,
+                                label: c.label,
+                                count: counts[c.value] || 0,
+                                icon: <CatIcon cat={c.value} />,
+                            })),
                         ]}
                     />
                     <span className="spacer" />
-                    <button
-                        type="button"
-                        className="btn"
-                        onClick={() => setSortDirection((s) => NEXT_SORT[s])}
-                        title="Sort by date added"
-                    >
-                        <ArrowDownUp aria-hidden="true" />
-                        <span className="btn-label">{SORTS[sortDirection]}</span>
+                    <Seg label="Sort by date added" options={SORTS} value={sortDirection} onChange={setSortDirection} />
+                    <button type="button" className="btn" onClick={() => setBreachOpen(true)} title="Check passwords against known breaches">
+                        <ShieldAlert aria-hidden="true" />
+                        <span className="btn-label">Breach check</span>
                     </button>
                     <button type="button" className="btn" onClick={() => onManage?.("changeKey")} title="Change encryption key">
                         <KeyRound aria-hidden="true" />
@@ -238,7 +290,10 @@ export default function Passwords({ refreshKey = 0, onManage }) {
                     groups.map((g) => (
                         <div key={g.value} className="group">
                             <div className="group-head">
-                                <h2 style={{ fontSize: 18 }}>{g.label}</h2>
+                                <span className="group-icon" aria-hidden="true">
+                                    <CatIcon cat={g.value} />
+                                </span>
+                                <h3 className="group-title">{g.label}</h3>
                                 <span className="count">{g.rows.length}</span>
                             </div>
                             <div className="rows-card">
@@ -264,6 +319,16 @@ export default function Passwords({ refreshKey = 0, onManage }) {
                 )}
             </section>
 
+            {/* rendered before the password dialog, so a password opened from the report stacks on top of it */}
+            <BreachCheck
+                open={breachOpen}
+                onClose={() => setBreachOpen(false)}
+                total={passwords.length}
+                onOpenPassword={(id) => {
+                    const p = passwords.find((x) => x._id === id);
+                    if (p) setOpenPassword(p);
+                }}
+            />
             <CardDialog
                 card={openCard}
                 deleteMode={deleteMode}
@@ -287,15 +352,12 @@ export default function Passwords({ refreshKey = 0, onManage }) {
 }
 
 function PasswordRow({ p, i, deleteMode, onOpen }) {
-    const Icon = CAT_ICON[p.category] || Archive;
     const locked = isLocked(p);
     return (
         <li style={{ "--i": i }} className={locked ? "is-locked-row" : ""}>
             <button type="button" className="row-btn vrow" onClick={onOpen}>
                 <span className="row-main">
-                    <span className="tile">
-                        <Icon aria-hidden="true" />
-                    </span>
+                    <ServiceIcon name={p.name} category={catKey(p.category)} locked={locked} />
                     <span className="row-text">
                         <span className="row-title">
                             {p.name}
@@ -318,54 +380,99 @@ function PasswordRow({ p, i, deleteMode, onOpen }) {
     );
 }
 
-function BankCard({ card, data, big, onClick, style }) {
+/** Bank, type and network from the stored bankName, plus the colour to draw the card in. */
+export function cardInfo(card, number) {
+    const info = parseBankName(card?.bankName || "");
+    const bankLabel = info.known?.name || info.bank || "Card";
+    return {
+        ...info,
+        bankLabel,
+        network: info.network || detectNetwork(number) || null,
+        tint: info.known?.color || tintFor(info.bank || card?.cardName),
+    };
+}
+
+/** The bank's monogram in its colour: a known bank's short name, otherwise its first letter. */
+export function BankMark({ card, size = 28 }) {
+    const info = cardInfo(card);
+    const text = ((info.known?.short || info.bank).match(/[\p{L}\p{N}]/u)?.[0] || "?").toUpperCase();
+    return (
+        <span className="svc bank-mark" style={{ "--svc": `${size}px`, "--tint": info.tint }} aria-hidden="true">
+            <span className="svc-coin">{text}</span>
+        </span>
+    );
+}
+
+export function BankCard({ card, data, big, onClick, style }) {
     const locked = isLocked(card);
     const Tag = big ? "div" : "button";
+    const info = cardInfo(card, data?.number);
     const exp = data?.validTill
         ? (() => {
               const v = data.validTill.replace(/\D/g, "");
               return v.length >= 2 ? `${v.slice(0, 2)}/${v.slice(2, 4)}` : v;
           })()
         : "••/••";
-    const number = data?.number
-        ? data.number.replace(/\s/g, "").replace(/(\d{4})(?=\d)/g, "$1 ").trim()
+    const raw = String(data?.number || "").replace(/\s/g, "");
+    const number = raw
+        ? /^\d+$/.test(raw)
+            ? groupNumber(raw, info.network)
+            : raw.replace(/(.{4})(?=.)/g, "$1 ") // the add-card preview pads with dots
         : `•••• •••• •••• ${card.lastOfNumber || "••••"}`;
     return (
         <Tag
-            {...(big ? {} : { type: "button", onClick })}
+            {...(big
+                ? {}
+                : {
+                      type: "button",
+                      onClick,
+                      "aria-label": [card.cardName || "Card", info.bankLabel, info.type, info.network?.name, card.lastOfNumber && `ending ${card.lastOfNumber}`]
+                          .filter(Boolean)
+                          .join(", "),
+                  })}
             className={`bank-card${big ? " is-big" : ""}${locked ? " is-locked" : ""}`}
-            style={style}
+            style={{ ...style, "--tint": info.tint }}
         >
             <span className="bc-top">
-                <span>
-                    <span className="bc-name">{card.cardName || "Card"}</span>
-                    {locked && (
-                        <span className="tag is-locked">
-                            <i />
-                            Locked
-                        </span>
-                    )}
+                <BankMark card={card} />
+                <span className="bc-id">
+                    <span className="bc-name">{card.cardName || info.bankLabel}</span>
+                    <span className="bc-bank">
+                        {card.cardName ? info.bankLabel : null}
+                        {info.type && <span className={`bc-type${card.cardName ? "" : " is-first"}`}>{info.type}</span>}
+                    </span>
                 </span>
-                <span className="bc-bank">{card.bankName}</span>
+                {locked && (
+                    <span className="tag is-locked">
+                        <i />
+                        Locked
+                    </span>
+                )}
             </span>
-            <span className="bc-chip" aria-hidden="true" />
+            <span className="bc-mid" aria-hidden="true">
+                <span className="bc-chip" />
+                <Nfc className="bc-nfc" />
+            </span>
             <span className={`bc-number${data?.number ? " reveal" : ""}`} aria-label="Card number">
                 {number}
             </span>
-            <dl className="bc-facts">
-                <div>
-                    <dt>PIN</dt>
-                    <dd className={data?.pin ? "reveal" : ""}>{data?.pin || "••••"}</dd>
-                </div>
-                <div>
-                    <dt>Expires</dt>
-                    <dd className={data?.validTill ? "reveal" : ""}>{exp}</dd>
-                </div>
-                <div>
-                    <dt>CVV</dt>
-                    <dd className={data?.cvv ? "reveal" : ""}>{data?.cvv || "•••"}</dd>
-                </div>
-            </dl>
+            <span className="bc-bottom">
+                <dl className="bc-facts">
+                    <div>
+                        <dt>Expires</dt>
+                        <dd className={data?.validTill ? "reveal" : ""}>{exp}</dd>
+                    </div>
+                    <div>
+                        <dt>CVV</dt>
+                        <dd className={data?.cvv ? "reveal" : ""}>{data?.cvv || "•••"}</dd>
+                    </div>
+                    <div>
+                        <dt>PIN</dt>
+                        <dd className={data?.pin ? "reveal" : ""}>{data?.pin || "••••"}</dd>
+                    </div>
+                </dl>
+                <NetworkMark network={info.network} className="bc-net" />
+            </span>
         </Tag>
     );
 }
@@ -374,7 +481,7 @@ function KeyForm({ onSubmit, loading, what }) {
     const [key, setKey] = useState("");
     return (
         <form
-            className="form"
+            className="form key-form"
             onSubmit={(e) => {
                 e.preventDefault();
                 if (key.trim()) onSubmit(key.trim());
@@ -382,18 +489,10 @@ function KeyForm({ onSubmit, loading, what }) {
         >
             <div className="field">
                 <label htmlFor="decrypt-key">Decryption key</label>
-                <input
-                    id="decrypt-key"
-                    className="input"
-                    type="password"
-                    value={key}
-                    onChange={(e) => setKey(e.target.value)}
-                    placeholder="Enter your key"
-                    autoComplete="off"
-                    autoFocus
-                />
+                <SecretInput id="decrypt-key" value={key} onChange={(e) => setKey(e.target.value)} placeholder="Enter your key" autoFocus />
             </div>
             <button type="submit" className="btn btn-primary btn-block" disabled={loading || !key.trim()}>
+                <KeyRound aria-hidden="true" />
                 {loading ? "Decrypting…" : `Reveal ${what}`}
             </button>
         </form>
@@ -414,10 +513,38 @@ function DangerZone({ what, onDelete, loading }) {
 
 function LockedNote({ item }) {
     if (!isLocked(item)) return null;
+    return <p className="note is-danger">Locked after too many wrong keys, until {new Date(item.lockedUntil).toLocaleString()}.</p>;
+}
+
+/** A thin bar that runs down while a secret is visible, with the seconds left. */
+function HideTimer({ left, onHide }) {
     return (
-        <p className="note" style={{ borderLeftColor: "var(--bear)" }}>
-            Locked after too many wrong keys, until {new Date(item.lockedUntil).toLocaleString()}.
-        </p>
+        <div className="hide-timer">
+            <span className="hide-bar" aria-hidden="true">
+                <i style={{ transform: `scaleX(${Math.max(0, left) / REVEAL_SECONDS})` }} />
+            </span>
+            <span className="hide-text">Hides in {Math.max(0, left)}s</span>
+            <button type="button" className="linkish" onClick={onHide}>
+                Hide now
+            </button>
+        </div>
+    );
+}
+
+/** Small facts under the secret: label on the left, value (and maybe an action) on the right. */
+function Facts({ rows }) {
+    return (
+        <dl className="facts">
+            {rows.filter(Boolean).map(([k, v, action]) => (
+                <div key={k}>
+                    <dt>{k}</dt>
+                    <dd>
+                        <span>{v}</span>
+                        {action}
+                    </dd>
+                </div>
+            ))}
+        </dl>
     );
 }
 
@@ -428,12 +555,14 @@ function CardDialog({ card, deleteMode, onClose, onDeleted }) {
     const shown = useRef(card);
     if (card) shown.current = card;
     const c = shown.current;
+    const left = useAutoHide(!!data, () => setData(null));
 
     useEffect(() => {
         if (card) setData(null);
     }, [card]);
 
     if (!c) return null;
+    const cinfo = cardInfo(c, data?.number);
 
     const decrypt = async (key) => {
         try {
@@ -466,8 +595,9 @@ function CardDialog({ card, deleteMode, onClose, onDeleted }) {
         <Modal
             open={!!card}
             onClose={onClose}
-            title={c.lastOfNumber ? `Card ending ${c.lastOfNumber}` : c.cardName || "Card"}
-            sub={[c.cardName, c.bankName].filter(Boolean).join(" · ")}
+            icon={<BankMark card={c} size={42} />}
+            title={c.cardName || cinfo.bankLabel}
+            sub={[cinfo.bankLabel, cinfo.type, c.lastOfNumber && `ending ${c.lastOfNumber}`].filter(Boolean).join(" · ")}
         >
             <div className="modal-body">
                 <BankCard card={c} data={data} big />
@@ -475,12 +605,25 @@ function CardDialog({ card, deleteMode, onClose, onDeleted }) {
                 {deleteMode ? (
                     <DangerZone what="card" onDelete={remove} loading={deleting} />
                 ) : data ? (
-                    <button type="button" className="btn btn-block" onClick={() => setData(null)}>
-                        Hide details
-                    </button>
+                    <div className="revealed fade-in">
+                        <div className="copy-row">
+                            <CopyButton value={String(data.number || "").replace(/\s/g, "")} label="Copy number" what="card number" />
+                            {data.cvv && <CopyButton value={String(data.cvv)} label="Copy CVV" what="CVV" />}
+                        </div>
+                        <HideTimer left={left} onHide={() => setData(null)} />
+                    </div>
                 ) : (
                     <KeyForm what="card" onSubmit={decrypt} loading={loading} />
                 )}
+                <Facts
+                    rows={[
+                        ["Bank", cinfo.bankLabel],
+                        cinfo.type && ["Type", cinfo.type],
+                        cinfo.network && ["Network", <NetworkMark key="n" network={cinfo.network} className="fact-net" />],
+                        c.cardName && ["Card", c.cardName],
+                        c.createdAt && ["Added", fmtDate(c.createdAt)],
+                    ]}
+                />
             </div>
         </Modal>
     );
@@ -490,16 +633,13 @@ function PasswordDialog({ password, deleteMode, onClose, onDeleted }) {
     const [value, setValue] = useState(null);
     const [loading, setLoading] = useState(false);
     const [deleting, setDeleting] = useState(false);
-    const [copied, setCopied] = useState(false);
     const shown = useRef(password);
     if (password) shown.current = password;
     const p = shown.current;
+    const left = useAutoHide(value !== null, () => setValue(null));
 
     useEffect(() => {
-        if (password) {
-            setValue(null);
-            setCopied(false);
-        }
+        if (password) setValue(null);
     }, [password]);
 
     if (!p) return null;
@@ -532,25 +672,19 @@ function PasswordDialog({ password, deleteMode, onClose, onDeleted }) {
         }
     };
 
-    const copy = async () => {
-        try {
-            await navigator.clipboard.writeText(value);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1600);
-        } catch {
-            toast.error("Could not copy");
-        }
-    };
+    const cat = catKey(p.category);
 
     return (
         <Modal
             open={!!password}
             onClose={onClose}
+            icon={<ServiceIcon name={p.name} category={cat} locked={isLocked(p)} size={42} />}
             title={p.name || "Password"}
-            sub={[p.email, catLabel(p.category)].filter(Boolean).join(" · ")}
+            sub={p.email || "No email or username"}
         >
             <div className="modal-body">
-                <div className="secret">
+                <div className={`secret${value ? " is-open" : ""}`}>
+                    <KeyRound className="secret-icon" aria-hidden="true" />
                     {value ? (
                         <span className="secret-value reveal" key={value}>
                             {value}
@@ -560,24 +694,29 @@ function PasswordDialog({ password, deleteMode, onClose, onDeleted }) {
                             ••••••••••••
                         </span>
                     )}
-                    {value && (
-                        <button type="button" className="btn" onClick={copy} aria-label="Copy password">
-                            {copied ? <Check aria-hidden="true" color="var(--ok)" /> : <Copy aria-hidden="true" />}
-                            {copied ? "Copied" : "Copy"}
-                        </button>
-                    )}
+                    {value && <CopyButton value={value} what="password" />}
                 </div>
                 <LockedNote item={p} />
                 {deleteMode ? (
                     <DangerZone what="password" onDelete={remove} loading={deleting} />
                 ) : value ? (
-                    <button type="button" className="btn btn-block" onClick={() => setValue(null)}>
-                        Hide password
-                    </button>
+                    <HideTimer left={left} onHide={() => setValue(null)} />
                 ) : (
                     <KeyForm what="password" onSubmit={decrypt} loading={loading} />
                 )}
-                {p.createdAt && <p className="small muted">Added {fmtDate(p.createdAt)}</p>}
+                <Facts
+                    rows={[
+                        p.email && ["Username", p.email, <CopyButton key="c" value={p.email} what="username" />],
+                        [
+                            "Category",
+                            <span className="fact-cat" key="cat">
+                                <CatIcon cat={cat} />
+                                {catLabel(p.category)}
+                            </span>,
+                        ],
+                        p.createdAt && ["Added", `${fmtDate(p.createdAt)} · ${fmtAgo(p.createdAt)}`],
+                    ]}
+                />
             </div>
         </Modal>
     );

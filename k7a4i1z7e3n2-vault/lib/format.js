@@ -24,7 +24,10 @@ export function fmtAgo(t, now = Date.now()) {
     const day = 864e5;
     if (d < 36e5) return `${Math.max(1, Math.round(d / 6e4))} min ago`;
     if (d < day) return `${Math.round(d / 36e5)} h ago`;
-    if (d < 30 * day) return `${Math.round(d / day)} days ago`;
+    if (d < 30 * day) {
+        const n = Math.round(d / day);
+        return `${n} day${n === 1 ? "" : "s"} ago`;
+    }
     return fmtDate(ts);
 }
 
