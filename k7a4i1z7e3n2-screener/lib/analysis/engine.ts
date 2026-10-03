@@ -8,6 +8,7 @@ import {
   percentile as calcPercentile,
   movingAverage,
 } from './statistics';
+import { BUFFETT_BAND, GROWTH_STATUS, TREND_BAND_PCT, VALUATION_Z } from '@/lib/model';
 
 export class AnalysisEngine {
   private static cache = new Map<string, AnalysisResult>();
@@ -79,8 +80,8 @@ export class AnalysisEngine {
 
     let statusLabel = 'At Trend';
     if (devPct !== null) {
-      if (devPct > 1.5) statusLabel = `Above Trend (+${devPct.toFixed(1)}%)`;
-      else if (devPct < -1.5) statusLabel = `Below Trend (${devPct.toFixed(1)}%)`;
+      if (devPct > TREND_BAND_PCT) statusLabel = `Above Trend (+${devPct.toFixed(1)}%)`;
+      else if (devPct < -TREND_BAND_PCT) statusLabel = `Below Trend (${devPct.toFixed(1)}%)`;
     }
 
     return {
@@ -110,17 +111,17 @@ export class AnalysisEngine {
       return this.emptyResult(dataset.id, 'valuation_band');
     }
 
-    const window = validValues.slice(Math.max(0, validValues.length - 10));
+    const window = validValues.slice(Math.max(0, validValues.length - BUFFETT_BAND.windowYears));
     const avg = mean(window);
     const stdDev = standardDeviation(window);
     const z = calcZScore(lastValue, avg, stdDev);
     const pctRank = calcPercentile(validValues, lastValue);
 
     let statusLabel = 'Fair Value';
-    if (z > 2.5) statusLabel = 'Extreme Overvaluation';
-    else if (z > 1.2) statusLabel = 'Overvalued';
-    else if (z < -2.5) statusLabel = 'Extreme Undervaluation';
-    else if (z < -1.2) statusLabel = 'Undervalued';
+    if (z > VALUATION_Z.extreme) statusLabel = 'Extreme Overvaluation';
+    else if (z > VALUATION_Z.stretched) statusLabel = 'Overvalued';
+    else if (z < -VALUATION_Z.extreme) statusLabel = 'Extreme Undervaluation';
+    else if (z < -VALUATION_Z.stretched) statusLabel = 'Undervalued';
 
     const diff = lastValue - avg;
 
@@ -149,7 +150,7 @@ export class AnalysisEngine {
       return this.emptyResult(dataset.id, 'rolling_average');
     }
 
-    const ma = movingAverage(values, 5);
+    const ma = movingAverage(values, GROWTH_STATUS.windowYears);
     const lastMa = ma.length ? ma[ma.length - 1] : null;
     const diff = lastMa !== null ? lastValue - lastMa : null;
     const pctRank = calcPercentile(validValues, lastValue);
@@ -159,8 +160,8 @@ export class AnalysisEngine {
     const direction: 'up' | 'down' | 'flat' = change > 0.1 ? 'up' : change < -0.1 ? 'down' : 'flat';
 
     let statusLabel = 'Stable';
-    if (diff !== null && diff > 0.5) statusLabel = `Accelerating (+${diff.toFixed(1)}% vs 5Y avg)`;
-    else if (diff !== null && diff < -0.5) statusLabel = `Decelerating (${diff.toFixed(1)}% vs 5Y avg)`;
+    if (diff !== null && diff > GROWTH_STATUS.deadBandPts) statusLabel = `Accelerating (+${diff.toFixed(1)}% vs 5Y avg)`;
+    else if (diff !== null && diff < -GROWTH_STATUS.deadBandPts) statusLabel = `Decelerating (${diff.toFixed(1)}% vs 5Y avg)`;
 
     return {
       datasetId: dataset.id,

@@ -3,6 +3,7 @@
 import type { EconomicRecord } from '@/types/economics';
 import { compactCurrency, delta } from '@/lib/formatting/numbers';
 import { colorFor } from '@/lib/markets';
+import { BUFFETT_BAND, BUFFETT_IN_LINE_PTS, GAUGE_MAX_PCT } from '@/lib/model';
 import { MarketIcon } from '@/components/ui/market-icon';
 import { CloseIcon } from '@/components/ui/icons';
 
@@ -19,7 +20,7 @@ export function snapshot(market: Market, rangeStart: number, rangeEnd: number) {
   const previous = current ? market.records.find(r => r.year === current.year - 1) : undefined;
   const buffettLatest = [...inRange].reverse().find(r => r.buffettIndicator !== null) ?? null;
   const decade = buffettLatest
-    ? market.records.filter(r => r.year > buffettLatest.year - 10 && r.year <= buffettLatest.year && r.buffettIndicator !== null)
+    ? market.records.filter(r => r.year > buffettLatest.year - BUFFETT_BAND.windowYears && r.year <= buffettLatest.year && r.buffettIndicator !== null)
     : [];
   const buffettAvg = decade.length ? decade.reduce((s, r) => s + (r.buffettIndicator as number), 0) / decade.length : null;
   const growth = inRange.filter(r => r.gdpGrowth !== null);
@@ -65,7 +66,7 @@ export function Brief({ market, rangeStart, rangeEnd, multiple }: { market: Mark
           <dd className="brief-sub">
             {vsAvg === null
               ? 'Market value ÷ GDP'
-              : `${Math.abs(vsAvg) < 2 ? 'In line with' : vsAvg > 0 ? `${Math.abs(vsAvg).toFixed(0)} pts above` : `${Math.abs(vsAvg).toFixed(0)} pts below`} its 10-year average (${s.buffettAvg!.toFixed(0)}%)`}
+              : `${Math.abs(vsAvg) < BUFFETT_IN_LINE_PTS ? 'In line with' : vsAvg > 0 ? `${Math.abs(vsAvg).toFixed(0)} pts above` : `${Math.abs(vsAvg).toFixed(0)} pts below`} its 10-year average (${s.buffettAvg!.toFixed(0)}%)`}
           </dd>
         </div>
         <div className="brief-cell">
@@ -76,7 +77,6 @@ export function Brief({ market, rangeStart, rangeEnd, multiple }: { market: Mark
           </dd>
         </div>
       </dl>
-      {multiple && <p className="brief-note">Showing {market.name}. Pick another market in the table below to see its figures here.</p>}
     </>
   );
 }
@@ -84,9 +84,9 @@ export function Brief({ market, rangeStart, rangeEnd, multiple }: { market: Mark
 /* ─── Mini gauge: Buffett indicator on a 0–200% track, 100% in the middle ─── */
 function Gauge({ value, avg }: { value: number | null; avg: number | null }) {
   if (value === null) return <div className="mini" aria-hidden="true" />;
-  const pos = (v: number) => Math.min(100, Math.max(0, v / 2));
+  const pos = (v: number) => Math.min(100, Math.max(0, (v / GAUGE_MAX_PCT) * 100));
   const at = pos(value);
-  const dir = value > 100 ? 'up' : value < 100 ? 'down' : '';
+  const dir = value > GAUGE_MAX_PCT / 2 ? 'up' : value < GAUGE_MAX_PCT / 2 ? 'down' : '';
   return (
     <div className="mini" aria-hidden="true">
       <span className="mini-mid" />
@@ -187,7 +187,7 @@ export function MarketRows({
         </ul>
       </div>
       <p className="brief-note muted">
-        The gauge places each market’s market value ÷ GDP on a 0–200% track; the ring is its own 10-year average. Changes are on the previous year.
+        The gauge places each market’s market value ÷ GDP on a 0–{GAUGE_MAX_PCT}% track; the ring is its own {BUFFETT_BAND.windowYears}-year average. Changes are on the previous year.
       </p>
     </section>
   );

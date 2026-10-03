@@ -1,17 +1,20 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import type { AiCapitalFlowRecord, AiCapitalFlowResponse, EconomicsResponse, EconomicRecord } from '@/types/economics';
 import { compactCurrency, percent } from '@/lib/formatting/numbers';
 import { DataSources } from './data-sources';
 import { BubbleLibrary } from './bubble-library';
-import { BUBBLE_CHART_YEARS, BUBBLE_LIBRARY } from '@/lib/bubbles/library';
+import { BUBBLE_LIBRARY, BUBBLE_OFFSETS, CHARTED_BUBBLES, bubbleOffsetLabel, bubbleOffsetTip, bubblePathByOffset } from '@/lib/bubbles/library';
 import { DATASET_REGISTRY } from '@/lib/datasets/registry';
 import { CompatibilityEngine } from '@/lib/datasets/compatibility';
 import type { DatasetMetadata } from '@/lib/datasets/metadata';
 import { AnalysisEngine } from '@/lib/analysis/engine';
 import { PALETTE as palette, colorFor, marketName } from '@/lib/markets';
 import { MarketIcon } from '@/components/ui/market-icon';
+import { AI_BASELINE_YEARS, AI_GROWTH_YEARS, BUFFETT_BAND, GROWTH_STATUS, TIMEFRAMES, TREND_BAND_PCT, VALUATION_Z } from '@/lib/model';
+import type { AnalysisResult } from '@/lib/analysis/types';
 
 // Sub-components
 import { StatusBar, TopBar, Timeframe, useRelative } from './header';
@@ -20,12 +23,9 @@ import { Brief, MarketRows } from './market-snapshot';
 import { ChartPanel } from './chart-panel';
 import { ModeToolbar } from './mode-toolbar';
 import { InsightBanner } from './insight-banner';
-import { ProjectArchitecture } from './project-architecture';
+import { Readings, type Reading } from './readings';
 
 /* ─── Constants ──────────────────────────────────────────────────────────── */
-// Annual data: a 1-year window is a single point, so presets start at 5 years.
-const PERIODS = [5, 10, 20, 30, 50, 'MAX'] as const;
-const BUFFETT_BAND_DEVIATIONS = 2;
 
 /* ─── Option base ───────────────────────────────────────────────────────── */
 // Charts keep the option shape they were written in; the Lightweight Charts adapter
@@ -33,6 +33,41 @@ const BUFFETT_BAND_DEVIATIONS = 2;
 // adapter, so there are no colours or font sizes here.
 function theme() {
   return { tooltip: {}, xAxis: { axisLabel: {} }, yAxis: { axisLabel: {} } } as const;
+}
+
+/* ─── Readings ───────────────────────────────────────────────────────────── */
+const METRIC_FOR: Partial<Record<string, keyof EconomicRecord>> = {
+  gdp: 'gdp', marketCap: 'marketCap', buffett: 'buffettIndicator', gdpGrowth: 'gdpGrowth',
+};
+const READING_SHORT: Partial<Record<string, string>> = { gdp: 'GDP', marketCap: 'Market value', buffett: 'Buffett', gdpGrowth: 'Growth' };
+const READING_COLUMN: Partial<Record<string, string>> = {
+  gdp: 'GDP vs its trend',
+  marketCap: 'Market value vs its trend',
+  buffett: `Buffett vs its ${BUFFETT_BAND.windowYears}-year range`,
+  gdpGrowth: `Growth vs its ${GROWTH_STATUS.windowYears}-year average`,
+};
+const signedNum = (v: number, digits = 1) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(digits)}`;
+const sentence = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+
+/** A short label, the number behind it, and which way it leans, from an analysis result. */
+function readingFrom(r: AnalysisResult): Reading | null {
+  const d = r.distanceFromReference;
+  if (r.currentValue === null) return null;
+  if (r.analysisType === 'trend' && d !== null) {
+    if (Math.abs(d) <= TREND_BAND_PCT) return { label: 'At trend', detail: `${signedNum(d)}%`, tone: 'flat' };
+    return { label: d > 0 ? 'Above trend' : 'Below trend', detail: `${signedNum(d)}%`, tone: d > 0 ? 'up' : 'down' };
+  }
+  if (r.analysisType === 'valuation_band' && r.zScore !== null) {
+    // rich valuations are the caution, so they take the bearish colour
+    const tone = r.zScore > VALUATION_Z.stretched ? 'down' : r.zScore < -VALUATION_Z.stretched ? 'up' : 'flat';
+    const label = r.statusLabel.replace('Extreme Overvaluation', 'Extremely overvalued').replace('Extreme Undervaluation', 'Extremely undervalued');
+    return { label: sentence(label), detail: `${signedNum(r.zScore)} σ from average`, tone };
+  }
+  if (r.analysisType === 'rolling_average' && d !== null) {
+    if (Math.abs(d) <= GROWTH_STATUS.deadBandPts) return { label: 'Steady', detail: `${signedNum(d)} pts`, tone: 'flat' };
+    return { label: d > 0 ? 'Accelerating' : 'Slowing', detail: `${signedNum(d)} pts`, tone: d > 0 ? 'up' : 'down' };
+  }
+  return null;
 }
 
 /* ─── Dashboard ──────────────────────────────────────────────────────────── */
@@ -201,11 +236,11 @@ export function Dashboard({
   /* ── Chart helpers ── */
   const rollingBand = (values: (number | null)[]) =>
     values.map((_, i) => {
-      const set = values.slice(Math.max(0, i - 9), i + 1).filter((v): v is number => v !== null);
+      const set = values.slice(Math.max(0, i - BUFFETT_BAND.windowYears + 1), i + 1).filter((v): v is number => v !== null);
       if (!set.length) return { mean: null, lower: null, range: null };
       const mean     = set.reduce((s, v) => s + v, 0) / set.length;
       const variance = set.reduce((s, v) => s + (v - mean) ** 2, 0) / set.length;
-      const deviation = Math.sqrt(variance) * BUFFETT_BAND_DEVIATIONS;
+      const deviation = Math.sqrt(variance) * BUFFETT_BAND.deviations;
       return { mean, lower: Math.max(0, mean - deviation), range: deviation * 2 };
     });
 
@@ -302,8 +337,8 @@ export function Dashboard({
 
   const rollingFiveYear = (values: (number | null)[]) =>
     values.map((_, i) => {
-      const w = values.slice(Math.max(0, i - 4), i + 1).filter((v): v is number => v !== null);
-      return w.length === 5 ? w.reduce((s, v) => s + v, 0) / w.length : null;
+      const w = values.slice(Math.max(0, i - AI_BASELINE_YEARS + 1), i + 1).filter((v): v is number => v !== null);
+      return w.length === AI_BASELINE_YEARS ? w.reduce((s, v) => s + v, 0) / w.length : null;
     });
 
   const aiRawCapitalOption = {
@@ -354,19 +389,21 @@ export function Dashboard({
   };
 
   const aiCapitalOption = aiMode === 'intensity' ? aiIntensityOption : aiRawCapitalOption;
+  // the baseline needs five observed years, so short ranges have none to draw or list
+  const hasAiBaseline = aiVisible.some(m => rollingFiveYear(aiIntensityFor(m)).filter(v => v !== null).length > 1);
 
   const bubbleChartOption = {
     ...theme(), valueFormat: 'index',
-    xAxis: { ...theme().xAxis, data: BUBBLE_CHART_YEARS.map(String), axisLabel: { ...theme().xAxis.axisLabel, formatter: (v: string, i: number) => i === 0 ? '' : v } },
+    xAxis: { ...theme().xAxis, data: BUBBLE_OFFSETS.map(bubbleOffsetLabel), tipLabels: BUBBLE_OFFSETS.map(bubbleOffsetTip) },
     yAxis: { ...theme().yAxis, axisLabel: { ...theme().yAxis.axisLabel, formatter: (v: number) => `${Math.round(v)}` } },
     legend: { show: false },
-    series: BUBBLE_LIBRARY.filter(b => b.chart && b.chart.points.length > 1).map((bubble, index) => {
-      const pointByYear = new Map(bubble.chart?.points.map(p => [p.year, p.value]));
+    series: CHARTED_BUBBLES.map((bubble, index) => {
+      const path = bubblePathByOffset(bubble);
       const color = palette[index % palette.length];
       return {
-        name: `${bubble.name} · peak = 100`, type: 'line', smooth: false, connectNulls: false, showSymbol: true, symbolSize: 4,
-        data: BUBBLE_CHART_YEARS.map(year => pointByYear.get(year) ?? null),
-        lineStyle: { width: 2.3, color }, itemStyle: { color }, areaStyle: { color, opacity: .035 },
+        name: bubble.name, type: 'line', smooth: false, connectNulls: true, showSymbol: true, symbolSize: 4,
+        data: BUBBLE_OFFSETS.map(offset => path.get(offset) ?? null),
+        lineStyle: { width: 2.3, color }, itemStyle: { color },
         emphasis: { focus: 'series', lineStyle: { width: 3 } },
       };
     }),
@@ -408,12 +445,13 @@ export function Dashboard({
     }
 
     if (selectedModes.has('bubbles')) {
-      BUBBLE_LIBRARY.filter(b => b.chart && b.chart.points.length > 1).forEach((bubble, index) => {
+      // layered on the markets' timeline, each path sits on its real calendar years
+      CHARTED_BUBBLES.forEach((bubble, index) => {
         const pointByYear = new Map(bubble.chart?.points.map(p => [p.year, p.value]));
         const color = palette[index % palette.length];
         seriesList.push({
-          name: `${bubble.name} · peak = 100`, type: 'line', smooth: false, connectNulls: false, showSymbol: true, symbolSize: 4,
-          data: BUBBLE_CHART_YEARS.map(year => pointByYear.get(year) ?? null),
+          name: `${bubble.name} · peak = 100`, type: 'line', smooth: false, connectNulls: true, showSymbol: true, symbolSize: 4,
+          data: years.map(year => pointByYear.get(year) ?? null),
           lineStyle: { width: 2.3, color }, itemStyle: { color },
         });
       });
@@ -452,8 +490,9 @@ export function Dashboard({
     const hint = axisHint.toLowerCase();
     if (singleActiveId === 'valuation' || hint.includes('scatter') || hint.includes('x · gdp growth')) return 'Across: real GDP growth · Up: Buffett indicator';
     if (singleActiveId === 'ai-capital') return aiMode === 'intensity' ? 'AI VC as % of GDP · yearly' : 'US$ · yearly';
-    if (singleActiveId === 'bubbles') return 'Each episode’s peak = 100';
-    if (hint.includes('multi')) return 'Mixed units, each on its own scale · yearly';
+    if (singleActiveId === 'bubbles') return 'Years from each peak · peak = 100';
+    if (singleActiveId === 'relative') return 'First complete year = 100 · yearly';
+    if (hint.includes('multi')) return 'Mixed units · dollar series indexed, first year = 100 · yearly';
     if (hint.includes('trillions')) return 'US$ trillions · yearly';
     if (hint.includes('% of gdp')) return '% of GDP · yearly';
     if (hint.includes('% annual')) return '% a year';
@@ -461,31 +500,31 @@ export function Dashboard({
     return 'Yearly';
   })();
 
-  const statusFor = (market: typeof visible[number]) =>
-    activeDatasetMetadatas
-      .map(dataset => {
-        let vals: (number | null)[] = [];
-        if (dataset.id === 'gdp') vals = valuesFor(market, 'gdp');
-        else if (dataset.id === 'marketCap') vals = valuesFor(market, 'marketCap');
-        else if (dataset.id === 'buffett') vals = valuesFor(market, 'buffettIndicator');
-        else if (dataset.id === 'gdpGrowth') vals = valuesFor(market, 'gdpGrowth');
-        if (!vals.some(v => v !== null)) return null;
-        const result = AnalysisEngine.analyze(dataset, vals, market.country);
-        return isMulti ? `${dataset.shortName} ${result.statusLabel.toLowerCase()}` : result.statusLabel.toLowerCase();
-      })
-      .filter((s): s is string => Boolean(s))
-      .join(', ');
+  /* ── Readings: each market's latest year against its own history, one column per view ── */
+  const readingColumns = activeDatasetMetadatas.filter((d, i, all) => READING_COLUMN[d.id] && all.findIndex(x => x.id === d.id) === i);
+  const readingRows = visible.map((market, index) => ({
+    market,
+    index,
+    cells: readingColumns.map(dataset => {
+      const metric = METRIC_FOR[dataset.id];
+      const vals = metric ? valuesFor(market, metric) : [];
+      return vals.some(v => v !== null) ? readingFrom(AnalysisEngine.analyze(dataset, vals, market.country)) : null;
+    }),
+  }));
+  const readings = (
+    <Readings
+      key={`r-${Array.from(selectedModes).join('-')}-${rangeStart}-${rangeEnd}`}
+      columns={readingColumns.map(d => ({ id: d.id, long: READING_COLUMN[d.id]!, short: READING_SHORT[d.id]! }))}
+      rows={readingRows.map(({ market, index, cells }) => ({ country: market.country, name: market.name, color: colorFor(market.country, index), cells }))}
+    />
+  );
 
-  const swatches = visible.map((market, index) => {
-    const status = statusFor(market);
-    return (
-      <span key={market.country}>
-        <i style={{ backgroundColor: colorFor(market.country, index) }} />
-        {market.name}
-        {status && <span className="legend-status">· {status}</span>}
-      </span>
-    );
-  });
+  const swatches = visible.map((market, index) => (
+    <span key={market.country}>
+      <i style={{ backgroundColor: colorFor(market.country, index) }} />
+      {market.name}
+    </span>
+  ));
 
   const marketLegend = (
     <div className="legend">
@@ -523,7 +562,7 @@ export function Dashboard({
           {market.name}
         </span>
       ))}
-      {aiMode === 'intensity' && <span><i className="dash" style={{ color: 'var(--ink2)' }} />5-year baseline</span>}
+      {aiMode === 'intensity' && hasAiBaseline && <span><i className="dash" style={{ color: 'var(--ink2)' }} />5-year baseline</span>}
       <span className="legend-unit" style={{ gap: 10 }}>
         {unitLabel}
         <span className="seg" role="group" aria-label="AI measure">
@@ -536,7 +575,7 @@ export function Dashboard({
 
   const bubbleLegend = (
     <div className="legend">
-      {BUBBLE_LIBRARY.filter(b => b.chart).map((bubble, index) => (
+      {CHARTED_BUBBLES.map((bubble, index) => (
         <span key={bubble.id}>
           <i style={{ backgroundColor: palette[index % palette.length] }} />
           {bubble.name}
@@ -553,9 +592,9 @@ export function Dashboard({
     const current = [...market.records].reverse().find(r => r.aiInvestment !== null || r.aiVentureCapitalInvestment !== null);
     const gdp = current ? visible.find(m => m.country === market.country)?.records.find(r => r.year === current.year)?.gdp ?? null : null;
     const currentFlow = current?.aiInvestment ?? current?.aiVentureCapitalInvestment ?? null;
-    const baseRecord  = current ? market.records.find(r => r.year === current.year - 5) : undefined;
+    const baseRecord  = current ? market.records.find(r => r.year === current.year - AI_GROWTH_YEARS) : undefined;
     const base = baseRecord?.aiInvestment ?? baseRecord?.aiVentureCapitalInvestment ?? null;
-    const cagr = currentFlow !== null && base !== null && base > 0 ? ((currentFlow / base) ** (1 / 5) - 1) * 100 : null;
+    const cagr = currentFlow !== null && base !== null && base > 0 ? ((currentFlow / base) ** (1 / AI_GROWTH_YEARS) - 1) * 100 : null;
     return { market, index, current, aiToGdp: currentFlow !== null && gdp ? (currentFlow / gdp) * 100 : null, cagr };
   });
 
@@ -627,7 +666,7 @@ export function Dashboard({
           <p className="hero-sub">{lede}</p>
           <Timeframe
             period={period}
-            periods={PERIODS}
+            periods={TIMEFRAMES}
             onSelect={p => setPeriod(p)}
             rangeStart={rangeStart}
             rangeEnd={rangeEnd}
@@ -653,6 +692,7 @@ export function Dashboard({
           short={selectedModes.has('valuation') && selectedModes.size === 1}
           legend={activeLegend}
           toolbar={toolbar}
+          readings={singleActiveId === 'bubbles' || singleActiveId === 'ai-capital' ? undefined : readings}
           foot={
             <InsightBanner
               selectedModes={selectedModes}
@@ -740,8 +780,6 @@ export function Dashboard({
 
         <DataSources aiSource={initialAiCapitalFlow?.source} />
 
-        <ProjectArchitecture />
-
         <footer className="footer">
           <p>
             Economic data: World Bank World Development Indicators via the Data360 API{fetchedAgo ? `, fetched ${fetchedAgo}` : ''}.
@@ -749,7 +787,9 @@ export function Dashboard({
           </p>
           <p className="muted">
             Annual figures in current US dollars unless a view says otherwise. Regional aggregates can have gaps. Charts drawn with{' '}
-            <a href="https://www.tradingview.com/lightweight-charts/" target="_blank" rel="noreferrer">TradingView Lightweight Charts</a>.
+            <a href="https://www.tradingview.com/lightweight-charts/" target="_blank" rel="noreferrer">TradingView Lightweight Charts</a>
+            {' · '}
+            <Link href="/how-it-works">How the screener works</Link>
           </p>
         </footer>
       </div>

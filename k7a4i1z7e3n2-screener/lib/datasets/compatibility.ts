@@ -1,7 +1,7 @@
 import type { DatasetMetadata } from './metadata';
 import type { EconomicRecord, AiCapitalFlowRecord } from '@/types/economics';
+import { BUFFETT_BAND } from '@/lib/model';
 
-const BUFFETT_BAND_DEVIATIONS = 2;
 
 export interface SeriesConfig {
   id?: string;
@@ -25,11 +25,11 @@ export interface SeriesConfig {
 
 export function computeRollingBand(values: (number | null)[]) {
   return values.map((_, index) => {
-    const window = values.slice(Math.max(0, index - 9), index + 1).filter((v): v is number => v !== null);
+    const window = values.slice(Math.max(0, index - BUFFETT_BAND.windowYears + 1), index + 1).filter((v): v is number => v !== null);
     if (!window.length) return { mean: null, lower: null, range: null };
     const mean = window.reduce((sum, v) => sum + v, 0) / window.length;
     const variance = window.reduce((sum, v) => sum + (v - mean) ** 2, 0) / window.length;
-    const deviation = Math.sqrt(variance) * BUFFETT_BAND_DEVIATIONS;
+    const deviation = Math.sqrt(variance) * BUFFETT_BAND.deviations;
     return {
       mean,
       lower: Math.max(0, mean - deviation),
@@ -122,8 +122,9 @@ export class CompatibilityEngine {
         return;
       }
 
-      const activeYears = dataset.compatibilityGroup === 'technology' ? aiYears : years;
-      const rawValues = activeYears.map(y => {
+      // every layered series shares the chart's year axis, so values must line up with
+      // `years`; AI series simply have gaps where nothing was published
+      const rawValues = years.map(y => {
         const rec = byYear.get(y);
         const aiRec = aiByYear.get(y);
         if (dataset.extractValue) {
@@ -133,9 +134,10 @@ export class CompatibilityEngine {
         return null;
       });
 
-      const data = (hasMixedMetrics && dataset.compatibilityGroup === 'macro_currency')
-        ? computeIndexSeries(rawValues)
-        : rawValues;
+      // mixed units share one axis: every dollar series (GDP, market cap, AI VC) is indexed
+      // to its first year in range = 100; percentages stay as they are
+      const indexed = hasMixedMetrics && dataset.axisType.startsWith('currency');
+      const data = indexed ? computeIndexSeries(rawValues) : rawValues;
 
       const ownerKey = `${dataset.id}-${market.country}`;
 
@@ -151,7 +153,7 @@ export class CompatibilityEngine {
         areaStyle: dataset.hasAreaFill ? { opacity: dataset.areaOpacity ?? 0.045 } : undefined,
         data,
         unit: dataset.unit,
-        axisType: hasMixedMetrics && dataset.compatibilityGroup === 'macro_currency' ? 'index' : dataset.axisType,
+        axisType: indexed ? 'index' : dataset.axisType,
         markLine: dataset.markLine,
       });
 

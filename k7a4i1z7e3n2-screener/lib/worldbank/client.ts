@@ -1,6 +1,7 @@
 import { cache } from 'react';
 import { calculateBuffettIndicator } from '@/calculations/buffett';
 import { INDICATORS } from './indicators';
+import { CACHE_HOURS } from '@/lib/model';
 import type { CountryCode, CountryDataset, EconomicsResponse } from '@/types/economics';
 
 type ApiRow = { date: string; value: number | null };
@@ -14,14 +15,14 @@ const countryNames = Object.fromEntries(RESEARCH_MARKETS) as Record<string, stri
 // old v2 API). The v2 endpoint (api.worldbank.org/v2) has been answering 502 for most
 // requests, and almost always for regional aggregates. Data360 takes one request per
 // indicator for all markets at once, paged 100 rows at a time.
-const DATA360_URL = 'https://data360api.worldbank.org/data360/data';
-const PAGE_SIZE = 100;
-const MAX_ATTEMPTS = 3;
-const REQUEST_TIMEOUT_MS = 15_000;
-const MAX_CONCURRENT = 6;
+export const DATA360_URL = 'https://data360api.worldbank.org/data360/data';
+export const PAGE_SIZE = 100;
+export const MAX_ATTEMPTS = 3;
+export const REQUEST_TIMEOUT_MS = 15_000;
+export const MAX_CONCURRENT = 6;
 
 // Market ids used in the app → Data360 REF_AREA codes.
-const REF_AREA: Record<string, string> = {
+export const REF_AREA: Record<string, string> = {
   US: 'USA', IN: 'IND', CN: 'CHN', RU: 'RUS', JP: 'JPN', GB: 'GBR',
   WLD: 'WLD', Z7E: 'ECS', Z4E: 'EAS', SAS: 'SAS', LCN: 'LCN', MEA: 'MEA', SSF: 'SSF'
 };
@@ -52,7 +53,7 @@ async function requestPage(indicator: string, skip: number): Promise<Data360Page
   for (let attempt = 1; ; attempt++) {
     try {
       return await limited(async () => {
-        const response = await fetch(url, { next: { revalidate: 86400 }, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+        const response = await fetch(url, { next: { revalidate: CACHE_HOURS * 3600 }, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
         if (!response.ok) throw new Error(`Data360 API responded ${response.status}`);
         const json = await response.json() as Partial<Data360Page>;
         return { count: Number(json.count) || 0, value: Array.isArray(json.value) ? json.value : [] };

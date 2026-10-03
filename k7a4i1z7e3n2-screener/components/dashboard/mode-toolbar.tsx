@@ -26,18 +26,16 @@ export function ModeToolbar({ views, selectedModes, onToggleMode }: { views: Vie
   }, []);
 
   return (
-    <div className="controls" style={{ marginTop: 0 }}>
-      <div ref={listRef} className="seg seg-wrap" role="group" aria-label="Chart views (several can be combined)">
-        {views.map((view, index) => {
-          const on = selectedModes.has(view.id);
-          return (
-            <button key={view.id} type="button" aria-pressed={on} onClick={() => onToggleMode(view.id)} onKeyDown={e => handleKeyDown(e, index)}>
-              <span className="seg-dot" aria-hidden="true" />
-              {view.label}
-            </button>
-          );
-        })}
-      </div>
+    <div ref={listRef} className="seg seg-wrap" role="group" aria-label="Chart views (several can be combined)">
+      {views.map((view, index) => {
+        const on = selectedModes.has(view.id);
+        return (
+          <button key={view.id} type="button" aria-pressed={on} onClick={() => onToggleMode(view.id)} onKeyDown={e => handleKeyDown(e, index)}>
+            <span className="seg-dot" aria-hidden="true" />
+            {view.label}
+          </button>
+        );
+      })}
     </div>
   );
 }

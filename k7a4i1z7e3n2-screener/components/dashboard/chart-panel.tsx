@@ -14,11 +14,12 @@ interface ChartPanelProps {
   toolbar?: React.ReactNode;
   legend?: React.ReactNode;
   foot?: React.ReactNode;
+  readings?: React.ReactNode;
   empty?: React.ReactNode;
 }
 
 /** The main chart card: serif title, view switcher, legend, chart, reading note. */
-export function ChartPanel({ viewKey, title, subtitle, option, short, toolbar, legend, foot, empty }: ChartPanelProps) {
+export function ChartPanel({ viewKey, title, subtitle, option, short, toolbar, legend, foot, readings, empty }: ChartPanelProps) {
   const [open, setOpen] = useState(false);
   const [resetKey, setResetKey] = useState(0);
   const [expandedResetKey, setExpandedResetKey] = useState(0);
@@ -30,6 +31,12 @@ export function ChartPanel({ viewKey, title, subtitle, option, short, toolbar, l
           <h2 id="chart-title">{title}</h2>
           <p>{subtitle}</p>
         </div>
+        {!empty && readings && <div className="card-head-aside">{readings}</div>}
+      </div>
+
+      {/* view switcher on the left, chart actions on the same line on the right */}
+      <div className="chart-bar">
+        {toolbar}
         {!empty && (
           <div className="card-tools">
             <button type="button" className="btn btn-sm btn-ghost" onClick={() => setResetKey(k => k + 1)} title="Reset zoom and position">
@@ -43,8 +50,6 @@ export function ChartPanel({ viewKey, title, subtitle, option, short, toolbar, l
           </div>
         )}
       </div>
-
-      {toolbar && <div style={{ marginTop: 16 }}>{toolbar}</div>}
 
       {empty ? (
         <div className="empty swap">{empty}</div>

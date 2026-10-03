@@ -2,13 +2,14 @@
 
 import type { BubbleDataset } from '@/types/bubbles';
 import { PALETTE } from '@/lib/markets';
+import { CHARTED_BUBBLES } from '@/lib/bubbles/library';
 import { ChevronDown } from '@/components/ui/icons';
 
 const yr = (value: number | null) => (value === null ? '—' : String(value));
 
 /** Historical bubbles as an FX table card, with research notes behind disclosures. */
 export function BubbleLibrary({ bubbles }: { bubbles: BubbleDataset[] }) {
-  const charted = bubbles.filter(b => b.chart);
+  const charted = CHARTED_BUBBLES;
   return (
     <section className="card section fade-in" aria-labelledby="bubbles-title">
       <div className="card-head">

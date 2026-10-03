@@ -1,5 +1,6 @@
 import { cache } from 'react';
 import { RESEARCH_MARKETS } from '@/lib/worldbank/client';
+import { CACHE_HOURS } from '@/lib/model';
 import type { AiCapitalFlowDataset, AiCapitalFlowRecord, AiCapitalFlowResponse } from '@/types/economics';
 
 /**
@@ -77,7 +78,7 @@ export class OecdAiProvider implements AiCapitalFlowProvider {
       fetchedAt: new Date().toISOString(),
       source: { name: 'OECD.AI · published VC baseline', url: PUBLISHED_SOURCE_URL, frequency: 'annual', latestObservationYear: 2020, availability: 'available' }
     };
-    const response = await fetch(endpoint, { next: { revalidate: 86400 } });
+    const response = await fetch(endpoint, { next: { revalidate: CACHE_HOURS * 3600 } });
     if (!response.ok) throw new Error(`OECD AI capital-flow feed responded ${response.status}`);
     const raw = await response.json() as Feed;
     const countries = normalize(raw);

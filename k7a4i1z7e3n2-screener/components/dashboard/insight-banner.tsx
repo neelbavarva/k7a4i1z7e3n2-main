@@ -40,15 +40,17 @@ export function InsightBanner({ selectedModes, aiSourceName, aiSourceUrl, aiLate
   if (selectedModes.has('bubbles')) {
     return (
       <p>
-        <b>Reading the bubble library.</b> Each episode is scaled to its own peak = 100, so the shapes compare but the levels
-        don’t share a valuation measure. These are fixed historical references; they don’t follow the markets or range you pick.
+        <b>Reading the bubble library.</b> Each episode is scaled to its own peak = 100 and lined up on the year it peaked, so
+        the run-ups and falls compare directly; the levels don’t share a valuation measure. Lines join the published
+        observations, so they show the shape, not every year. These are fixed historical references; they don’t follow the
+        markets or range you pick.
       </p>
     );
   }
   return (
     <p>
-      <b>How to read this.</b> Every selected market is on the same yearly timeline. Hover for exact values, scroll to zoom and
-      drag to move through time; Reset puts the view back.
+      <b>How to read this.</b> Every selected market is on the same yearly timeline. Hover for exact values, drag to move
+      through time, and pinch or hold ⌘/Ctrl and scroll to zoom; Reset puts the view back.
     </p>
   );
 }

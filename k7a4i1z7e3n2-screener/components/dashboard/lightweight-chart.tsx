@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { ColorType, CrosshairMode, LineSeries, LineStyle, LineType, createChart, type Time } from 'lightweight-charts';
+import { ColorType, CrosshairMode, LineSeries, LineStyle, LineType, createChart } from 'lightweight-charts';
 
 type UnknownOption = Record<string, unknown>;
 type SeriesOption = {
@@ -23,8 +23,9 @@ type AxisScale = { min: number; max: number; ticks: number[] };
 
 const FONT = '"Instrument Sans Variable", "Instrument Sans", system-ui, sans-serif';
 const chartColor = (series: SeriesOption) => series.lineStyle?.color ?? series.itemStyle?.color ?? '#2563c8';
-const asYear = (time: unknown) => typeof time === 'string' ? time.slice(0, 4) : String(time);
-const toTime = (year: string) => `${year}-01-01`;
+// Each category (usually a year, but any label works, e.g. years from a bubble's peak)
+// gets its own evenly spaced time slot; labels are looked up from the slot.
+const toTime = (index: number) => `${2000 + index}-01-01`;
 // Units live in the compact axis hint above the canvas. Keep the canvas itself
 // to uncluttered numbers, regardless of the active metric.
 const numberFormat = (_option: UnknownOption, value: number) => {
@@ -54,7 +55,8 @@ const axisScaleFromValues = (values: number[]): AxisScale => {
   if (!values.length) return { min: 0, max: 1, ticks: [0, .25, .5, .75, 1] };
   const low = Math.min(...values), high = Math.max(...values), span = Math.max(high - low, Math.abs(high) * .08, 1e-6);
   const step = niceStep(span / 5);
-  const min = Math.floor((low - span * .06) / step) * step;
+  // padding never pushes a series that can't go negative (GDP, market value) below zero
+  const min = low >= 0 ? Math.max(0, Math.floor((low - span * .06) / step) * step) : Math.floor((low - span * .06) / step) * step;
   const max = Math.ceil((high + span * .06) / step) * step;
   const ticks: number[] = [];
   for (let value = min; value <= max + step * .001; value += step) ticks.push(Number(value.toPrecision(12)));
@@ -111,7 +113,7 @@ function ValuationScatter({ series }: { series: SeriesOption[] }) {
   const points = series.flatMap(item => (item.data ?? []).flatMap(point => Array.isArray(point) && point.length === 2 && Number.isFinite(point[0]) && Number.isFinite(point[1]) ? [{ name: item.name ?? 'Market', color: chartColor(item), x: point[0], y: point[1] }] : []));
   const xAxis = axisScaleFromValues(points.map(point => point.x));
   const yAxis = axisScaleFromValues(points.map(point => point.y));
-  const top = 8, bottom = 28, pad = 8;
+  const top = 20, bottom = 28, pad = 8;
   const plotW = Math.max(1, w - pad * 2), plotH = Math.max(1, h - top - bottom);
   const x = (value: number) => pad + ((value - xAxis.min) / (xAxis.max - xAxis.min)) * plotW;
   const y = (value: number) => top + (1 - (value - yAxis.min) / (yAxis.max - yAxis.min)) * plotH;
@@ -174,7 +176,9 @@ export function LightweightChart({ option, className = '', resetKey = 0 }: { opt
   }, []);
   const [ready, setReady] = useState(false);
   const series = ((option.series as SeriesOption[] | undefined) ?? []);
-  const categories = (((option.xAxis as { data?: unknown[] } | undefined)?.data ?? []).map(String));
+  const xAxisOption = option.xAxis as { data?: unknown[]; tipLabels?: string[] } | undefined;
+  const categories = (xAxisOption?.data ?? []).map(String);
+  const tipLabels = xAxisOption?.tipLabels;
   const isValuationScatter = series.some(item => item.type === 'scatter');
   const axis = axisScaleFor(series.filter(item => item.type !== 'scatter'));
   // Dashboard controls intentionally create fresh option objects while a
@@ -205,11 +209,18 @@ export function LightweightChart({ option, className = '', resetKey = 0 }: { opt
       crosshair: { mode: CrosshairMode.Normal, vertLine: { color: '#a3aa9f', style: LineStyle.Dashed, labelVisible: false }, horzLine: { color: '#a3aa9f', style: LineStyle.Dashed, labelVisible: false } },
       rightPriceScale: { visible: false },
       leftPriceScale: { visible: false, scaleMargins: { top: 0.06, bottom: 0.04 } },
-      timeScale: { visible: false, rightOffset: 0, barSpacing: 28, minBarSpacing: 0.5, maxBarSpacing: 1000, fixLeftEdge: false, fixRightEdge: false, timeVisible: false, tickMarkFormatter: (time: Time) => asYear(time) === categories[0] ? '' : asYear(time) },
-      handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
-      handleScale: { mouseWheel: true, pinch: true, axisPressedMouseMove: true },
+      timeScale: { visible: false, rightOffset: 0, barSpacing: 28, minBarSpacing: 0.5, maxBarSpacing: 1000, fixLeftEdge: false, fixRightEdge: false, timeVisible: false },
+      // A plain wheel scrolls the page, as everywhere else on the site. Zoom is a pinch
+      // (touch or trackpad) or ⌘/Ctrl + scroll, handled below; drag pans.
+      handleScroll: { mouseWheel: false, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
+      handleScale: { mouseWheel: false, pinch: true, axisPressedMouseMove: true },
     });
     chartRef.current = chart;
+    // An invisible series holding every slot keeps the axis evenly spaced even where no
+    // series has a value (sparse bubble paths, gaps in a market's history).
+    const spine = chart.addSeries(LineSeries, { priceScaleId: 'left', color: 'rgba(0,0,0,0)', lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false, autoscaleInfoProvider: () => null });
+    spine.setData(categories.map((_, index) => ({ time: toTime(index) })));
+    const labelAt = new Map(categories.map((label, index) => [toTime(index), tipLabels?.[index] ?? label]));
     const metadata = new Map<unknown, { name: string; color: string; values: Map<string, number> }>();
     const lineByName = new Map<string, { priceToCoordinate: (price: number) => number | null }>();
     const barSeries: Array<{ color: string; values: Array<number | null>; line: { priceToCoordinate: (price: number) => number | null } }> = [];
@@ -225,7 +236,7 @@ export function LightweightChart({ option, className = '', resetKey = 0 }: { opt
       const values = new Map<string, number>();
       const data = (item.data ?? []).flatMap((value, index) => {
         if (typeof value !== 'number' || !Number.isFinite(value) || !categories[index]) return [];
-        const time = toTime(categories[index]);
+        const time = toTime(index);
         values.set(time, value);
         return [{ time, value: value / valueScale }];
       });
@@ -241,6 +252,8 @@ export function LightweightChart({ option, className = '', resetKey = 0 }: { opt
         lastValueVisible: false,
         priceLineVisible: false,
       };
+      // a reference line with a single point would draw as a stray stub
+      if (isDashed && item.silent && data.length < 2) continue;
       const isBar = item.type === 'bar';
       const isArea = Boolean(item.areaStyle) && !isDashed && !isBar;
       // AreaSeries always includes a zero fill baseline in its autoscale
@@ -256,7 +269,8 @@ export function LightweightChart({ option, className = '', resetKey = 0 }: { opt
       if (reference !== undefined) line.createPriceLine({ price: reference / valueScale, color: item.markLine?.lineStyle?.color ?? '#7c837a', lineWidth: (item.markLine?.lineStyle?.width ?? 1) as 1 | 2 | 3 | 4, lineStyle: item.markLine?.lineStyle?.type === 'dashed' ? LineStyle.Dashed : LineStyle.Solid, axisLabelVisible: false, title: '' });
       // The unnamed stacked/helper series create the Buffett band. They are
       // intentionally not exposed as duplicate rows in the user tooltip.
-      if (item.name) metadata.set(line, { name: item.name, color, values });
+      // silent series are references (baselines, averages): no tooltip row, no point markers
+      if (item.name && !item.silent) metadata.set(line, { name: item.name, color, values });
       if (item.name) lineByName.set(item.name, line);
       if (isBar) barSeries.push({ color, values: (item.data ?? []).map(value => typeof value === 'number' && Number.isFinite(value) ? value : null), line });
       if (isArea) areaSeries.push({ color: item.areaStyle?.color ?? color, opacity: item.areaStyle?.opacity ?? .045, values: (item.data ?? []).map(value => typeof value === 'number' && Number.isFinite(value) ? value : null), line });
@@ -289,28 +303,32 @@ export function LightweightChart({ option, className = '', resetKey = 0 }: { opt
       }) : [];
       const xTicks: { label: string; x: number }[] = [];
       let lastX = -Infinity;
-      for (const year of categories) {
-        const x = chart.timeScale().timeToCoordinate(toTime(year));
-        if (x === null || x < -1 || x > width + 1) continue;
-        if (x - lastX >= 52) { xTicks.push({ label: year, x: Math.round(x) }); lastX = x; }
-      }
-      // always label the latest visible year; drop its neighbour if they'd collide
-      const lastVisible = [...categories].reverse().find(year => { const x = chart.timeScale().timeToCoordinate(toTime(year)); return x !== null && x >= -1 && x <= width + 1; });
-      if (lastVisible && xTicks.at(-1)?.label !== lastVisible) {
-        const x = Math.round(chart.timeScale().timeToCoordinate(toTime(lastVisible)) ?? width);
+      categories.forEach((label, index) => {
+        const x = chart.timeScale().timeToCoordinate(toTime(index));
+        if (x === null || x < -1 || x > width + 1) return;
+        if (x - lastX >= 52) { xTicks.push({ label, x: Math.round(x) }); lastX = x; }
+      });
+      // always label the latest visible slot; drop its neighbour if they'd collide
+      const lastIndex = categories.findLastIndex((_, index) => { const x = chart.timeScale().timeToCoordinate(toTime(index)); return x !== null && x >= -1 && x <= width + 1; });
+      if (lastIndex >= 0 && xTicks.at(-1)?.label !== categories[lastIndex]) {
+        const x = Math.round(chart.timeScale().timeToCoordinate(toTime(lastIndex)) ?? width);
         if (xTicks.length && x - xTicks.at(-1)!.x < 52) xTicks.pop();
-        xTicks.push({ label: lastVisible, x });
+        xTicks.push({ label: categories[lastIndex], x });
       }
       setTicks(prev => JSON.stringify(prev) === JSON.stringify({ width, x: xTicks, y: yTicks }) ? prev : { width, x: xTicks, y: yTicks });
-      for (const area of areaSeries) {
+      // A soft fill helps one or two lines; with more they stack into a muddy block, so skip it.
+      for (const area of areaSeries.length <= 2 ? areaSeries : []) {
         let segment: Array<[number, number]> = [];
+        // fill down to the zero line when it's on screen, otherwise to the bottom edge
+        const zeroY = area.line.priceToCoordinate(0);
+        const base = zeroY === null ? height : Math.min(height, Math.max(0, zeroY));
         const fillSegment = () => {
           if (segment.length < 2) { segment = []; return; }
-          context.beginPath(); context.moveTo(segment[0][0], height); segment.forEach(point => context.lineTo(point[0], point[1])); context.lineTo(segment.at(-1)![0], height); context.closePath(); context.fillStyle = withOpacity(area.color, area.opacity); context.fill(); segment = [];
+          context.beginPath(); context.moveTo(segment[0][0], base); segment.forEach(point => context.lineTo(point[0], point[1])); context.lineTo(segment.at(-1)![0], base); context.closePath(); context.fillStyle = withOpacity(area.color, area.opacity); context.fill(); segment = [];
         };
         area.values.forEach((value, index) => {
           if (value === null || !categories[index]) { fillSegment(); return; }
-          const x = chart.timeScale().timeToCoordinate(toTime(categories[index]));
+          const x = chart.timeScale().timeToCoordinate(toTime(index));
           const y = area.line.priceToCoordinate(value / valueScale);
           if (x === null || y === null) { fillSegment(); return; }
           segment.push([x, y]);
@@ -324,12 +342,12 @@ export function LightweightChart({ option, className = '', resetKey = 0 }: { opt
         for (let index = 0; index < categories.length; index++) {
           const low = band.lower[index], range = band.range[index];
           if (low === null || low === undefined || range === null || range === undefined) continue;
-          const x = chart.timeScale().timeToCoordinate(toTime(categories[index]));
+          const x = chart.timeScale().timeToCoordinate(toTime(index));
           const lowY = line.priceToCoordinate(low / valueScale), highY = line.priceToCoordinate((low + range) / valueScale);
           if (x !== null && lowY !== null && highY !== null) { lower.push([x, lowY]); upper.push([x, highY]); }
         }
         if (lower.length < 2) continue;
-        context.beginPath(); context.moveTo(lower[0][0], lower[0][1]); lower.slice(1).forEach(point => context.lineTo(point[0], point[1])); upper.reverse().forEach(point => context.lineTo(point[0], point[1])); context.closePath(); context.fillStyle = withOpacity(band.color, .18); context.fill();
+        context.beginPath(); context.moveTo(lower[0][0], lower[0][1]); lower.slice(1).forEach(point => context.lineTo(point[0], point[1])); upper.reverse().forEach(point => context.lineTo(point[0], point[1])); context.closePath(); context.fillStyle = withOpacity(band.color, bands.length > 2 ? .08 : .18); context.fill();
       }
       // Render clearly visible data point markers (filled dots) along active series lines
       for (const [, meta] of metadata.entries()) {
@@ -339,7 +357,7 @@ export function LightweightChart({ option, className = '', resetKey = 0 }: { opt
         context.strokeStyle = '#fbfcf8';
         context.lineWidth = 1.5;
         for (let index = 0; index < categories.length; index++) {
-          const time = toTime(categories[index]);
+          const time = toTime(index);
           const value = meta.values.get(time);
           if (value === undefined || value === null) continue;
           const x = chart.timeScale().timeToCoordinate(time);
@@ -359,15 +377,15 @@ export function LightweightChart({ option, className = '', resetKey = 0 }: { opt
       if (!barSeries.length) return;
       const zero = barSeries[0].line.priceToCoordinate(0);
       if (zero === null) return;
-      const first = categories.length > 1 ? chart.timeScale().timeToCoordinate(toTime(categories[0])) : null;
-      const second = categories.length > 1 ? chart.timeScale().timeToCoordinate(toTime(categories[1])) : null;
+      const first = categories.length > 1 ? chart.timeScale().timeToCoordinate(toTime(0)) : null;
+      const second = categories.length > 1 ? chart.timeScale().timeToCoordinate(toTime(1)) : null;
       const step = first !== null && second !== null ? Math.abs(second - first) : Math.max(20, width * .12);
       const barWidth = Math.min(16, Math.max(3, step / (barSeries.length + 2.25)));
       const groupWidth = barWidth * barSeries.length;
       barSeries.forEach((bar, marketIndex) => {
         bar.values.forEach((value, index) => {
           if (value === null || !categories[index]) return;
-          const center = chart.timeScale().timeToCoordinate(toTime(categories[index]));
+          const center = chart.timeScale().timeToCoordinate(toTime(index));
           const y = bar.line.priceToCoordinate(value / valueScale);
           if (center === null || y === null) return;
           const top = Math.min(y, zero), height = Math.abs(zero - y);
@@ -413,9 +431,24 @@ export function LightweightChart({ option, className = '', resetKey = 0 }: { opt
         return value === undefined ? [] : [{ id: `${meta.name}-${meta.color}`, name: meta.name, color: meta.color, value }];
       });
       if (!rows.length) { setTooltip(null); return; }
-      setTooltip({ x: parameter.point.x, y: parameter.point.y, year: asYear(parameter.time), rows });
+      setTooltip({ x: parameter.point.x, y: parameter.point.y, year: labelAt.get(key) ?? key, rows });
       void formatter; // Formatting belongs to the data layer; numeric values remain unrounded here.
     });
+    // ⌘/Ctrl + wheel, and trackpad pinch (which browsers report as ctrl + wheel), zoom
+    // around the pointer. A plain wheel is left alone so the page scrolls.
+    const onWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey && !event.metaKey) return;
+      const scale = chart.timeScale();
+      const range = scale.getVisibleLogicalRange();
+      if (!range) return;
+      event.preventDefault();
+      const factor = Math.min(1.5, Math.max(0.66, Math.exp(event.deltaY * 0.01)));
+      const anchor = scale.coordinateToLogical(event.clientX - host.getBoundingClientRect().left) ?? (range.from + range.to) / 2;
+      const from = anchor - (anchor - range.from) * factor, to = anchor + (range.to - anchor) * factor;
+      if (to - from < 1.5 || to - from > categories.length * 4) return;
+      scale.setVisibleLogicalRange({ from, to });
+    };
+    host.addEventListener('wheel', onWheel, { passive: false });
     const observer = new ResizeObserver(entries => {
       const entry = entries[0];
       if (entry) { chart.applyOptions({ width: entry.contentRect.width, height: entry.contentRect.height }); requestAnimationFrame(pinTimeRange); }
@@ -425,6 +458,7 @@ export function LightweightChart({ option, className = '', resetKey = 0 }: { opt
       cancelAnimationFrame(firstLayoutFrame); cancelAnimationFrame(secondLayoutFrame);
       const canvas = bandCanvasRef.current;
       canvas?.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
+      host.removeEventListener('wheel', onWheel);
       observer.disconnect(); chart.timeScale().unsubscribeVisibleLogicalRangeChange(drawOverlays); chart.remove(); chartRef.current = null;
     };
   }, [optionFingerprint, resetKey, fontsReady]);
