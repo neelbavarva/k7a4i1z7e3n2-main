@@ -1,0 +1,14 @@
+# Monorepo-wide safety net (each project also has its own .gitignore)
+node_modules/
+.next/
+dist/
+.vercel/
+.env
+.env*.local
+!.env.example
+.DS_Store
+*.log
+
+# local leftovers, not for the repo
+_to_delete/
+_backup-*.tar.gz

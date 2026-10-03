@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+.env
+# Generated on every run from data/ (by "npm run pipeline" or "npm run demo"); not committed
+# so the repo doesn't grow by a megabyte an hour.
+public/data/
+.vercel

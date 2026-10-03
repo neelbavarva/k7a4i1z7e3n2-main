@@ -1,4 +1,6 @@
 import type { Metadata, Viewport } from 'next';
+import '@fontsource-variable/instrument-sans';
+import '@fontsource/young-serif/400.css';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -11,6 +13,9 @@ export const metadata: Metadata = {
   authors: [{ name: 'Kaizen' }],
   creator: 'Kaizen',
   robots: { index: true, follow: true },
+  icons: {
+    icon: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='2' y='15' width='28' height='2' rx='1' fill='%23889'/%3E%3Crect x='7' y='9' width='5' height='14' rx='2.5' fill='%232a78d6'/%3E%3Crect x='20' y='5' width='5' height='22' rx='2.5' fill='%23161a16'/%3E%3C/svg%3E",
+  },
   openGraph: {
     type: 'website',
     title: 'Kaizen Screener',
@@ -25,7 +30,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#ffffff',
+  themeColor: '#f6f8f1',
   width: 'device-width',
   initialScale: 1,
 };

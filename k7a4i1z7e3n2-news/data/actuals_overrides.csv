@@ -1,0 +1,3 @@
+# Manual actual values. These always win over the feed and Gemini.
+# date = release date in UTC (YYYY-MM-DD); title must match the calendar exactly.
+date,currency,title,actual

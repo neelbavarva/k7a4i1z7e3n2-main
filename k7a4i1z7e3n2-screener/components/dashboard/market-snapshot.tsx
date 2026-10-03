@@ -1,136 +1,198 @@
+'use client';
+
 import type { EconomicRecord } from '@/types/economics';
-import { Card } from '@/components/ui/card';
-import { compactCurrency, delta, percent } from '@/lib/formatting/numbers';
+import { compactCurrency, delta } from '@/lib/formatting/numbers';
+import { colorFor } from '@/lib/markets';
+import { MarketIcon } from '@/components/ui/market-icon';
+import { CloseIcon } from '@/components/ui/icons';
 
 type Market = { country: string; name: string; records: EconomicRecord[] };
 
-const accents: Record<string, string> = {
-  US: '#3b82f6', IN: '#f97316', CN: '#e11d48', RU: '#a855f7',
-  JP: '#ec4899', GB: '#06b6d4', WLD: '#14b8a6', Z7E: '#6366f1',
-  Z4E: '#10b981', SAS: '#84cc16', LCN: '#c084fc', MEA: '#f59e0b', SSF: '#a16207',
-};
-const palette = ['#3b82f6', '#f97316', '#10b981', '#a855f7', '#e11d48', '#06b6d4', '#f59e0b', '#ec4899'];
-const colorFor = (code: string, index = 0) => accents[code] ?? palette[index % palette.length];
+const side = (v: number | null, dead = 0) => (v === null ? 'flat' : v > dead ? 'up' : v < -dead ? 'down' : 'flat');
+const signedPct = (v: number | null, digits = 1) => (v === null || !Number.isFinite(v) ? '—' : `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(digits)}%`);
+const pct = (v: number | null, digits = 0) => (v === null || !Number.isFinite(v) ? '—' : `${v.toFixed(digits)}%`);
 
-function latestInRange(records: EconomicRecord[], rangeStart: number, rangeEnd: number) {
-  const inRange = records.filter(r => r.year >= rangeStart && r.year <= rangeEnd);
-  return [...inRange].reverse().find(r => r.gdp !== null) ?? inRange.at(-1);
+/** Latest year inside the range with a GDP value, plus the year before it. */
+export function snapshot(market: Market, rangeStart: number, rangeEnd: number) {
+  const inRange = market.records.filter(r => r.year >= rangeStart && r.year <= rangeEnd);
+  const current = [...inRange].reverse().find(r => r.gdp !== null) ?? inRange.at(-1);
+  const previous = current ? market.records.find(r => r.year === current.year - 1) : undefined;
+  const buffettLatest = [...inRange].reverse().find(r => r.buffettIndicator !== null) ?? null;
+  const decade = buffettLatest
+    ? market.records.filter(r => r.year > buffettLatest.year - 10 && r.year <= buffettLatest.year && r.buffettIndicator !== null)
+    : [];
+  const buffettAvg = decade.length ? decade.reduce((s, r) => s + (r.buffettIndicator as number), 0) / decade.length : null;
+  const growth = inRange.filter(r => r.gdpGrowth !== null);
+  const growthAvg = growth.length ? growth.reduce((s, r) => s + (r.gdpGrowth as number), 0) / growth.length : null;
+  return { current, previous, buffettLatest, buffettAvg, growthAvg, growthYears: growth.length };
 }
 
-export function MarketSnapshot({ markets, rangeStart, rangeEnd }: { markets: Market[]; rangeStart: number; rangeEnd: number }) {
+/* ─── Brief: four facts for the focused market, like the FX pair page ─── */
+export function Brief({ market, rangeStart, rangeEnd, multiple }: { market: Market; rangeStart: number; rangeEnd: number; multiple: boolean }) {
+  const s = snapshot(market, rangeStart, rangeEnd);
+  const c = s.current;
+  if (!c) {
+    return <p className="brief-note">No annual observations for {market.name} in {rangeStart}–{rangeEnd}.</p>;
+  }
+  const gdpChg = delta(c.gdp, s.previous?.gdp ?? null);
+  const capChg = delta(c.marketCap, s.previous?.marketCap ?? null);
+  const b = s.buffettLatest?.buffettIndicator ?? null;
+  const vsAvg = b !== null && s.buffettAvg !== null ? b - s.buffettAvg : null;
+
   return (
-    <Card className="overflow-hidden" role="region" aria-label="Market snapshot">
-      <div className="flex items-center justify-between px-2.5 py-1.5"
-        style={{ borderBottom: '1px solid var(--border-base)' }}
-      >
-        <p className="section-label text-[9px]">Selected markets</p>
-        <span className="font-mono text-[9.5px] text-slate-400">latest in {rangeStart}–{rangeEnd}</span>
-      </div>
-
-      {/* Mobile: card grid */}
-      <div className="grid grid-cols-1 gap-1.5 p-1.5 sm:hidden">
-        {markets.map((market, index) => {
-          const current = latestInRange(market.records, rangeStart, rangeEnd);
-          const previous = current
-            ? market.records.find(r => r.year === current.year - 1)
-            : undefined;
-          if (!current) return null;
-
-          const gdpDelta    = delta(current.gdp, previous?.gdp ?? null);
-          const capDelta    = delta(current.marketCap, previous?.marketCap ?? null);
-          const buffDelta   = delta(current.buffettIndicator, previous?.buffettIndicator ?? null);
-          const growthDelta = delta(current.gdpGrowth, previous?.gdpGrowth ?? null);
-
-          const metricCell = (label: string, val: string, chg: number | null) => (
-            <div className="rounded p-1.5" style={{ background: 'var(--surface-subtle)', border: '1px solid var(--border-base)' }}>
-              <p className="section-label text-[8.5px]">{label}</p>
-              <p className="metric-value mt-0.5 text-[11px] font-semibold text-slate-800">{val}</p>
-              <p className={`mt-0.5 text-[9px] font-medium ${chg !== null && chg < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                {chg === null ? '—' : `${chg >= 0 ? '+' : ''}${chg.toFixed(1)}%`}
-              </p>
-            </div>
-          );
-
-          return (
-            <article key={market.country} className="rounded-md p-2" style={{ background: 'var(--surface-card)', border: '1px solid var(--border-base)' }}>
-              <div className="mb-1.5 flex items-center justify-between pb-1" style={{ borderBottom: '1px solid var(--border-base)' }}>
-                <div className="flex items-center gap-1.5">
-                  <span
-                    className="h-2 w-2 rounded-full shrink-0"
-                    style={{ backgroundColor: colorFor(market.country, index) }}
-                    aria-hidden="true"
-                  />
-                  <div>
-                    <h3 className="text-[11px] font-semibold text-slate-800">{market.name}</h3>
-                    <span className="font-mono text-[9px] text-slate-400">Year {current.year}</span>
-                  </div>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-1">
-                {metricCell('GDP', compactCurrency(current.gdp), gdpDelta)}
-                {metricCell('Market Cap', compactCurrency(current.marketCap), capDelta)}
-                {metricCell('Buffett', percent(current.buffettIndicator), buffDelta)}
-                {metricCell('GDP Growth', percent(current.gdpGrowth, 1), growthDelta)}
-              </div>
-            </article>
-          );
-        })}
-      </div>
-
-      {/* Desktop: table */}
-      <div className="hidden overflow-x-auto sm:block">
-        <table className="w-full min-w-[720px] border-collapse text-left">
-          <thead style={{ borderBottom: '1px solid var(--border-base)', background: 'var(--surface-subtle)' }}>
-            <tr className="section-label text-[9px]">
-              <th className="px-2.5 py-1.5 font-medium">Market</th>
-              <th className="px-2.5 py-1.5 font-medium">GDP</th>
-              <th className="px-2.5 py-1.5 font-medium">Market cap</th>
-              <th className="px-2.5 py-1.5 font-medium">Buffett</th>
-              <th className="px-2.5 py-1.5 font-medium">GDP growth</th>
-            </tr>
-          </thead>
-          <tbody>
-            {markets.map((market, index) => {
-              const current  = latestInRange(market.records, rangeStart, rangeEnd);
-              const previous = current ? market.records.find(r => r.year === current.year - 1) : undefined;
-              if (!current) return null;
-
-              const cell = (value: string, change: number | null) => (
-                <td className="px-2.5 py-1.5">
-                  <p className="metric-value text-[11.5px] font-semibold text-slate-800">{value}</p>
-                  <p className={`text-[9.5px] font-medium ${change !== null && change < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                    {change === null ? '—' : `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`}
-                  </p>
-                </td>
-              );
-
-              return (
-                <tr key={market.country} className="table-row-hover last:border-0"
-                  style={{ borderBottom: '1px solid var(--border-base)' }}
-                >
-                  <td className="px-2.5 py-1.5">
-                    <div className="flex items-center gap-1.5">
-                      <span
-                        className="h-2 w-2 rounded-full shrink-0"
-                        style={{ backgroundColor: colorFor(market.country, index) }}
-                        aria-hidden="true"
-                      />
-                      <div>
-                        <p className="text-[11.5px] font-semibold text-slate-800">{market.name}</p>
-                        <p className="font-mono text-[9.5px] text-slate-400">{current.year}</p>
-                      </div>
-                    </div>
-                  </td>
-                  {cell(compactCurrency(current.gdp), delta(current.gdp, previous?.gdp ?? null))}
-                  {cell(compactCurrency(current.marketCap), delta(current.marketCap, previous?.marketCap ?? null))}
-                  {cell(percent(current.buffettIndicator), delta(current.buffettIndicator, previous?.buffettIndicator ?? null))}
-                  {cell(percent(current.gdpGrowth, 1), delta(current.gdpGrowth, previous?.gdpGrowth ?? null))}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </Card>
+    <>
+      <dl className="brief" aria-label={`Latest figures for ${market.name}`}>
+        <div className="brief-cell">
+          <dt>
+            {multiple && <MarketIcon code={market.country} size={14} />}
+            GDP · {c.year}
+          </dt>
+          <dd className="brief-num">{compactCurrency(c.gdp)}</dd>
+          <dd className="brief-sub">
+            <span className={side(gdpChg)}>{signedPct(gdpChg)}</span> on {c.year - 1}, nominal US$
+          </dd>
+        </div>
+        <div className="brief-cell">
+          <dt>Stock market value</dt>
+          <dd className="brief-num">{compactCurrency(c.marketCap)}</dd>
+          <dd className="brief-sub">
+            {c.marketCap === null ? 'Not reported for this year' : <><span className={side(capChg)}>{signedPct(capChg)}</span> on {c.year - 1}, listed companies</>}
+          </dd>
+        </div>
+        <div className="brief-cell">
+          <dt>Buffett indicator{s.buffettLatest && s.buffettLatest.year !== c.year ? ` · ${s.buffettLatest.year}` : ''}</dt>
+          <dd className="brief-num">{pct(b)}</dd>
+          <dd className="brief-sub">
+            {vsAvg === null
+              ? 'Market value ÷ GDP'
+              : `${Math.abs(vsAvg) < 2 ? 'In line with' : vsAvg > 0 ? `${Math.abs(vsAvg).toFixed(0)} pts above` : `${Math.abs(vsAvg).toFixed(0)} pts below`} its 10-year average (${s.buffettAvg!.toFixed(0)}%)`}
+          </dd>
+        </div>
+        <div className="brief-cell">
+          <dt>Real GDP growth</dt>
+          <dd className={`brief-num ${side(c.gdpGrowth, 0.05)}`}>{signedPct(c.gdpGrowth)}</dd>
+          <dd className="brief-sub">
+            {s.growthAvg === null ? 'Annual, constant prices' : `Averaged ${signedPct(s.growthAvg)} over ${s.growthYears} year${s.growthYears === 1 ? '' : 's'}`}
+          </dd>
+        </div>
+      </dl>
+      {multiple && <p className="brief-note">Showing {market.name}. Pick another market in the table below to see its figures here.</p>}
+    </>
   );
+}
+
+/* ─── Mini gauge: Buffett indicator on a 0–200% track, 100% in the middle ─── */
+function Gauge({ value, avg }: { value: number | null; avg: number | null }) {
+  if (value === null) return <div className="mini" aria-hidden="true" />;
+  const pos = (v: number) => Math.min(100, Math.max(0, v / 2));
+  const at = pos(value);
+  const dir = value > 100 ? 'up' : value < 100 ? 'down' : '';
+  return (
+    <div className="mini" aria-hidden="true">
+      <span className="mini-mid" />
+      <span className={`mini-pull ${dir}`} style={{ left: `${Math.min(50, at)}%`, width: `${Math.abs(at - 50)}%` }} />
+      {avg !== null && <span className="mini-avg" style={{ left: `${pos(avg)}%` }} />}
+      <span className={`mini-knot ${dir}`} style={{ left: `${at}%` }} />
+    </div>
+  );
+}
+
+/* ─── Rows: every selected market, the FX overview table pattern ─── */
+export function MarketRows({
+  markets,
+  rangeStart,
+  rangeEnd,
+  focus,
+  onFocus,
+  onRemove,
+}: {
+  markets: Market[];
+  rangeStart: number;
+  rangeEnd: number;
+  focus: string;
+  onFocus: (code: string) => void;
+  onRemove: (code: string) => void;
+}) {
+  const multiple = markets.length > 1;
+  return (
+    <section className="section" aria-labelledby="rows-title">
+      <h2 id="rows-title" className="group-title">
+        {multiple ? 'Compared markets' : 'Market'} <span className="count">{markets.length}</span>
+      </h2>
+      <div className="rows-card">
+        <div className="row-headings" aria-hidden="true">
+          <span>Market</span>
+          <span>Buffett vs 100%</span>
+          <span className="r">Buffett</span>
+          <span className="r">GDP</span>
+          <span className="r">Market value</span>
+          <span className="r">Growth</span>
+          <span />
+        </div>
+        <ul className="rows">
+          {markets.map((market, index) => {
+            const s = snapshot(market, rangeStart, rangeEnd);
+            const c = s.current;
+            const b = s.buffettLatest?.buffettIndicator ?? null;
+            const isFocus = market.country === focus;
+            return (
+              <li
+                key={market.country}
+                className="row fade-in"
+                style={{ cursor: multiple ? 'pointer' : undefined, background: isFocus && multiple ? 'var(--raised)' : undefined, animationDelay: `${index * 30}ms` }}
+                onClick={() => onFocus(market.country)}
+                aria-current={isFocus && multiple ? 'true' : undefined}
+              >
+                <span className="row-sym">
+                  <MarketIcon code={market.country} size={24} ring={isFocus && multiple ? colorFor(market.country, index) : undefined} />
+                  <span className="row-sym-text">
+                    {market.name}
+                    <span className="row-name">
+                      <i className="dot" style={{ backgroundColor: colorFor(market.country, index), width: 7, height: 7, marginRight: 6 }} />
+                      {c ? `Latest ${c.year}` : 'No data in range'}
+                    </span>
+                  </span>
+                </span>
+                <Gauge value={b} avg={s.buffettAvg} />
+                <span className="r row-val" data-label="Buffett">
+                  {pct(b)}
+                </span>
+                <span className="r" data-label="GDP">
+                  <span className="row-val">{compactCurrency(c?.gdp ?? null)}</span>
+                  <Change v={delta(c?.gdp ?? null, s.previous?.gdp ?? null)} />
+                </span>
+                <span className="r" data-label="Market value">
+                  <span className="row-val">{compactCurrency(c?.marketCap ?? null)}</span>
+                  <Change v={delta(c?.marketCap ?? null, s.previous?.marketCap ?? null)} />
+                </span>
+                <span className={`r row-val ${side(c?.gdpGrowth ?? null, 0.05)}`} data-label="Growth">
+                  {signedPct(c?.gdpGrowth ?? null)}
+                </span>
+                <span>
+                  {multiple && (
+                    <button
+                      type="button"
+                      className="row-remove"
+                      onClick={e => { e.stopPropagation(); onRemove(market.country); }}
+                      aria-label={`Remove ${market.name}`}
+                      title={`Remove ${market.name}`}
+                    >
+                      <CloseIcon />
+                    </button>
+                  )}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+      <p className="brief-note muted">
+        The gauge places each market’s market value ÷ GDP on a 0–200% track; the ring is its own 10-year average. Changes are on the previous year.
+      </p>
+    </section>
+  );
+}
+
+function Change({ v }: { v: number | null }) {
+  return <span className={`row-chg ${side(v)}`}>{v === null ? '—' : `${signedPct(v)} y/y`}</span>;
 }

@@ -65,7 +65,7 @@ export const DATASET_REGISTRY: Record<string, DatasetMetadata> = {
     hasAreaFill: false, // Prevents unwanted fill under Buffett line
     markLine: {
       data: [{ yAxis: 100 }],
-      lineStyle: { color: '#94a3b8', type: 'dashed', width: 1 },
+      lineStyle: { color: '#a3aa9f', type: 'dashed', width: 1 },
     },
     extractValue: (r) => r?.buffettIndicator ?? null,
     formatValue: (v) => formatByUnit(v, 'percentage'),

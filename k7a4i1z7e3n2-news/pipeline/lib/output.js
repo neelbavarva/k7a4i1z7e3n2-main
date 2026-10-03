@@ -1,0 +1,53 @@
+import { join } from 'node:path';
+import { PAIRS, MODEL, publicPair } from '../config.js';
+import { buildSurpriseStats, computePair } from './score.js';
+import { PUBLIC_DATA_DIR, writeJson } from './store.js';
+
+const HOUR = 3600 * 1000;
+
+/**
+ * Scores every pair and writes the static JSON the website reads:
+ *   public/data/meta.json         - pair list with headline scores
+ *   public/data/pairs/<ID>.json   - series, prices, events, summary
+ */
+export async function writeOutputs({ events, nowMs, pricesFor, demo = false, sources = {} }) {
+  const list = Object.values(events);
+  const stats = buildSurpriseStats(list);
+  const meta = {
+    generatedAt: new Date(nowMs).toISOString(),
+    demo,
+    sources,
+    model: { K: MODEL.K, halfLifeHours: MODEL.halfLifeHours, historyDays: MODEL.historyDays, forwardDays: MODEL.forwardDays },
+    counts: {
+      events: list.length,
+      released: list.filter((e) => Date.parse(e.time) <= nowMs && !e.skip && e.weight > 0).length,
+      withActual: list.filter((e) => e.actual != null).length,
+    },
+    pairs: [],
+  };
+  for (const pair of PAIRS) {
+    const result = computePair(pair, list, stats, nowMs);
+    const first = result.series[0]?.t ?? nowMs;
+    const prices = pricesFor(pair).filter((p) => p.t >= first - HOUR);
+    await writeJson(join(PUBLIC_DATA_DIR, 'pairs', `${pair.id}.json`), {
+      generatedAt: meta.generatedAt,
+      demo,
+      ...result,
+      prices,
+      priceSymbol: pricesFor.symbolOf?.(pair) ?? null,
+    });
+    const s = result.summary;
+    meta.pairs.push({
+      ...publicPair(pair),
+      score: s.score,
+      label: s.label,
+      change24h: Math.round((s.score - (result.series.find((p) => p.t === Math.floor(nowMs / HOUR) * HOUR - 24 * HOUR)?.s ?? s.score)) * 10) / 10,
+      next: s.next,
+      // where the score is heading in 7 days if upcoming releases match their forecasts
+      future: s.path.score,
+      futureLabel: s.path.label,
+    });
+  }
+  await writeJson(join(PUBLIC_DATA_DIR, 'meta.json'), meta, { pretty: true });
+  return meta;
+}

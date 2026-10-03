@@ -1,11 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, ChevronDown, RefreshCw } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import type { AiCapitalFlowRecord, AiCapitalFlowResponse, EconomicsResponse, EconomicRecord } from '@/types/economics';
-import { RESEARCH_MARKETS } from '@/lib/worldbank/client';
 import { compactCurrency, percent } from '@/lib/formatting/numbers';
-import { Card } from '@/components/ui/card';
 import { DataSources } from './data-sources';
 import { BubbleLibrary } from './bubble-library';
 import { BUBBLE_CHART_YEARS, BUBBLE_LIBRARY } from '@/lib/bubbles/library';
@@ -13,59 +10,29 @@ import { DATASET_REGISTRY } from '@/lib/datasets/registry';
 import { CompatibilityEngine } from '@/lib/datasets/compatibility';
 import type { DatasetMetadata } from '@/lib/datasets/metadata';
 import { AnalysisEngine } from '@/lib/analysis/engine';
+import { PALETTE as palette, colorFor, marketName } from '@/lib/markets';
+import { MarketIcon } from '@/components/ui/market-icon';
 
 // Sub-components
-import { DashboardHeader } from './header';
-import { MarketPills } from './market-pills';
-import { MarketSnapshot } from './market-snapshot';
+import { StatusBar, TopBar, Timeframe, useRelative } from './header';
+import { MarketPicker } from './market-picker';
+import { Brief, MarketRows } from './market-snapshot';
 import { ChartPanel } from './chart-panel';
 import { ModeToolbar } from './mode-toolbar';
 import { InsightBanner } from './insight-banner';
 import { ProjectArchitecture } from './project-architecture';
 
 /* ─── Constants ──────────────────────────────────────────────────────────── */
-const PERIODS = [1, 5, 10, 20, 30, 50, 'MAX'] as const;
+// Annual data: a 1-year window is a single point, so presets start at 5 years.
+const PERIODS = [5, 10, 20, 30, 50, 'MAX'] as const;
 const BUFFETT_BAND_DEVIATIONS = 2;
-const countryCodes = new Set(['US', 'IN', 'CN', 'RU', 'JP', 'GB', 'WLD']);
 
-const accents: Record<string, string> = {
-  US: '#2563c8', IN: '#c65a13', CN: '#bd3f57', RU: '#7c4cb0',
-  JP: '#a94689', GB: '#087f8c', WLD: '#0f766e', Z7E: '#5169b2',
-  Z4E: '#197d74', SAS: '#5d8a47', LCN: '#9a5e9d', MEA: '#9a6510', SSF: '#8c5d3b',
-};
-const palette = ['#2563c8', '#c65a13', '#197d74', '#7c4cb0', '#bd3f57', '#087f8c', '#9a6510', '#a94689'];
-const colorFor = (code: string, index = 0) => accents[code] ?? palette[index % palette.length];
-const marketName = (code: string) => RESEARCH_MARKETS.find(([id]) => id === code)?.[1] ?? code;
-
-/* ─── Theme helper ───────────────────────────────────────────────────────── */
+/* ─── Option base ───────────────────────────────────────────────────────── */
+// Charts keep the option shape they were written in; the Lightweight Charts adapter
+// reads series, xAxis.data and valueFormat. All styling lives in globals.css and the
+// adapter, so there are no colours or font sizes here.
 function theme() {
-  return {
-    textStyle: { color: '#64748b', fontFamily: '"Roboto Mono", ui-monospace, monospace' },
-    animationDuration: 650,
-    animationDurationUpdate: 280,
-    animationEasing: 'cubicOut',
-    grid: { left: 18, right: 14, top: 14, bottom: 22, containLabel: false },
-    tooltip: {
-      trigger: 'axis', transitionDuration: 0, backgroundColor: '#ffffff',
-      borderColor: '#d7dee9', borderWidth: 1,
-      textStyle: { color: '#172033', fontSize: 10, fontFamily: '"Roboto Mono", ui-monospace, monospace' },
-      extraCssText: 'box-shadow:0 12px 30px rgba(15,23,42,.12); border-radius:8px',
-      padding: 10,
-      axisPointer: { type: 'line', snap: true, lineStyle: { color: '#94a3b8', type: 'dashed' } },
-    },
-    dataZoom: [{ type: 'inside', filterMode: 'none', throttle: 50, zoomOnMouseWheel: true, moveOnMouseMove: true, moveOnMouseWheel: true }],
-    xAxis: {
-      type: 'category', boundaryGap: false, axisLine: { show: false }, axisTick: { show: false },
-      axisLabel: { color: '#475569', fontSize: 8, fontFamily: '"Roboto Mono", ui-monospace, monospace', hideOverlap: true, margin: 4 },
-      splitLine: { show: true, lineStyle: { color: '#f1f5f9', type: 'dashed' } },
-    },
-    yAxis: {
-      type: 'value', scale: true,
-      splitLine: { show: true, lineStyle: { color: '#f1f5f9', type: 'dashed' } },
-      axisLine: { show: false }, axisTick: { show: false },
-      axisLabel: { color: '#475569', fontSize: 7, fontFamily: '"Roboto Mono", ui-monospace, monospace', width: 14, align: 'right', overflow: 'truncate', margin: 2 },
-    },
-  } as const;
+  return { tooltip: {}, xAxis: { axisLabel: {} }, yAxis: { axisLabel: {} } } as const;
 }
 
 /* ─── Dashboard ──────────────────────────────────────────────────────────── */
@@ -78,17 +45,14 @@ export function Dashboard({
 }) {
   /* ── State ── */
   const [selectedMarkets, setSelectedMarkets] = useState<string[]>(['US', 'WLD']);
-  const [marketOpen, setMarketOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [focusMarket, setFocusMarket] = useState('US');
   const [period, setPeriod] = useState<number | 'MAX' | 'CUSTOM'>(10);
   const [customRange, setCustomRange] = useState({ start: '', end: '' });
   const [rangeDraft, setRangeDraft] = useState({ start: '', end: '' });
-  const [timeframeOpen, setTimeframeOpen] = useState(false);
   const [selectedModes, setSelectedModes] = useState<Set<string>>(new Set(['gdp']));
   const [aiMode, setAiMode] = useState<'intensity' | 'flow'>('intensity');
-  const [isAiFlowOpen, setIsAiFlowOpen] = useState(false); // Collapsed by default
 
-  const marketMenuRef = useRef<HTMLDivElement>(null);
-  const timeframeRef  = useRef<HTMLDivElement>(null);
 
   /* ── Data ── */
   const data = initialData?.countries ?? [];
@@ -127,10 +91,7 @@ export function Dashboard({
   const rangeIsValid = Boolean(rangeDraft.start && rangeDraft.end) && draftStart <= draftEnd;
 
   /* ── Handlers ── */
-  const toggleTimeframe = () => {
-    if (!timeframeOpen) setRangeDraft({ start: String(rangeStart), end: String(rangeEnd) });
-    setTimeframeOpen(open => !open);
-  };
+  const openCustomRange = () => setRangeDraft({ start: String(rangeStart), end: String(rangeEnd) });
 
   const selectRangePart = (part: 'start' | 'end', value: string) => {
     const next = { ...rangeDraft, [part]: value };
@@ -160,16 +121,20 @@ export function Dashboard({
     });
   };
 
-  // Close menus on outside click
+  // Cmd/Ctrl+K opens the market picker from anywhere (as on FX Fundamental Bias)
   useEffect(() => {
-    const close = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (marketMenuRef.current && !marketMenuRef.current.contains(target)) setMarketOpen(false);
-      if (timeframeRef.current  && !timeframeRef.current.contains(target))  setTimeframeOpen(false);
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setPickerOpen(v => !v);
+      }
     };
-    document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, []);
+
+  // keep the focused market (the one the brief describes) inside the selection
+  const focus = selectedMarkets.includes(focusMarket) ? focusMarket : selectedMarkets[0];
 
   /* ── Derived data ── */
   const visible = useMemo(
@@ -271,6 +236,7 @@ export function Dashboard({
         ].join('<br/>');
       },
     },
+    valueFormat: unit === '$' ? 'usd' : 'pct',
     xAxis: timeAxis(),
     yAxis: {
       ...theme().yAxis,
@@ -286,7 +252,7 @@ export function Dashboard({
         smoothMonotone: 'x', connectNulls: false, showSymbol: false,
         lineStyle: { width: 2.6, color }, itemStyle: { color }, areaStyle: { opacity: .045 },
         emphasis: { focus: 'series', lineStyle: { width: 3.3 } }, data: values,
-        markLine: guides ? { silent: true, symbol: 'none', lineStyle: { color: '#94a3b8', type: 'dashed', width: 1 }, label: { show: false }, data: [{ yAxis: 100 }] } : undefined,
+        markLine: guides ? { silent: true, symbol: 'none', lineStyle: { color: '#a3aa9f', type: 'dashed', width: 1 }, label: { show: false }, data: [{ yAxis: 100 }] } : undefined,
       };
       if (!guides) return [raw];
       return [
@@ -299,19 +265,19 @@ export function Dashboard({
   });
 
   const growthOption = {
-    ...theme(), xAxis: timeAxis(),
+    ...theme(), valueFormat: 'pct', xAxis: timeAxis(),
     yAxis: { ...theme().yAxis, axisLabel: { ...theme().yAxis.axisLabel, formatter: '{value}%' } },
     legend: { show: false },
     series: visible.map((market, index) => ({
       name: market.name, type: 'bar', barMaxWidth: 16,
       itemStyle: { color: colorFor(market.country, index), borderRadius: [3, 3, 0, 0] },
       data: valuesFor(market, 'gdpGrowth'),
-      markLine: index === 0 ? { silent: true, symbol: 'none', lineStyle: { color: '#64748b', width: 1.25, type: 'solid', opacity: .82 }, label: { show: false }, data: [{ yAxis: 0 }] } : undefined,
+      markLine: index === 0 ? { silent: true, symbol: 'none', lineStyle: { color: '#7c837a', width: 1.25, type: 'solid', opacity: .82 }, label: { show: false }, data: [{ yAxis: 0 }] } : undefined,
     })),
   };
 
   const relativeOption = {
-    ...theme(), xAxis: timeAxis(),
+    ...theme(), valueFormat: 'index', xAxis: timeAxis(),
     yAxis: { ...theme().yAxis, axisLabel: { ...theme().yAxis.axisLabel, formatter: '{value}' } },
     legend: { show: false },
     series: visible.flatMap((market, index) => {
@@ -325,8 +291,8 @@ export function Dashboard({
 
   const scatterOption = {
     ...theme(),
-    xAxis: { type: 'value', name: 'GDP growth', nameTextStyle: { color: '#64748b', fontSize: 9, fontFamily: '"Roboto Mono", ui-monospace, monospace' }, axisLabel: { formatter: '{value}%', color: '#64748b', fontSize: 9, fontFamily: '"Roboto Mono", ui-monospace, monospace' }, splitLine: { lineStyle: { color: '#e7edf4' } } },
-    yAxis: { type: 'value', name: 'Buffett Indicator', nameTextStyle: { color: '#64748b', fontSize: 9, fontFamily: '"Roboto Mono", ui-monospace, monospace' }, axisLabel: { formatter: '{value}%', color: '#64748b', fontSize: 9, fontFamily: '"Roboto Mono", ui-monospace, monospace' }, splitLine: { lineStyle: { color: '#e7edf4' } } },
+    xAxis: { type: 'value', name: 'GDP growth' },
+    yAxis: { type: 'value', name: 'Buffett indicator' },
     series: visible.map((market, index) => ({
       name: market.name, type: 'scatter', symbolSize: 9,
       itemStyle: { color: colorFor(market.country, index), opacity: .82 },
@@ -350,6 +316,7 @@ export function Dashboard({
         return [`<strong>${label}</strong>`, ...rows.map(item => `${item.marker ?? ''}${item.seriesName} <strong>${compactCurrency(item.value as number)}</strong>`)].join('<br/>');
       },
     },
+    valueFormat: 'usd',
     xAxis: aiTimeAxis(),
     yAxis: { ...theme().yAxis, axisLabel: { ...theme().yAxis.axisLabel, formatter: (v: number) => v === 0 ? '' : `$${v >= 1e9 ? `${(v / 1e9).toFixed(0)}B` : `${(v / 1e6).toFixed(0)}M`}` } },
     legend: { show: false },
@@ -372,6 +339,7 @@ export function Dashboard({
         return [`<strong>${label}</strong>`, ...rows.map(item => `${item.marker ?? ''}${item.seriesName} <strong>${((item.value as number) * 100).toFixed(1)} bps of GDP</strong>`)].join('<br/>');
       },
     },
+    valueFormat: 'pct2',
     xAxis: aiTimeAxis(),
     yAxis: { ...theme().yAxis, axisLabel: { ...theme().yAxis.axisLabel, formatter: (v: number) => `${v.toFixed(2)}%` } },
     legend: { show: false },
@@ -388,7 +356,7 @@ export function Dashboard({
   const aiCapitalOption = aiMode === 'intensity' ? aiIntensityOption : aiRawCapitalOption;
 
   const bubbleChartOption = {
-    ...theme(),
+    ...theme(), valueFormat: 'index',
     xAxis: { ...theme().xAxis, data: BUBBLE_CHART_YEARS.map(String), axisLabel: { ...theme().xAxis.axisLabel, formatter: (v: string, i: number) => i === 0 ? '' : v } },
     yAxis: { ...theme().yAxis, axisLabel: { ...theme().yAxis.axisLabel, formatter: (v: number) => `${Math.round(v)}` } },
     legend: { show: false },
@@ -451,7 +419,7 @@ export function Dashboard({
       });
     }
 
-    return { ...theme(), xAxis: timeAxis(), yAxis: { ...theme().yAxis, axisLabel: { ...theme().yAxis.axisLabel, formatter: '{value}' } }, series: seriesList };
+    return { ...theme(), valueFormat: 'auto', xAxis: timeAxis(), yAxis: { ...theme().yAxis, axisLabel: { ...theme().yAxis.axisLabel, formatter: '{value}' } }, series: seriesList };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedModes, isMulti, visible, aiVisible, activeDatasetMetadatas, years, aiYears]);
 
@@ -472,124 +440,113 @@ export function Dashboard({
     ? (views.find(v => v.id === singleActiveId) ?? views[0])
     : {
         id: 'multi',
-        title: 'Macro Research Terminal',
-        subtitle: `Multi-dataset view (${Array.from(selectedModes).map(id => views.find(v => v.id === id)?.label ?? id).join(', ')})`,
+        title: 'Layered views',
+        subtitle: `${Array.from(selectedModes).map(id => views.find(v => v.id === id)?.label ?? id).join(' + ')} on one timeline`,
         option: multiOption ?? views[0].option,
       };
 
   const axisHint = CompatibilityEngine.generateAxisHint(activeDatasetMetadatas);
 
-  /* ── Legend badges ── */
-  const marketBadges = visible.map((market, index) => {
-    const color    = colorFor(market.country, index);
-    const statuses = activeDatasetMetadatas
+  /* ── Legend (FX chart legend: swatch + name, unit on the right) ── */
+  const unitLabel = (() => {
+    const hint = axisHint.toLowerCase();
+    if (singleActiveId === 'valuation' || hint.includes('scatter') || hint.includes('x · gdp growth')) return 'Across: real GDP growth · Up: Buffett indicator';
+    if (singleActiveId === 'ai-capital') return aiMode === 'intensity' ? 'AI VC as % of GDP · yearly' : 'US$ · yearly';
+    if (singleActiveId === 'bubbles') return 'Each episode’s peak = 100';
+    if (hint.includes('multi')) return 'Mixed units, each on its own scale · yearly';
+    if (hint.includes('trillions')) return 'US$ trillions · yearly';
+    if (hint.includes('% of gdp')) return '% of GDP · yearly';
+    if (hint.includes('% annual')) return '% a year';
+    if (hint.includes('index')) return 'First year = 100';
+    return 'Yearly';
+  })();
+
+  const statusFor = (market: typeof visible[number]) =>
+    activeDatasetMetadatas
       .map(dataset => {
         let vals: (number | null)[] = [];
-        if (dataset.id === 'gdp')        vals = valuesFor(market, 'gdp');
-        else if (dataset.id === 'marketCap')  vals = valuesFor(market, 'marketCap');
-        else if (dataset.id === 'buffett')    vals = valuesFor(market, 'buffettIndicator');
-        else if (dataset.id === 'gdpGrowth')  vals = valuesFor(market, 'gdpGrowth');
-        else if (dataset.id === 'aiInvestment') {
-          const aiMarket = aiVisible.find(m => m.country === market.country);
-          vals = aiMarket ? aiValuesFor(aiMarket, 'aiVentureCapitalInvestment') : [];
-        }
-        if (!vals.length) return null;
+        if (dataset.id === 'gdp') vals = valuesFor(market, 'gdp');
+        else if (dataset.id === 'marketCap') vals = valuesFor(market, 'marketCap');
+        else if (dataset.id === 'buffett') vals = valuesFor(market, 'buffettIndicator');
+        else if (dataset.id === 'gdpGrowth') vals = valuesFor(market, 'gdpGrowth');
+        if (!vals.some(v => v !== null)) return null;
         const result = AnalysisEngine.analyze(dataset, vals, market.country);
-        return `${dataset.shortName}: ${result.statusLabel}`;
+        return isMulti ? `${dataset.shortName} ${result.statusLabel.toLowerCase()}` : result.statusLabel.toLowerCase();
       })
-      .filter((s): s is string => Boolean(s));
+      .filter((s): s is string => Boolean(s))
+      .join(', ');
 
-    const statusText = statuses.length ? ` (${statuses.join(' · ')})` : '';
-
+  const swatches = visible.map((market, index) => {
+    const status = statusFor(market);
     return (
-      <span key={market.country} className="badge">
-        <span className="h-2 w-2 shrink-0 rounded-[2px]" style={{ backgroundColor: color, border: `1px solid ${color}` }} aria-hidden="true" />
-        <span className="font-medium">{market.name}</span>
-        {statusText && <span className="font-mono text-[9.5px] text-slate-500">{statusText}</span>}
+      <span key={market.country}>
+        <i style={{ backgroundColor: colorFor(market.country, index) }} />
+        {market.name}
+        {status && <span className="legend-status">· {status}</span>}
       </span>
     );
   });
 
-  const axisHintBadge = (
-    <span className="badge font-mono whitespace-nowrap">{axisHint}</span>
-  );
-
   const marketLegend = (
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex flex-wrap items-center gap-1.5">{marketBadges}</div>
-      <div className="flex shrink-0 items-center">{axisHintBadge}</div>
+    <div className="legend">
+      {swatches}
+      {singleActiveId === 'buffett' && (
+        <>
+          <span><i className="band" style={{ backgroundColor: 'var(--ink2)' }} />10-year range (±2σ)</span>
+          <span><i className="dash" style={{ color: 'var(--ink2)' }} />10-year average</span>
+          <span><i className="dash" style={{ color: 'var(--axis)' }} />100% reference</span>
+        </>
+      )}
+      <span className="legend-unit">{unitLabel}</span>
     </div>
   );
 
   const relativeLegend = (
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex flex-wrap items-center gap-1.5">
-        <span className="badge">solid GDP · patterned market cap</span>
-        {visible.map((market, index) => {
-          const color = colorFor(market.country, index);
-          return (
-            <span key={market.country} className="badge">
-              <span className="h-2 w-2 shrink-0 rounded-[2px]" style={{ backgroundColor: color, border: `1px solid ${color}` }} aria-hidden="true" />
-              <span className="h-2 w-2 shrink-0 rounded-[2px]" style={{ backgroundColor: `${color}24`, border: `1px solid ${color}`, backgroundImage: `repeating-linear-gradient(-45deg, transparent 0 2px, ${color} 2px 3px)` }} aria-hidden="true" />
-              <span className="font-medium">{market.name}</span>
-            </span>
-          );
-        })}
-      </div>
-      <div className="flex shrink-0 items-center">{axisHintBadge}</div>
+    <div className="legend">
+      {visible.map((market, index) => (
+        <span key={market.country}>
+          <i style={{ backgroundColor: colorFor(market.country, index) }} />
+          {market.name}
+        </span>
+      ))}
+      <span><i style={{ backgroundColor: 'var(--ink2)', height: 2 }} />GDP</span>
+      <span><i className="dash" style={{ color: 'var(--ink2)' }} />Market value</span>
+      <span className="legend-unit">{unitLabel}</span>
     </div>
   );
 
   const aiLegend = (
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex flex-wrap items-center gap-1.5">
-        <span className="badge">{aiMode === 'intensity' ? 'observed AI VC / GDP · dashed 5Y baseline' : 'observed annual AI VC · no interpolation'}</span>
-        {aiVisible.map((market, index) => {
-          const color = colorFor(market.country, index);
-          return (
-            <span key={market.country} className="badge">
-              <span className="h-2 w-2 shrink-0 rounded-[2px]" style={{ backgroundColor: color, border: `1px solid ${color}` }} aria-hidden="true" />
-              <span className="font-medium">{market.name}</span>
-            </span>
-          );
-        })}
-      </div>
-      <div className="flex shrink-0 items-center gap-1.5">
-        <div className="flex h-6 items-center rounded-md border border-slate-200 bg-slate-50 p-0.5" role="group" aria-label="AI metric toggle">
-          <button
-            onClick={() => setAiMode('intensity')}
-            aria-pressed={aiMode === 'intensity'}
-            className={`h-5 rounded px-2 font-mono text-[9px] font-medium transition-colors ${aiMode === 'intensity' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-700'}`}
-          >
-            AI / GDP
-          </button>
-          <button
-            onClick={() => setAiMode('flow')}
-            aria-pressed={aiMode === 'flow'}
-            className={`h-5 rounded px-2 font-mono text-[9px] font-medium transition-colors ${aiMode === 'flow' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-700'}`}
-          >
-            Raw VC
-          </button>
-        </div>
-        {axisHintBadge}
-      </div>
+    <div className="legend" style={{ alignItems: 'center' }}>
+      {aiVisible.map((market, index) => (
+        <span key={market.country}>
+          <i style={{ backgroundColor: colorFor(market.country, index) }} />
+          {market.name}
+        </span>
+      ))}
+      {aiMode === 'intensity' && <span><i className="dash" style={{ color: 'var(--ink2)' }} />5-year baseline</span>}
+      <span className="legend-unit" style={{ gap: 10 }}>
+        {unitLabel}
+        <span className="seg" role="group" aria-label="AI measure">
+          <button type="button" aria-pressed={aiMode === 'intensity'} onClick={() => setAiMode('intensity')}>AI VC / GDP</button>
+          <button type="button" aria-pressed={aiMode === 'flow'} onClick={() => setAiMode('flow')}>Raw VC</button>
+        </span>
+      </span>
     </div>
   );
 
   const bubbleLegend = (
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex flex-wrap items-center gap-1.5">
-        <span className="badge">source observations · peak = 100</span>
-        {BUBBLE_LIBRARY.filter(b => b.chart).map((bubble, index) => (
-          <span key={bubble.id} className="badge">
-            <span className="h-2 w-2 shrink-0 rounded-[2px]" style={{ backgroundColor: palette[index % palette.length], border: `1px solid ${palette[index % palette.length]}` }} aria-hidden="true" />
-            <span className="font-medium">{bubble.name}</span>
-          </span>
-        ))}
-      </div>
-      <div className="flex shrink-0 items-center">{axisHintBadge}</div>
+    <div className="legend">
+      {BUBBLE_LIBRARY.filter(b => b.chart).map((bubble, index) => (
+        <span key={bubble.id}>
+          <i style={{ backgroundColor: palette[index % palette.length] }} />
+          {bubble.name}
+        </span>
+      ))}
+      <span className="legend-unit">{unitLabel}</span>
     </div>
   );
+
+  const fetchedAgo = useRelative(initialData?.fetchedAt);
 
   /* ── AI metrics table data ── */
   const aiMetrics = aiVisible.map((market, index) => {
@@ -611,191 +568,195 @@ export function Dashboard({
     : singleActiveId === 'bubbles'    ? bubbleLegend
     : marketLegend;
 
-  const toolbar = (
-    <ModeToolbar views={views} selectedModes={selectedModes} onToggleMode={toggleMode} />
-  );
+  const toolbar = <ModeToolbar views={views} selectedModes={selectedModes} onToggleMode={toggleMode} />;
 
-  /* ── Error state ── */
+  /* ── Error state (FX "state" page) ── */
   if (!initialData) {
     return (
-      <main id="main-content" className="grid min-h-screen place-items-center bg-slate-50 text-center" aria-label="Error loading data">
-        <div className="max-w-sm px-4">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
-            <AlertCircle className="text-red-500" size={24} />
+      <main id="main-content" className="page">
+        <div className="state fade-in" role="alert">
+          <p className="state-code">Unavailable</p>
+          <h1 className="state-title">The economic data didn’t load</h1>
+          <p className="state-text">The World Bank’s data service didn’t answer. This is usually brief; try again in a moment.</p>
+          <div className="state-actions">
+            <button type="button" className="btn btn-primary" onClick={() => location.reload()}>
+              Try again
+            </button>
           </div>
-          <h1 className="text-base font-semibold text-slate-800">Unable to load economic data</h1>
-          <p className="mt-2 text-sm text-slate-500">The data provider could not be reached. Please try again.</p>
-          <button
-            onClick={() => location.reload()}
-            className="mt-5 inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 transition-colors active:scale-[.97]"
-          >
-            <RefreshCw size={14} />
-            Retry
-          </button>
         </div>
       </main>
     );
   }
 
-  const timeframeLabel = period === 'CUSTOM' ? rangeLabel : period === 'MAX' ? 'MAX' : `${period}Y`;
+  const missing = data.filter(c => c.records.length === 0).map(c => c.name);
+  const focusData = visible.find(m => m.country === focus) ?? visible[0];
+  const heroMarkets = visible.slice(0, 3);
+  const extra = visible.length - heroMarkets.length;
+  const latestGdp = (code: string) => {
+    const r = [...(data.find(c => c.country === code)?.records ?? [])].reverse().find(x => x.gdp !== null);
+    return r ? `${compactCurrency(r.gdp)} GDP` : 'No data';
+  };
+  const lede =
+    visible.length === 1
+      ? `${visible[0].name}, ${rangeStart}–${rangeEnd}: the size of the economy, the value of its stock market and the gap between them (the Buffett indicator), with AI venture capital and a library of past bubbles for context.`
+      : `${visible.length} markets side by side, ${rangeStart}–${rangeEnd}: the size of each economy, the value of its stock market and the gap between them (the Buffett indicator), with AI venture capital and a library of past bubbles for context.`;
 
   /* ── Render ── */
   return (
-    <main id="main-content" className="light-ui min-h-screen bg-[#fafbfc]">
-      {/* Header */}
-      <DashboardHeader
-        selectedMarkets={selectedMarkets}
-        onToggleMarket={toggleMarket}
-        period={period}
-        onSelectPeriod={p => { setPeriod(p); setTimeframeOpen(false); }}
-        timeframeLabel={timeframeLabel}
-        periods={PERIODS}
-        rangeStart={rangeStart}
-        rangeEnd={rangeEnd}
-        earliestYear={earliestYear}
-        latestYear={latestYear}
-        allYears={allYears}
-        rangeDraft={rangeDraft}
-        onSelectRangePart={selectRangePart}
-        rangeIsValid={rangeIsValid}
-        rangeLabel={rangeLabel}
-        marketOpen={marketOpen}
-        onMarketOpenChange={setMarketOpen}
-        timeframeOpen={timeframeOpen}
-        onTimeframeOpenChange={open => { if (!open) { setTimeframeOpen(false); } else { toggleTimeframe(); } }}
-        marketMenuRef={marketMenuRef}
-        timeframeRef={timeframeRef}
-      />
+    <main id="main-content" className="page">
+      <StatusBar fetchedAt={initialData.fetchedAt} latestYear={latestYear} missing={missing} />
 
-      <div className="grain">
-        <div className="mx-auto max-w-[1120px] px-3 pb-8">
+      <div className="fade-in">
+        <TopBar count={selectedMarkets.length} onPick={() => setPickerOpen(true)} />
 
-          {/* Active market pills */}
-          <MarketPills selectedMarkets={selectedMarkets} onToggleMarket={toggleMarket} />
-
-          {/* Market snapshot */}
-          <section className="py-1.5 sm:py-2">
-            <MarketSnapshot markets={visible} rangeStart={rangeStart} rangeEnd={rangeEnd} />
-          </section>
-
-          {/* Collapsible AI capital metrics table (Only rendered when AI Flow overlay is selected) */}
-          {selectedModes.has('ai-capital') && (
-            <section className="py-1.5 sm:py-2" aria-label="AI capital flow metrics">
-              <Card className="overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setIsAiFlowOpen(!isAiFlowOpen)}
-                  aria-expanded={isAiFlowOpen}
-                  aria-label="Toggle AI capital flow panel"
-                  className="flex w-full items-center justify-between border-b border-slate-100 px-3.5 py-2 text-left transition-colors hover:bg-slate-50/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="section-label">AI capital flow</span>
-                    <span className="font-mono text-[10px] text-slate-400">latest annual observation</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-mono text-[10px] text-slate-400">
-                      {isAiFlowOpen ? 'Click to collapse' : 'Click to expand'}
-                    </span>
-                    <ChevronDown
-                      size={14}
-                      className={`text-slate-400 transition-transform duration-200 ${
-                        isAiFlowOpen ? 'rotate-180' : ''
-                      }`}
-                    />
-                  </div>
-                </button>
-
-                {isAiFlowOpen && (
-                  <div className="slide-down overflow-x-auto no-scrollbar">
-                    <table className="w-full min-w-[940px] border-collapse text-left">
-                      <thead className="border-b border-slate-100 bg-slate-50/70">
-                        <tr className="section-label text-[9px]">
-                          <th className="px-3 py-1.5 font-medium">Market</th>
-                          <th className="px-3 py-1.5 font-medium">AI investment</th>
-                          <th className="px-3 py-1.5 font-medium">AI VC</th>
-                          <th className="px-3 py-1.5 font-medium">AI VC / GDP</th>
-                          <th className="px-3 py-1.5 font-medium">5Y VC CAGR</th>
-                          <th className="px-3 py-1.5 font-medium">AI VC YoY</th>
-                          <th className="px-3 py-1.5 font-medium">AI share of VC</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {aiMetrics.map(({ market, index, current, aiToGdp, cagr }) => (
-                          <tr key={market.country} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/60 transition-colors">
-                            <td className="px-3 py-2">
-                              <div className="flex items-center gap-1.5">
-                                <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: colorFor(market.country, index) }} aria-hidden="true" />
-                                <div>
-                                  <p className="text-[11px] font-semibold text-slate-800">{market.name}</p>
-                                  <p className="font-mono text-[9.5px] text-slate-400">{current?.year ?? '—'}</p>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-3 py-2"><p className="metric-value text-[11.5px] font-semibold text-slate-800">{compactCurrency(current?.aiInvestment ?? null)}</p></td>
-                            <td className="px-3 py-2"><p className="metric-value text-[11.5px] font-semibold text-slate-800">{compactCurrency(current?.aiVentureCapitalInvestment ?? null)}</p></td>
-                            <td className="px-3 py-2"><p className="metric-value text-[11.5px] font-semibold text-slate-800">{percent(aiToGdp, 2)}</p></td>
-                            <td className="px-3 py-2"><p className="metric-value text-[11.5px] font-semibold text-slate-800">{percent(cagr, 1)}</p></td>
-                            <td className="px-3 py-2"><p className="metric-value text-[11.5px] font-semibold text-slate-800">{percent(current?.aiInvestmentGrowth ?? null, 1)}</p></td>
-                            <td className="px-3 py-2"><p className="metric-value text-[11.5px] font-semibold text-slate-800">{percent(current?.aiShareOfTotalVc ?? null, 1)}</p></td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </Card>
-            </section>
-          )}
-
-          {/* Collapsible Bubble library reference table (Only rendered when Bubble overlay is selected) */}
-          {selectedModes.has('bubbles') && <BubbleLibrary bubbles={BUBBLE_LIBRARY} />}
-
-          {/* Main chart panel */}
-          <section className="py-1.5 sm:py-2">
-            {selectedModes.has('ai-capital') && !hasAiObservations ? (
-              <Card className="overflow-hidden">
-                <div className="flex overflow-x-auto no-scrollbar border-b border-slate-100 bg-slate-100/70 p-1 gap-1">
-                  {toolbar}
-                </div>
-                <div className="grid min-h-[230px] place-items-center p-5 text-center">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-800">No annual AI capital-flow coverage for these markets</p>
-                    <p className="mx-auto mt-2 max-w-md text-[11px] leading-5 text-slate-500">
-                      The source has not published a compatible annual observation for the current selection.
-                      Select the United States, United Kingdom, or Japan to view the verified OECD baseline,
-                      or connect the public OECD feed when it becomes available.
-                    </p>
-                  </div>
-                </div>
-              </Card>
-            ) : (
-              <ChartPanel
-                title={currentView.title}
-                subtitle={currentView.subtitle}
-                option={currentView.option}
-                height={selectedModes.has('valuation') && selectedModes.size === 1 ? 'h-[360px] sm:h-[440px]' : undefined}
-                legend={activeLegend}
-                toolbar={toolbar}
-              />
+        <section className="hero" aria-labelledby="hero-title">
+          <h1 id="hero-title" className={`hero-title${visible.length > 2 ? ' is-many' : ''}`}>
+            {heroMarkets.map((market, index) => (
+              <span key={market.country} className="hero-name">
+                <MarketIcon code={market.country} size="0.8em" />
+                <span>{market.name}</span>
+                {index < heroMarkets.length - 1 && <span className="slash">/</span>}
+              </span>
+            ))}
+            {extra > 0 && (
+              <button type="button" className="hero-more" onClick={() => setPickerOpen(true)}>
+                +{extra} more
+              </button>
             )}
-          </section>
-
-          {/* Insight banner */}
-          <InsightBanner
-            selectedModes={selectedModes}
-            aiSourceName={initialAiCapitalFlow?.source.name}
-            aiSourceUrl={initialAiCapitalFlow?.source.url}
-            aiLatestYear={initialAiCapitalFlow?.source.latestObservationYear}
+          </h1>
+          <p className="hero-sub">{lede}</p>
+          <Timeframe
+            period={period}
+            periods={PERIODS}
+            onSelect={p => setPeriod(p)}
+            rangeStart={rangeStart}
+            rangeEnd={rangeEnd}
+            allYears={allYears}
+            draft={rangeDraft}
+            onDraftOpen={openCustomRange}
+            onPickPart={selectRangePart}
+            rangeIsValid={rangeIsValid}
           />
+        </section>
 
-          {/* Data sources */}
-          <DataSources aiSource={initialAiCapitalFlow?.source} />
+        {focusData && (
+          <div key={`${focusData.country}-${rangeStart}-${rangeEnd}`} className="swap">
+            <Brief market={focusData} rangeStart={rangeStart} rangeEnd={rangeEnd} multiple={visible.length > 1} />
+          </div>
+        )}
 
-          {/* Project Architecture & Roadmap */}
-          <ProjectArchitecture />
-        </div>
+        <ChartPanel
+          viewKey={currentView.id}
+          title={currentView.title}
+          subtitle={currentView.subtitle}
+          option={currentView.option}
+          short={selectedModes.has('valuation') && selectedModes.size === 1}
+          legend={activeLegend}
+          toolbar={toolbar}
+          foot={
+            <InsightBanner
+              selectedModes={selectedModes}
+              aiSourceName={initialAiCapitalFlow?.source.name}
+              aiSourceUrl={initialAiCapitalFlow?.source.url}
+              aiLatestYear={initialAiCapitalFlow?.source.latestObservationYear}
+            />
+          }
+          empty={
+            selectedModes.has('ai-capital') && !hasAiObservations ? (
+              <div>
+                <h3>No AI capital-flow data for these markets</h3>
+                <p>
+                  The source hasn’t published annual figures for this selection. Add the United States, the United Kingdom or
+                  Japan to see the OECD baseline.
+                </p>
+                <button type="button" className="btn btn-sm" style={{ marginTop: 16 }} onClick={() => setPickerOpen(true)}>
+                  Choose markets
+                </button>
+              </div>
+            ) : undefined
+          }
+        />
+
+        <MarketRows
+          markets={visible}
+          rangeStart={rangeStart}
+          rangeEnd={rangeEnd}
+          focus={focus}
+          onFocus={setFocusMarket}
+          onRemove={toggleMarket}
+        />
+
+        {selectedModes.has('ai-capital') && (
+          <section className="card section fade-in" aria-labelledby="ai-title">
+            <div className="card-head">
+              <div>
+                <h2 id="ai-title">AI capital flow</h2>
+                <p>The latest annual observation for each selected market. Blank cells weren’t published, not zero.</p>
+              </div>
+            </div>
+            <div className="scroll">
+              <table className="t" style={{ minWidth: 760 }}>
+                <thead>
+                  <tr>
+                    <th>Market</th>
+                    <th className="r">AI investment</th>
+                    <th className="r">AI venture capital</th>
+                    <th className="r">AI VC / GDP</th>
+                    <th className="r">5-year growth a year</th>
+                    <th className="r">Change on year</th>
+                    <th className="r">Share of all VC</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {aiMetrics.map(({ market, index, current, aiToGdp, cagr }) => (
+                    <tr key={market.country}>
+                      <td>
+                        <span className="cell-market strong">
+                          <MarketIcon code={market.country} size={20} />
+                          <span>
+                            {market.name}
+                            <span className="sub" style={{ fontWeight: 400 }}>
+                              <i className="dot" style={{ backgroundColor: colorFor(market.country, index), width: 7, height: 7, marginRight: 6 }} />
+                              {current?.year ?? 'No observation'}
+                            </span>
+                          </span>
+                        </span>
+                      </td>
+                      <td className="r">{compactCurrency(current?.aiInvestment ?? null)}</td>
+                      <td className="r strong">{compactCurrency(current?.aiVentureCapitalInvestment ?? null)}</td>
+                      <td className="r">{percent(aiToGdp, 2)}</td>
+                      <td className="r">{percent(cagr, 1)}</td>
+                      <td className="r">{percent(current?.aiInvestmentGrowth ?? null, 1)}</td>
+                      <td className="r">{percent(current?.aiShareOfTotalVc ?? null, 1)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        {selectedModes.has('bubbles') && <BubbleLibrary bubbles={BUBBLE_LIBRARY} />}
+
+        <DataSources aiSource={initialAiCapitalFlow?.source} />
+
+        <ProjectArchitecture />
+
+        <footer className="footer">
+          <p>
+            Economic data: World Bank World Development Indicators via the Data360 API{fetchedAgo ? `, fetched ${fetchedAgo}` : ''}.
+            AI venture capital: {initialAiCapitalFlow?.source.name ?? 'OECD.AI'}. Bubble paths: the published sources listed with each episode.
+          </p>
+          <p className="muted">
+            Annual figures in current US dollars unless a view says otherwise. Regional aggregates can have gaps. Charts drawn with{' '}
+            <a href="https://www.tradingview.com/lightweight-charts/" target="_blank" rel="noreferrer">TradingView Lightweight Charts</a>.
+          </p>
+        </footer>
       </div>
+
+      {pickerOpen && (
+        <MarketPicker selected={selectedMarkets} onToggle={toggleMarket} onClose={() => setPickerOpen(false)} meta={latestGdp} />
+      )}
     </main>
   );
 }

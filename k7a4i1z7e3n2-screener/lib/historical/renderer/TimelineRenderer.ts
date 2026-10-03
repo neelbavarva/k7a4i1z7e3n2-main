@@ -107,7 +107,7 @@ export class TimelineRenderer {
       ctx.restore();
 
       // 1C: Range label at top of band
-      ctx.font = '500 10px "Roboto Mono", monospace';
+      ctx.font = '500 10px "Instrument Sans Variable", "Instrument Sans", sans-serif';
       const textMetrics = ctx.measureText(range.label);
       const textWidth = textMetrics.width;
       const labelX = Math.max(x1 + 4, Math.min(x2 - textWidth - 4, x1 + (bandWidth - textWidth) / 2));
@@ -174,7 +174,7 @@ export class TimelineRenderer {
       ctx.stroke();
 
       // 2C: Label badge
-      ctx.font = '500 9px "Roboto Mono", monospace';
+      ctx.font = '500 9px "Instrument Sans Variable", "Instrument Sans", sans-serif';
       const textMetrics = ctx.measureText(point.label);
       const textWidth = textMetrics.width;
       const badgePadding = 4;
@@ -197,7 +197,7 @@ export class TimelineRenderer {
       ctx.stroke();
 
       // Text
-      ctx.fillStyle = '#1e293b';
+      ctx.fillStyle = '#161a16';
       ctx.fillText(point.label, badgeX + badgePadding, badgeY + 10);
 
       // Store bounding box for hit testing
@@ -223,9 +223,9 @@ export class TimelineRenderer {
     if (!box) return;
 
     ctx.save();
-    ctx.strokeStyle = '#2563eb';
+    ctx.strokeStyle = '#2a78d6';
     ctx.lineWidth = 2;
-    ctx.shadowColor = 'rgba(37, 99, 235, 0.35)';
+    ctx.shadowColor = 'rgba(42, 120, 214, 0.35)';
     ctx.shadowBlur = 6;
     ctx.strokeRect(box.x - 2, box.y - 2, box.width + 4, box.height + 4);
     ctx.restore();
@@ -265,7 +265,7 @@ export class TimelineRenderer {
     points: TimelineEntity[],
     yearToX: (year: number) => number
   ): number[] {
-    ctx.font = '500 9px "Roboto Mono", monospace';
+    ctx.font = '500 9px "Instrument Sans Variable", "Instrument Sans", sans-serif';
     const placedTiers: Array<Array<{ left: number; right: number }>> = [];
     const resultTiers: number[] = new Array(points.length).fill(0);
 

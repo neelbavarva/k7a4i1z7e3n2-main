@@ -22,7 +22,7 @@ export class TimelineEntityAdapter {
   static toEntity(event: HistoricalEvent): TimelineEntity {
     const isRange = typeof event.endDate === 'number' && event.endDate > event.startDate;
     const type: TimelineEntityType = isRange ? 'range' : 'point';
-    const styling = CATEGORY_COLOR_MAP[event.category] ?? { color: '#64748b', opacity: 0.12 };
+    const styling = CATEGORY_COLOR_MAP[event.category] ?? { color: '#7c837a', opacity: 0.12 };
 
     return {
       id: event.id,

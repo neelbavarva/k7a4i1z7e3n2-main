@@ -1,0 +1,29 @@
+{
+  "name": "k7a4i1z7e3n2-market-hours",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Forex market hours: Sydney, Tokyo, London and New York sessions in your timezone, with a session-overlap volume model and an AMD cycle guide.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fontsource-variable/instrument-sans": "^5.3.0",
+    "@fontsource/young-serif": "^5.3.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "~5.6.3",
+    "vite": "^6.0.0"
+  }
+}

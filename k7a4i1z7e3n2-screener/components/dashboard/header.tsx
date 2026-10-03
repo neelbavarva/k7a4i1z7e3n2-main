@@ -1,253 +1,159 @@
 'use client';
 
-import { ChevronDown } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { RESEARCH_MARKETS } from '@/lib/worldbank/client';
+import { useEffect, useRef, useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
+import { CalendarIcon, ChevronDown, RefreshIcon, SearchIcon } from '@/components/ui/icons';
 
-const countryCodes = new Set(['US', 'IN', 'CN', 'RU', 'JP', 'GB', 'WLD']);
-
-interface HeaderProps {
-  selectedMarkets: string[];
-  onToggleMarket: (code: string) => void;
-  period: number | 'MAX' | 'CUSTOM';
-  onSelectPeriod: (p: number | 'MAX') => void;
-  timeframeLabel: string;
-  periods: ReadonlyArray<number | 'MAX'>;
-  rangeStart: number;
-  rangeEnd: number;
-  earliestYear: number;
-  latestYear: number;
-  allYears: number[];
-  rangeDraft: { start: string; end: string };
-  onSelectRangePart: (part: 'start' | 'end', value: string) => void;
-  rangeIsValid: boolean;
-  rangeLabel: string;
-  marketOpen: boolean;
-  onMarketOpenChange: (open: boolean) => void;
-  timeframeOpen: boolean;
-  onTimeframeOpenChange: (open: boolean) => void;
-  marketMenuRef: React.RefObject<HTMLDivElement | null>;
-  timeframeRef: React.RefObject<HTMLDivElement | null>;
+/* ─── Relative time, computed on the client only (no hydration mismatch) ─── */
+export function useRelative(iso: string | undefined) {
+  const [text, setText] = useState<string | null>(null);
+  useEffect(() => {
+    if (!iso) return;
+    const update = () => {
+      const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+      setText(s < 60 ? 'just now' : s < 3600 ? `${Math.round(s / 60)} min ago` : s < 86400 ? `${Math.round(s / 3600)} h ago` : `${Math.round(s / 86400)} d ago`);
+    };
+    update();
+    const t = setInterval(update, 30_000);
+    return () => clearInterval(t);
+  }, [iso]);
+  return text;
 }
 
-export function DashboardHeader({
-  selectedMarkets,
-  onToggleMarket,
+/* ─── Status bar: when the data was fetched, what's missing, Refresh ─── */
+export function StatusBar({ fetchedAt, latestYear, missing }: { fetchedAt?: string; latestYear: number; missing: string[] }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const ago = useRelative(fetchedAt);
+  return (
+    <div className={`statusbar${missing.length ? ' is-partial' : ''}`} role="status">
+      <i aria-hidden="true" />
+      <p>
+        {missing.length
+          ? `Some series didn't load (${missing.join(', ')}). The rest is shown.`
+          : `World Bank data loaded${ago ? ` ${ago}` : ''}. Annual series, latest year ${latestYear}.`}
+      </p>
+      <button type="button" className="btn" onClick={() => start(() => router.refresh())} disabled={pending} aria-busy={pending}>
+        <RefreshIcon className={pending ? 'spin' : undefined} />
+        {pending ? 'Refreshing' : 'Refresh'}
+      </button>
+    </div>
+  );
+}
+
+const isMac = () => typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
+
+/* ─── Top bar: wordmark + market switcher ─── */
+export function TopBar({ count, onPick }: { count: number; onPick: () => void }) {
+  const [mac, setMac] = useState(true);
+  useEffect(() => setMac(isMac()), []);
+  return (
+    <nav className="topbar" aria-label="Screener">
+      <a href="/" className="wordmark" aria-label="Kaizen Screener home">
+        <b>Kaizen</b>
+        <span>Screener</span>
+      </a>
+      <div className="topbar-actions">
+        <button type="button" className="btn" onClick={onPick} aria-haspopup="dialog">
+          <SearchIcon />
+          Markets
+          <span className="count">{count}</span>
+          <kbd className="kbd-hint">{mac ? '⌘K' : 'Ctrl K'}</kbd>
+        </button>
+      </div>
+    </nav>
+  );
+}
+
+/* ─── Timeframe: segmented presets + a Custom range popover ─── */
+type Period = number | 'MAX' | 'CUSTOM';
+export function Timeframe({
   period,
-  onSelectPeriod,
-  timeframeLabel,
   periods,
+  onSelect,
   rangeStart,
   rangeEnd,
-  earliestYear,
-  latestYear,
   allYears,
-  rangeDraft,
-  onSelectRangePart,
+  draft,
+  onDraftOpen,
+  onPickPart,
   rangeIsValid,
-  rangeLabel,
-  marketOpen,
-  onMarketOpenChange,
-  timeframeOpen,
-  onTimeframeOpenChange,
-  marketMenuRef,
-  timeframeRef,
-}: HeaderProps) {
+}: {
+  period: Period;
+  periods: ReadonlyArray<number | 'MAX'>;
+  onSelect: (p: number | 'MAX') => void;
+  rangeStart: number;
+  rangeEnd: number;
+  allYears: number[];
+  draft: { start: string; end: string };
+  onDraftOpen: () => void;
+  onPickPart: (part: 'start' | 'end', value: string) => void;
+  rangeIsValid: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const anchor = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => anchor.current && !anchor.current.contains(e.target as Node) && setOpen(false);
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', esc);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('keydown', esc);
+    };
+  }, [open]);
+
   return (
-    <header className="sticky top-0 z-30 border-b bg-white/90 backdrop-blur-md transition-colors"
-      style={{ borderBottomColor: 'var(--border-base)' }}
-    >
-      <div className="mx-auto flex h-12 sm:h-13 max-w-[1120px] items-center justify-between gap-2 px-3">
-        {/* Wordmark */}
-        <a
-          href="/"
-          className="flex items-center gap-1.5 no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded"
-          aria-label="Kaizen Screener — home"
-        >
-          <span className="kaizen-wordmark text-[16px] sm:text-[17px] leading-none">
-            Kaizen
-          </span>
-          <span className="flex h-3.5 translate-y-px items-center border-l pl-1.5 font-mono text-[10px] font-medium uppercase leading-none tracking-widest text-slate-400"
-            style={{ borderLeftColor: 'var(--border-base)' }}
-          >
-            Screener
-          </span>
-        </a>
-
-        {/* Header Controls */}
-        <div className="flex items-center gap-2">
-          {/* Markets Picker */}
-          <div className="relative" ref={marketMenuRef}>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 gap-1 font-mono text-[11px] px-2"
-              onClick={() => onMarketOpenChange(!marketOpen)}
-              aria-haspopup="listbox"
-              aria-expanded={marketOpen}
-              aria-label={`Markets — ${selectedMarkets.length} selected`}
-            >
-              <span>Markets</span>
-              <span className="rounded bg-slate-100 px-1.5 py-0.2 text-[10px] font-semibold text-slate-600">
-                {selectedMarkets.length}
-              </span>
-              <ChevronDown size={11} className={`transition-transform duration-150 text-slate-400 ${marketOpen ? 'rotate-180' : ''}`} />
-            </Button>
-
-            {marketOpen && (
-              <div
-                className="menu-enter absolute right-0 top-9 sm:top-8 z-40 w-60 max-w-[calc(100vw-24px)] rounded-lg p-1 shadow-lg bg-white"
-                style={{
-                  border: '1px solid var(--border-base)',
-                }}
-                role="listbox"
-                aria-label="Select markets"
-                aria-multiselectable="true"
-              >
-                {/* Country markets */}
-                <div className="flex flex-col gap-0.5 rounded-md p-1" style={{ border: '1px solid var(--border-base)' }}>
-                  <p className="px-1.5 py-0.5 section-label text-[9px]">Countries</p>
-                  {RESEARCH_MARKETS.filter(([id]) => countryCodes.has(id)).map(([id, name]) => {
-                    const isSelected = selectedMarkets.includes(id);
-                    return (
-                      <button
-                        key={id}
-                        role="option"
-                        aria-selected={isSelected}
-                        onClick={() => onToggleMarket(id)}
-                        className={`flex min-h-[26px] w-full items-center gap-1.5 rounded px-2 py-0.5 text-left text-[11px] font-medium transition-colors ${
-                          isSelected
-                            ? 'bg-indigo-50 text-indigo-700 font-semibold'
-                            : 'text-slate-700 hover:bg-slate-50'
-                        }`}
-                      >
-                        <span className={`h-1.5 w-1.5 rounded-full ${isSelected ? 'bg-indigo-600' : 'bg-slate-300'}`} />
-                        {name}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Aggregates */}
-                <div className="mt-1 flex flex-col gap-0.5 rounded-md p-1" style={{ border: '1px solid var(--border-base)' }}>
-                  <p className="px-1.5 py-0.5 section-label text-[9px]">Regions &amp; Groups</p>
-                  {RESEARCH_MARKETS.filter(([id]) => !countryCodes.has(id)).map(([id, name]) => {
-                    const isSelected = selectedMarkets.includes(id);
-                    return (
-                      <button
-                        key={id}
-                        role="option"
-                        aria-selected={isSelected}
-                        onClick={() => onToggleMarket(id)}
-                        className={`flex min-h-[26px] w-full items-center gap-1.5 rounded px-2 py-0.5 text-left text-[11px] font-medium transition-colors ${
-                          isSelected
-                            ? 'bg-indigo-50 text-indigo-700 font-semibold'
-                            : 'text-slate-700 hover:bg-slate-50'
-                        }`}
-                      >
-                        <span className={`h-1.5 w-1.5 rounded-full ${isSelected ? 'bg-indigo-600' : 'bg-slate-300'}`} />
-                        {name}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Timeframe Picker */}
-          <div className="relative" ref={timeframeRef}>
-            <button
-              aria-expanded={timeframeOpen}
-              aria-haspopup="true"
-              aria-label={`Time range: ${timeframeLabel}`}
-              onClick={() => onTimeframeOpenChange(!timeframeOpen)}
-              className={`inline-flex h-7 items-center gap-1 rounded-md border px-2 font-mono text-[11px] font-medium transition-all ${
-                timeframeOpen || period === 'CUSTOM'
-                  ? 'border-indigo-500 bg-indigo-500 text-white shadow-2xs'
-                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              <span>{timeframeLabel}</span>
-              <ChevronDown size={11} className={`transition-transform duration-150 ${timeframeOpen ? 'rotate-180' : 'text-slate-400'}`} />
-            </button>
-
-            {timeframeOpen && (
-              <div
-                className="menu-enter absolute right-0 top-9 sm:top-8 z-40 w-[260px] max-w-[calc(100vw-24px)] rounded-lg p-2.5 shadow-lg bg-white"
-                style={{
-                  border: '1px solid var(--border-base)',
-                }}
-              >
-                <div className="mb-1.5 flex items-center justify-between px-0.5">
-                  <span className="section-label text-[9px]">Time range</span>
-                  <span className="font-mono text-[9.5px] text-slate-400">{rangeLabel}</span>
-                </div>
-
-                {/* Preset buttons */}
-                <div className="grid grid-cols-4 gap-1" role="group" aria-label="Preset time ranges">
-                  {periods.map(item => (
-                    <button
-                      key={item}
-                      onClick={() => { onSelectPeriod(item); onTimeframeOpenChange(false); }}
-                      aria-pressed={period === item}
-                      className={`min-h-[28px] rounded border px-1 py-0.5 font-mono text-[10px] transition-colors ${
-                        period === item
-                          ? 'border-indigo-500 bg-indigo-500 text-white font-semibold'
-                          : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-                      }`}
-                    >
-                      {item === 'MAX' ? 'MAX' : `${item}Y`}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="my-2 border-t border-slate-100" />
-
-                {/* Custom range */}
-                <div className="mb-1 flex items-center justify-between px-0.5">
-                  <span className="section-label text-[9px]">Custom range</span>
-                  <span className="font-mono text-[9px] text-slate-400">
-                    {earliestYear}–{latestYear}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-1.5">
-                  <label className="grid gap-1">
-                    <span className="font-mono text-[9px] uppercase tracking-wider text-slate-400">From</span>
-                    <select
-                      value={rangeDraft.start || String(rangeStart)}
-                      onChange={event => onSelectRangePart('start', event.target.value)}
-                      className="h-7 rounded border border-slate-200 bg-white px-1 font-mono text-[10px] text-slate-700 outline-none focus:border-indigo-500"
-                      aria-label="Start year"
-                    >
-                      {allYears.map(year => <option key={year} value={year}>{year}</option>)}
-                    </select>
-                  </label>
-                  <span className="pb-1 text-[10px] text-slate-400">—</span>
-                  <label className="grid gap-1">
-                    <span className="font-mono text-[9px] uppercase tracking-wider text-slate-400">To</span>
-                    <select
-                      value={rangeDraft.end || String(rangeEnd)}
-                      onChange={event => onSelectRangePart('end', event.target.value)}
-                      className="h-7 rounded border border-slate-200 bg-white px-1 font-mono text-[10px] text-slate-700 outline-none focus:border-indigo-500"
-                      aria-label="End year"
-                    >
-                      {allYears.map(year => <option key={year} value={year}>{year}</option>)}
-                    </select>
-                  </label>
-                </div>
-
-                {!rangeIsValid && (
-                  <p className="mt-1.5 font-mono text-[9px] text-rose-600" role="alert">
-                    End year must be on or after start year.
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
+    <div className="controls" role="group" aria-label="Time range">
+      <div className="seg" role="group" aria-label="Preset ranges">
+        {periods.map(p => (
+          <button key={p} type="button" aria-pressed={period === p} onClick={() => { onSelect(p); setOpen(false); }}>
+            {p === 'MAX' ? 'Max' : `${p}Y`}
+          </button>
+        ))}
       </div>
-    </header>
+      <div className="pop-anchor" ref={anchor}>
+        <button
+          type="button"
+          className="btn btn-sm"
+          aria-expanded={open}
+          aria-haspopup="dialog"
+          aria-pressed={period === 'CUSTOM'}
+          onClick={() => { if (!open) onDraftOpen(); setOpen(o => !o); }}
+        >
+          <CalendarIcon />
+          {period === 'CUSTOM' ? `${rangeStart}–${rangeEnd}` : 'Custom range'}
+          <ChevronDown className="chev" />
+        </button>
+        {open && (
+          <div className="pop" role="dialog" aria-label="Custom range">
+            <div className="pop-title">
+              <span>Custom range</span>
+              <b>{rangeStart}–{rangeEnd}</b>
+            </div>
+            <div className="pop-fields">
+              <label>
+                From
+                <select className="select" value={draft.start || String(rangeStart)} onChange={e => onPickPart('start', e.target.value)}>
+                  {allYears.map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </label>
+              <span>–</span>
+              <label>
+                To
+                <select className="select" value={draft.end || String(rangeEnd)} onChange={e => onPickPart('end', e.target.value)}>
+                  {allYears.map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </label>
+            </div>
+            {!rangeIsValid && <p className="pop-error" role="alert">The end year has to be on or after the start year.</p>}
+            <p className="pop-foot muted">Data runs {allYears[0]}–{allYears.at(-1)}. The chart updates as you pick.</p>
+          </div>
+        )}
+      </div>
+      <span className="controls-label">Annual data · {rangeStart}–{rangeEnd}</span>
+    </div>
   );
 }

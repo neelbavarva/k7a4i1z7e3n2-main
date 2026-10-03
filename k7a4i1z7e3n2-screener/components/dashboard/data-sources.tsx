@@ -1,5 +1,5 @@
 import type { AiCapitalFlowResponse } from '@/types/economics';
-import { Card } from '@/components/ui/card';
+import { ChevronDown } from '@/components/ui/icons';
 
 type SourceEntry = {
   feature: string;
@@ -11,7 +11,7 @@ type SourceEntry = {
   url: string;
 };
 
-const WORLD_BANK_API = 'https://api.worldbank.org/v2/country/{country}/indicator/{indicator}?format=json';
+const WORLD_BANK_API = 'https://data360api.worldbank.org/data360/data?DATABASE_ID=WB_WDI&INDICATOR=WB_WDI_{indicator}&REF_AREA={area}';
 
 export function DataSources({ aiSource }: { aiSource: AiCapitalFlowResponse['source'] | undefined }) {
   const entries: SourceEntry[] = [
@@ -58,7 +58,7 @@ export function DataSources({ aiSource }: { aiSource: AiCapitalFlowResponse['sou
       organization: 'World Bank / Kaizen calculation',
       description: 'Indexed comparisons and GDP-growth versus Buffett scatter use the same annual observations displayed elsewhere.',
       limitations: 'Indexes use the first available point in the selected window; comparisons are descriptive, not causal.',
-      url: 'https://api.worldbank.org/',
+      url: 'https://data360.worldbank.org/',
     },
     {
       feature: 'AI Capital Flow',
@@ -72,53 +72,45 @@ export function DataSources({ aiSource }: { aiSource: AiCapitalFlowResponse['sou
   ];
 
   return (
-    <section className="mb-3 pt-2" aria-label="Data sources overview">
-      <Card className="overflow-hidden">
-        <div className="px-3.5 py-2.5" style={{ borderBottom: '1px solid var(--border-base)' }}>
-          <h2 className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>Data sources</h2>
-          <p className="mt-0.5 text-[10px]" style={{ color: 'var(--text-tertiary)' }}>Definitions, providers, coverage, and limitations</p>
+    <section className="card section" aria-labelledby="sources-title">
+      <div className="card-head">
+        <div>
+          <h2 id="sources-title">Data sources</h2>
+          <p>Where each number comes from, what it measures, and what it can’t tell you.</p>
         </div>
-        <div style={{ borderTop: 'none' }}>
-          {entries.map(entry => (
-            <details key={entry.feature} className="group" style={{ borderBottom: '1px solid var(--border-base)' }}>
-              <summary
-                className="flex min-h-[40px] select-none cursor-pointer list-none items-center justify-between gap-3 px-3.5 py-2 text-[11px] font-medium transition-colors"
-                style={{ color: 'var(--text-secondary)' }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-hover)'; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ''; }}
-              >
-                <span>{entry.feature}</span>
-                <span className="font-mono text-[10px] transition-transform group-open:rotate-45" style={{ color: 'var(--text-tertiary)' }}>+</span>
-              </summary>
-              <div
-                className="grid gap-3 px-3.5 py-3 text-[10.5px] leading-5 panel-reveal lg:grid-cols-[minmax(0,.9fr)_minmax(0,1.2fr)_minmax(0,1.55fr)]"
-                style={{
-                  borderTop: '1px solid var(--border-base)',
-                  background: 'var(--surface-subtle)',
-                  color: 'var(--text-secondary)',
-                }}
-              >
-                <div>
-                  <p><span className="font-semibold" style={{ color: 'var(--text-primary)' }}>Source:</span> {entry.source}</p>
-                  <p className="mt-1"><span className="font-semibold" style={{ color: 'var(--text-primary)' }}>Maintained by:</span> {entry.organization}</p>
-                </div>
-                <div>
-                  <p><span className="font-semibold" style={{ color: 'var(--text-primary)' }}>What it measures:</span> {entry.description}</p>
-                </div>
-                <div>
-                  <p>
-                    <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>API / provider:</span>{' '}
-                    <a className="underline text-indigo-600" href={entry.url} target="_blank" rel="noreferrer">
-                      {entry.api}
-                    </a>
-                  </p>
-                  <p className="mt-1"><span className="font-semibold" style={{ color: 'var(--text-primary)' }}>Limitations:</span> {entry.limitations}</p>
-                </div>
+      </div>
+      <div style={{ marginTop: 14 }}>
+        {entries.map(entry => (
+          <details key={entry.feature} className="disc">
+            <summary>
+              <span>
+                {entry.feature} <span className="muted">· {entry.organization}</span>
+              </span>
+              <ChevronDown className="chev" />
+            </summary>
+            <dl className="disc-body">
+              <div>
+                <dt>Source</dt>
+                <dd>{entry.source}</dd>
               </div>
-            </details>
-          ))}
-        </div>
-      </Card>
+              <div>
+                <dt>What it measures</dt>
+                <dd>{entry.description}</dd>
+              </div>
+              <div>
+                <dt>Limitations</dt>
+                <dd>{entry.limitations}</dd>
+              </div>
+              <div className="disc-wide">
+                <dt>API / provider</dt>
+                <dd>
+                  <a href={entry.url} target="_blank" rel="noreferrer">{entry.api}</a>
+                </dd>
+              </div>
+            </dl>
+          </details>
+        ))}
+      </div>
     </section>
   );
 }
