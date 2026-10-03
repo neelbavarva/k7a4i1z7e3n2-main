@@ -405,4 +405,160 @@ router.post(
     }
 );
 
+// ---------------------------------------------------------------------------
+// Breach check: decrypt every password with the given key (like changeKey, a
+// wrong key just skips an entry and never counts as a failed attempt), then
+// look each one up in Have I Been Pwned's Pwned Passwords range API.
+// k-anonymity: only the first 5 hex characters of each SHA-1 hash leave this
+// server; the matching is done here. Plaintext never leaves the server.
+// Free, no API key: https://haveibeenpwned.com/API/v3#PwnedPasswords
+// ---------------------------------------------------------------------------
+
+const https = require("https");
+
+const breachLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 3,
+    handler: (req, res) =>
+        res.status(429).json({ message: "Too many requests" }),
+});
+
+/** All breached suffixes for a 5-character SHA-1 prefix: Map(suffix -> count). */
+function pwnedRange(prefix) {
+    return new Promise((resolve, reject) => {
+        const req = https.get(
+            {
+                host: "api.pwnedpasswords.com",
+                path: `/range/${prefix}`,
+                // padding hides how many real matches a prefix has from anyone watching
+                headers: {
+                    "Add-Padding": "true",
+                    "User-Agent": "k7a4i1z7e3n2-vault-breach-check",
+                },
+                timeout: 10_000,
+            },
+            (res) => {
+                if (res.statusCode !== 200) {
+                    res.resume();
+                    return reject(new Error(`HIBP ${res.statusCode}`));
+                }
+                let body = "";
+                res.setEncoding("utf8");
+                res.on("data", (c) => (body += c));
+                res.on("end", () => {
+                    const map = new Map();
+                    for (const line of body.split("\n")) {
+                        const [suffix, count] = line.trim().split(":");
+                        const n = parseInt(count, 10);
+                        if (suffix && n > 0) map.set(suffix, n); // padded rows have count 0
+                    }
+                    resolve(map);
+                });
+            }
+        );
+        req.on("timeout", () => req.destroy(new Error("HIBP timeout")));
+        req.on("error", reject);
+    });
+}
+
+async function runPool(items, limit, fn) {
+    const pool = new Set();
+    for (const item of items) {
+        const p = fn(item);
+        pool.add(p);
+        p.finally(() => pool.delete(p));
+        if (pool.size >= limit) await Promise.race(pool);
+    }
+    await Promise.all(Array.from(pool));
+}
+
+router.post(
+    "/breachCheck",
+    apiKeyMiddleware,
+    breachLimiter,
+    [body("key").isString().isLength({ min: 1, max: 128 })],
+    async (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty())
+            return res.status(400).json({ errors: errors.array() });
+
+        try {
+            const query = { archive: false };
+            if (req.user) query.owner = req.user;
+            const docs = await Password.find(query);
+
+            let concurrency =
+                parseInt(process.env.CHANGE_KEY_CONCURRENCY, 10) || 10;
+            concurrency = Math.max(1, Math.min(concurrency, 100));
+
+            // 1. decrypt and hash; keep only the hash
+            const hashed = []; // { doc, hash }
+            let skipped = 0;
+            await runPool(docs, concurrency, async (doc) => {
+                let plain;
+                try {
+                    plain = await decryptText(doc.password, req.body.key);
+                } catch {
+                    skipped++;
+                    return;
+                }
+                const hash = crypto
+                    .createHash("sha1")
+                    .update(plain, "utf8")
+                    .digest("hex")
+                    .toUpperCase();
+                plain = null;
+                hashed.push({ doc, hash });
+            });
+
+            // 2. one range lookup per distinct prefix
+            const prefixes = [...new Set(hashed.map((h) => h.hash.slice(0, 5)))];
+            const ranges = new Map();
+            let lookupFailed = 0;
+            await runPool(prefixes, 6, async (prefix) => {
+                try {
+                    ranges.set(prefix, await pwnedRange(prefix));
+                } catch {
+                    lookupFailed++;
+                }
+            });
+
+            // 3. reuse: the same password under more than one entry
+            const byHash = new Map();
+            for (const h of hashed)
+                byHash.set(h.hash, (byHash.get(h.hash) || 0) + 1);
+            const groupOf = new Map();
+            let g = 0;
+            for (const [hash, n] of byHash) if (n > 1) groupOf.set(hash, ++g);
+
+            const results = hashed.map(({ doc, hash }) => {
+                const range = ranges.get(hash.slice(0, 5));
+                return {
+                    id: doc._id.toString(),
+                    name: doc.name,
+                    email: doc.email || "",
+                    category: doc.category || "",
+                    // null when the lookup for this prefix failed
+                    breachCount: range ? range.get(hash.slice(5)) || 0 : null,
+                    reuseGroup: groupOf.get(hash) || null,
+                };
+            });
+
+            const summary = {
+                processed: docs.length,
+                checked: hashed.length,
+                skipped, // not encrypted with this key
+                breached: results.filter((r) => r.breachCount > 0).length,
+                reused: results.filter((r) => r.reuseGroup).length,
+                unknown: results.filter((r) => r.breachCount === null).length,
+                lookupFailed,
+                checkedAt: new Date().toISOString(),
+            };
+            res.json({ summary, results });
+        } catch {
+            res.status(500).json({ message: "Server error" });
+        }
+    }
+);
+
 module.exports = router;
