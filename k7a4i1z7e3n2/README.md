@@ -10,7 +10,10 @@ npm run build    # static output in dist/
 ```
 
 - **Change the sites:** edit `src/sites.js` (any number of panes works).
-- **Resize:** drag the divider, arrow keys when it's focused, double-click or Enter to reset to equal widths. The split is remembered per browser (it resets when the number of sites changes).
+- **Resize:** drag a divider. The pane you're widening takes the space and every pane on the other side shrinks together, down to a minimum width (`MIN` in `src/App.jsx`). Arrow keys nudge a focused divider; double-click or Enter evens all widths out.
+- **Rearrange:** hover a pane, then drag the dotted handle at the left of its toolbar (bottom-right) and drop it between two other panes. Arrow keys move it when the handle is focused. Tabs follow the same order.
+- **Reset:** once the layout differs from the default, a reset button appears in each pane's toolbar; it restores the default order and equal widths.
+- Order and widths are remembered per browser (`localStorage`); they fall back to the default if the site list changes.
 - **Per pane:** hover a pane for reload / open-in-new-tab (bottom-right).
 - **Below 2500px wide:** one site at a time; switch with the tab bar (arrow keys work when a tab is focused). Reload / open-in-new-tab sit at the right of the bar. Each site loads the first time it's opened and stays loaded, and the last tab is remembered. The breakpoint is `WIDE_QUERY` in `src/App.jsx`.
 
