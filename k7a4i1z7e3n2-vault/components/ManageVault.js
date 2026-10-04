@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { CreditCard, KeyRound, Lock, Plus, RotateCcwKey, ShieldCheck, Sparkles } from "lucide-react";
+import { CreditCard, KeyRound, Lock, RotateCcwKey, ShieldCheck, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { PASSWORD_CATEGORIES } from "@/lib/categories";
 import { http } from "@/lib/http";
@@ -9,9 +9,10 @@ import Modal from "./k7/Modal";
 import Seg from "./k7/Seg";
 import SecretInput from "./k7/SecretInput";
 import ServiceIcon, { CATEGORY_ICON } from "./k7/ServiceIcon";
-import { BankCard, BankMark } from "./Passwords";
+import { BankCard } from "./Passwords";
+import BankPicker from "./k7/BankPicker";
 import NetworkMark from "./k7/NetworkMark";
-import { BANKS, CARD_TYPES, composeBankName, detectNetwork, groupNumber, luhnValid } from "@/lib/cards";
+import { BANKS, CARD_TYPES, bankColor, cardFace, composeBankName, detectNetwork, groupNumber, luhnValid } from "@/lib/cards";
 
 const MODES = [
     { value: "password", label: "Add password", icon: <KeyRound aria-hidden="true" /> },
@@ -204,8 +205,7 @@ function PasswordForm({ onDone, onClose }) {
 }
 
 function CardForm({ onDone, onClose }) {
-    const [bankId, setBankId] = useState(""); // a BANKS id, or "other"
-    const [otherBank, setOtherBank] = useState("");
+    const [pick, setPick] = useState(null); // { id } of a listed bank, or { name } typed in
     const [type, setType] = useState("");
     const [cardName, setCardName] = useState("");
     const [number, setNumber] = useState("");
@@ -221,7 +221,8 @@ function CardForm({ onDone, onClose }) {
     const fullLength = network ? network.lengths.includes(raw.length) : raw.length >= 13;
     const typo = fullLength && !luhnValid(raw);
     const cvvLength = network?.id === "amex" ? 4 : 3;
-    const bank = bankId === "other" ? otherBank.trim() : BANKS.find((b) => b.id === bankId)?.name || "";
+    const known = pick?.id ? BANKS.find((b) => b.id === pick.id) : null;
+    const bank = known?.name || pick?.name?.trim() || "";
     const bankName = composeBankName({ bank, type, network: network?.name });
     const ready = bank && type && raw.length >= 12 && validTill.length === 5 && cvv.length >= 3 && pin.length >= 4 && key.trim();
 
@@ -254,9 +255,10 @@ function CardForm({ onDone, onClose }) {
         }
     };
 
-    // the card fills in as you type; CVV and PIN stay masked even here
+    // the card fills in as you go, and takes its colours once a bank is picked; CVV and PIN stay masked
     const preview = {
-        card: { bankName: composeBankName({ bank: bank || "Bank", type, network: network?.name }), cardName: cardName.trim(), lastOfNumber: raw.slice(-4) },
+        card: { cardName: cardName.trim(), lastOfNumber: raw.slice(-4) },
+        info: { bank, known, bankLabel: bank || "Your bank", type, network, color: known?.color || bankColor(bank), face: cardFace(known, bank) },
         data: {
             number: raw ? raw.padEnd(network?.id === "amex" ? 15 : 16, "•") : "",
             validTill: validTill,
@@ -268,44 +270,12 @@ function CardForm({ onDone, onClose }) {
     return (
         <form className="form" onSubmit={submit}>
             <div className="card-preview" aria-hidden="true">
-                <BankCard card={preview.card} data={preview.data} big />
+                <BankCard card={preview.card} info={preview.info} data={preview.data} big />
             </div>
 
             <div className="field">
                 <span className="field-label">Bank</span>
-                <div className="bank-picker" role="radiogroup" aria-label="Bank">
-                    {BANKS.map((b) => (
-                        <button
-                            key={b.id}
-                            type="button"
-                            role="radio"
-                            aria-checked={bankId === b.id}
-                            className="bank-option"
-                            style={{ "--tint": b.color }}
-                            onClick={() => setBankId(b.id)}
-                            title={b.name}
-                        >
-                            <BankMark card={{ bankName: b.name }} size={26} />
-                            <span>{b.short}</span>
-                        </button>
-                    ))}
-                    <button type="button" role="radio" aria-checked={bankId === "other"} className="bank-option is-other" onClick={() => setBankId("other")}>
-                        <span className="bank-other-plus" aria-hidden="true">
-                            <Plus />
-                        </span>
-                        <span>Other</span>
-                    </button>
-                </div>
-                {bankId === "other" && (
-                    <input
-                        className="input fade-in"
-                        value={otherBank}
-                        onChange={(e) => setOtherBank(e.target.value.replace(/·/g, ""))}
-                        placeholder="Bank name, e.g. ICICI Bank"
-                        aria-label="Bank name"
-                        autoFocus
-                    />
-                )}
+                <BankPicker value={pick} onChange={setPick} />
             </div>
 
             <div className="form-grid">

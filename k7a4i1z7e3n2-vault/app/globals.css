@@ -489,6 +489,18 @@ code {
   line-height: 1.05;
   letter-spacing: -0.02em;
 }
+.overview-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+}
+.overview-actions {
+  display: flex;
+  gap: 8px;
+  padding-bottom: 3px;
+}
 .rule {
   height: 0;
   margin: 18px 0 0;
@@ -869,224 +881,260 @@ code {
 
 /* ---------- Bank cards ---------- */
 
+.cards-group {
+  margin-top: 22px;
+}
+/* prev / next for the strip, whose scrollbar is hidden */
+.strip-nav {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+  align-self: center;
+}
+.strip-nav .btn-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+}
+.strip-nav svg {
+  width: 16px;
+  height: 16px;
+}
 .cards-strip {
+  --fade-l: 0px;
+  --fade-r: 0px;
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: minmax(290px, 330px);
-  gap: 14px;
-  margin: 6px -32px 0;
-  /* room below for the cards' coloured shadows to fade out inside the scroller, which clips */
-  padding: 8px 32px 40px;
+  gap: 16px;
+  margin: 2px -32px 0;
+  /* room above for the hover lift, below for the cards' coloured shadows (the scroller clips) */
+  padding: 10px 32px 40px;
+  /* the shadow room needn't push the next section down */
+  margin-bottom: -14px;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   scroll-padding: 0 32px;
   scrollbar-width: none;
+  /* the edge fades only where there are more cards to scroll to */
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 var(--fade-l), #000 calc(100% - var(--fade-r)), transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 var(--fade-l), #000 calc(100% - var(--fade-r)), transparent);
 }
 .cards-strip::-webkit-scrollbar {
   display: none;
 }
-/* A light card face in the bank's tint: a soft diagonal wash, a sheen from the top
-   corner and a fine guilloche-like ring pattern, so each card reads as its own. */
+.cards-strip.more-start {
+  --fade-l: 28px;
+}
+.cards-strip.more-end {
+  --fade-r: 36px;
+}
+
+/* the face colours are registered so a newly picked bank's colours fade in */
+@property --c1 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #4b5056;
+}
+@property --c2 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #2d3136;
+}
+/*
+ * A card the way card apps draw it: what it is in bold capitals at the top left, the bank's
+ * logo at the top right, the number and a widely spaced line under it at the bottom left,
+ * the network's mark at the bottom right, and nothing in between. The face is a quiet colour
+ * pair with faint contour lines. Sizes inside are container units (cqw), so the strip's card
+ * and the dialog's are one design at two scales.
+ */
 .bank-card {
-  --t: var(--tint, var(--axis));
   position: relative;
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  /* roughly card proportions at strip width, and free to grow with its content */
-  min-height: 188px;
-  padding: 18px 20px;
+  justify-content: space-between;
+  aspect-ratio: 1.586;
+  padding: 7.6% 7.4% 7.8% 7%;
   font: inherit;
-  color: var(--ink);
+  color: #fff;
   text-align: left;
-  background:
-    radial-gradient(140% 120% at 100% 0%, color-mix(in srgb, var(--t) 16%, transparent), transparent 55%),
-    linear-gradient(135deg, color-mix(in srgb, var(--t) 9%, #fff) 0%, #fff 55%, color-mix(in srgb, var(--t) 6%, #fff) 100%);
-  border: 1px solid color-mix(in srgb, var(--t) 22%, var(--line));
-  border-radius: 16px;
-  box-shadow: 0 1px 2px rgba(22, 26, 22, 0.05), 0 10px 26px -12px color-mix(in srgb, var(--t) 45%, transparent);
+  background-color: var(--c2);
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 504' preserveAspectRatio='none'%3E%3Cg fill='none' stroke='%23fff' stroke-opacity='0.085' stroke-width='1.5'%3E%3Cpath d='M118 150c0-27 27-46 62-44 41 2 66 22 64 47-2 26-30 42-64 41-36-1-62-17-62-44z'/%3E%3Cpath d='M62 150c0-58 58-96 126-91 76 5 136 44 135 103-1 54-60 88-128 83-75-6-133-40-133-95z'/%3E%3Cpath d='M8 158c-4-90 92-156 196-150 118 7 213 76 208 166-5 88-104 146-206 140-110-6-194-66-198-156z'/%3E%3Cpath d='M-46 166C-56 36 84-64 210-52 368-38 482 72 470 186 458 304 330 390 196 380 50 368-38 290-46 166z'/%3E%3Cpath d='M632 364c0-25 25-42 58-40 35 2 58 20 56 42-2 24-28 38-58 37-33-1-56-14-56-39z'/%3E%3Cpath d='M562 366c0-60 60-92 130-87 70 5 120 45 115 95-5 50-60 80-125 75-70-5-120-35-120-83z'/%3E%3Cpath d='M500 370c-5-95 90-150 190-145 110 5 180 70 175 155-5 85-95 140-195 135-100-5-165-60-170-145z'/%3E%3Cpath d='M440 374c-10-130 120-210 250-205 150 5 240 105 235 215-5 110-125 190-260 185-125-5-215-75-225-195z'/%3E%3Cpath d='M-20 430c140-40 280 50 420 10 120-35 160-130 300-180 60-22 100-20 130-10'/%3E%3Cpath d='M-20 480c160-40 300 50 440 10 140-40 180-130 300-180 50-20 90-18 110-10'/%3E%3C/g%3E%3C/svg%3E"),
+    linear-gradient(135deg, var(--c1), var(--c2));
+  background-size: 100% 100%, auto;
+  border: 0;
+  border-radius: 3.8% / 6%;
+  box-shadow:
+    0 1px 2px rgb(22 26 22 / 0.12),
+    0 10px 24px -14px rgb(22 26 22 / 0.38);
   scroll-snap-align: start;
   cursor: pointer;
-  overflow: hidden;
-  transition: transform 0.3s var(--ease), box-shadow 0.3s var(--ease), border-color 0.15s;
-}
-.bank-card::before {
-  content: '';
-  position: absolute;
-  right: -70px;
-  bottom: -90px;
-  width: 260px;
-  height: 260px;
-  border-radius: 50%;
-  background: repeating-radial-gradient(circle, transparent 0 9px, color-mix(in srgb, var(--t) 13%, transparent) 9px 10px);
-  -webkit-mask-image: radial-gradient(circle, #000 30%, transparent 70%);
-  mask-image: radial-gradient(circle, #000 30%, transparent 70%);
-  pointer-events: none;
-}
-.bank-card::after {
-  /* a sheen that sweeps across on hover */
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.55) 50%, transparent 65%);
-  transform: translateX(-120%);
-  pointer-events: none;
+  /* clip, not hidden: the card can still grow past its ratio if text needs room */
+  overflow: clip;
+  transition:
+    --c1 0.5s var(--ease),
+    --c2 0.5s var(--ease),
+    transform 0.3s var(--ease),
+    box-shadow 0.3s var(--ease);
 }
 .bank-card > * {
   position: relative;
-  flex: none;
 }
-.bank-card:hover {
-  transform: translateY(-4px);
-  border-color: color-mix(in srgb, var(--t) 40%, var(--line));
-  box-shadow: 0 2px 4px rgba(22, 26, 22, 0.05), 0 18px 34px -14px color-mix(in srgb, var(--t) 60%, transparent);
+/* a sheen that sweeps across on hover */
+.bank-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 35%, rgb(255 255 255 / 0.1) 50%, transparent 65%);
+  transform: translateX(-120%);
+  pointer-events: none;
 }
-.bank-card:hover::after {
+.bank-card:not(.is-big):hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 2px 3px rgb(22 26 22 / 0.1),
+    0 18px 30px -14px rgb(22 26 22 / 0.42);
+}
+.bank-card:not(.is-big):hover::after {
   transform: translateX(120%);
   transition: transform 0.9s var(--ease);
 }
-.bank-card.is-locked {
-  border-color: color-mix(in srgb, var(--bear) 45%, transparent);
+.bank-card:focus-visible {
+  outline-offset: 3px;
+  border-radius: 3.8% / 6%;
 }
-.delete-mode .bank-card:hover {
-  border-color: color-mix(in srgb, var(--bear) 55%, transparent);
-}
-.bc-top {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.bc-id {
-  flex: 1;
-  min-width: 0;
-  display: grid;
-  line-height: 1.25;
-}
-.bc-name {
-  font-weight: 600;
-  font-size: 14px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.bc-bank {
-  font-size: 12px;
-  color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.bc-nfc {
-  flex: none;
-  width: 18px;
-  height: 18px;
-  color: color-mix(in srgb, var(--t) 55%, var(--muted));
-  transform: rotate(90deg);
-}
-.bank-card .tag {
-  margin-left: 0;
-}
-.bc-chip {
-  position: relative;
-  width: 34px;
-  height: 25px;
-  border-radius: 6px;
-  background: linear-gradient(135deg, #f4e2a6, #c9a24a 60%, #e8cf86);
-  box-shadow: inset 0 0 0 1px rgba(90, 61, 0, 0.2);
-}
-.bc-chip::before,
-.bc-chip::after {
+/* locked: the face goes grey under a veil */
+.bank-card.is-locked::before {
   content: '';
   position: absolute;
-  border: 1px solid rgba(90, 61, 0, 0.24);
+  inset: 0;
+  background: rgb(52 56 60 / 0.55);
+  pointer-events: none;
 }
-.bc-chip::before {
-  inset: 6px 11px;
-  border-radius: 3px;
+.delete-mode .bank-card:not(.is-big):hover {
+  box-shadow:
+    0 0 0 2px var(--page),
+    0 0 0 4px var(--bear),
+    0 18px 30px -14px rgb(22 26 22 / 0.42);
 }
-.bc-chip::after {
-  left: 0;
-  right: 0;
-  top: 50%;
-  border-width: 1px 0 0;
+
+.bc-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 5cqw;
 }
-.bc-number {
-  margin-top: auto;
-  font-family: var(--mono);
-  font-size: 17px;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.bc-facts {
+.bc-head {
   display: grid;
-  grid-template-columns: repeat(3, auto);
-  justify-content: start;
-  gap: 26px;
-  margin: 0;
+  justify-items: start;
+  gap: 2.4cqw;
+  min-width: 0;
 }
-.bc-facts dt {
-  font-size: 10.5px;
-  font-weight: 500;
-  letter-spacing: 0.06em;
+.bc-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font-size: clamp(13px, 4.6cqw, 22px);
+  font-weight: 650;
+  line-height: 1.24;
+  letter-spacing: 0.01em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: rgb(255 255 255 / 0.95);
 }
-.bc-facts dd {
-  margin: 1px 0 0;
-  font-family: var(--mono);
-  font-size: 13px;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
+.bc-logo {
+  flex: none;
+  margin-top: 0.3cqw;
 }
-.bank-card.is-big {
-  cursor: default;
-  min-height: 228px;
-  max-width: 420px;
-  width: 100%;
-  margin: 0 auto;
-}
-.bank-card.is-big:hover {
-  transform: none;
-  border-color: color-mix(in srgb, var(--t) 22%, var(--line));
-  box-shadow: 0 1px 2px rgba(22, 26, 22, 0.05), 0 10px 26px -12px color-mix(in srgb, var(--t) 45%, transparent);
-}
-.bank-card.is-big:hover::after {
-  transform: translateX(-120%);
-  transition: none;
-}
-.bank-card.is-big .bc-number {
-  font-size: 19px;
-}
-/* chip and contactless side by side; facts and network mark share the bottom line */
-.bc-mid {
+/* no full logo: the bank's name set in type, after its symbol if it has one */
+.bc-wordmark {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 2cqw;
+  flex: none;
+  max-width: 40%;
+  font-size: clamp(11px, 3.3cqw, 16px);
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: right;
+  color: rgb(255 255 255 / 0.9);
+}
+.bc-sym {
+  flex: none;
+  width: 7cqw;
+  height: 7cqw;
+}
+.bc-locked {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 9px 2px 7px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--bear-ink);
+  background: #fff;
+  border-radius: 999px;
+}
+.bc-locked svg {
+  width: 11px;
+  height: 11px;
 }
 .bc-bottom {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 12px;
+  gap: 4cqw;
 }
-.bc-type {
-  display: inline-block;
-  margin-left: 6px;
-  padding: 0 6px;
-  font-size: 10.5px;
+.bc-lines {
+  display: grid;
+  gap: 2.6cqw;
+  min-width: 0;
+}
+.bc-number {
+  display: flex;
+  gap: 0.5em;
+  font-size: clamp(14px, 4.7cqw, 22px);
+  font-weight: 650;
+  letter-spacing: 0.07em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* the spaced line under the number, where a printed card has its holder's name */
+.bc-line {
+  font-size: clamp(8.5px, 2.75cqw, 13px);
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.3em;
   text-transform: uppercase;
-  line-height: 16px;
-  color: color-mix(in srgb, var(--t) 80%, var(--ink));
-  background: color-mix(in srgb, var(--t) 12%, transparent);
-  border-radius: 4px;
-  vertical-align: 1px;
+  color: rgb(255 255 255 / 0.86);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.bc-type.is-first {
-  margin-left: 0;
+.bc-facts {
+  display: flex;
+  gap: 5cqw;
+  letter-spacing: 0.22em;
+  overflow: visible;
+}
+.bc-facts i {
+  font-style: normal;
+  font-weight: 500;
+  color: rgb(255 255 255 / 0.58);
+}
+.bc-facts b {
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+}
+.bc-facts .dots {
+  gap: 0.2em;
+}
+.bc-facts .dots i {
+  width: 0.34em;
+  height: 0.34em;
+  background: currentColor;
 }
 .net-mark {
   display: inline-flex;
@@ -1098,17 +1146,27 @@ code {
   width: auto;
   display: block;
 }
-.bc-net svg {
-  height: 22px;
-}
-.bank-card.is-big .bc-net svg {
-  height: 26px;
-}
-.fact-net svg {
-  height: 16px;
+.net-mark.bc-net svg {
+  width: 100%;
+  height: 100%;
 }
 .pop-in {
   animation: pop 0.28s var(--ease) both;
+}
+.bank-card.is-big {
+  cursor: default;
+}
+/* logos: one markup, three ways (see components/k7/BankLogo.js) */
+.logo {
+  display: block;
+}
+.logo.is-lift {
+  --ld: #fff;
+}
+.logo.is-mono {
+  --li: #fff;
+  --lk: transparent;
+  --lb: transparent;
 }
 
 /* the dashed tile at the end of the strip */
@@ -1118,14 +1176,14 @@ code {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  min-height: 188px;
+  aspect-ratio: 1.586;
   font: inherit;
   font-size: 13px;
   font-weight: 500;
   color: var(--ink2);
   background: transparent;
   border: 1.5px dashed var(--axis);
-  border-radius: 16px;
+  border-radius: 3.8% / 6%;
   scroll-snap-align: start;
   cursor: pointer;
   transition: border-color 0.15s, color 0.15s, background-color 0.15s;
@@ -1152,8 +1210,32 @@ code {
   width: 16px;
   height: 16px;
 }
-.bank-mark .svc-coin {
-  font-size: calc(var(--d) * 0.48);
+/* a bank as a small white tile, like an app icon: its symbol in colour, or its initial */
+.bank-mark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--s, 28px);
+  height: var(--s, 28px);
+  color: var(--tint, var(--ink2));
+  background: var(--raised);
+  border-radius: 28%;
+  box-shadow:
+    inset 0 0 0 1px var(--line),
+    0 1px 2px rgb(22 26 22 / 0.06);
+}
+.bank-mark-sym {
+  width: 64%;
+  height: 64%;
+}
+.bank-mark-letter {
+  font-family: var(--serif);
+  font-size: calc(var(--s, 28px) * 0.5);
+  line-height: 1;
+}
+.bank-mark > svg:not(.logo) {
+  width: 50%;
+  height: 50%;
 }
 
 /* ---------- Vault: group headings, dialogs ---------- */
@@ -1213,19 +1295,111 @@ code {
   display: grid;
 }
 
-/* the secret line: icon, value, copy */
-.secret-icon {
-  flex: none;
-  width: 15px;
-  height: 15px;
+/* a saved login's fields in one panel: label over value, its action on the right */
+.cred {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.cred-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 62px;
+  padding: 10px 12px 10px 16px;
+  transition: background-color 0.3s;
+}
+.cred-row + .cred-row {
+  border-top: 1px solid var(--grid);
+}
+.cred-row.is-open {
+  background: color-mix(in srgb, var(--ok) 5%, var(--surface));
+}
+.cred-text {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.cred-label {
+  font-size: 11.5px;
   color: var(--muted);
 }
-.secret.is-open {
-  border-color: color-mix(in srgb, var(--ok) 40%, var(--line));
-  background: color-mix(in srgb, var(--ok) 4%, var(--surface));
+.cred-value {
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--ink);
+  overflow-wrap: anywhere;
 }
-.secret.is-open .secret-icon {
-  color: var(--ok);
+.cred-row.is-secret .cred-value {
+  font-family: var(--mono);
+  font-size: 14.5px;
+  letter-spacing: 0.02em;
+}
+.cred-masked {
+  display: flex;
+  align-items: center;
+  height: 21px;
+  color: var(--ink2);
+}
+.cred-masked .dots {
+  gap: 0.3em;
+  vertical-align: 0;
+}
+.cred-masked .dots i {
+  width: 0.38em;
+  height: 0.38em;
+}
+.cred-state {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 10px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--muted);
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+.cred-state svg {
+  width: 11px;
+  height: 11px;
+}
+/* dialog subtitle as short facts: "Web App · Added 2 days ago" */
+.sub-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.sub-item + .sub-item::before {
+  content: '·';
+  margin-left: 6px;
+  color: var(--muted);
+}
+.sub-item svg {
+  width: 13px;
+  height: 13px;
+  color: var(--muted);
+}
+/* hidden characters: round dots sized to the text around them */
+.dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.24em;
+  height: 1em;
+  vertical-align: 0.14em;
+  padding: 0 0.06em;
+}
+.dots i {
+  width: 0.34em;
+  height: 0.34em;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.92;
 }
 /* revealed: copy buttons and a countdown until it hides again */
 .revealed {
@@ -1265,54 +1439,6 @@ code {
 .hide-timer .linkish {
   font-size: 12px;
   white-space: nowrap;
-}
-
-/* small facts list at the bottom of a dialog */
-.facts {
-  margin: 0;
-  border-top: 1px solid var(--line);
-}
-.facts > div {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 40px;
-  padding: 6px 0;
-  border-bottom: 1px solid var(--grid);
-}
-.facts > div:last-child {
-  border-bottom: 0;
-}
-.facts dt {
-  font-size: 12px;
-  color: var(--muted);
-}
-.facts dd {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  margin: 0;
-  font-size: 13px;
-  color: var(--ink);
-  text-align: right;
-}
-.facts dd > span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.fact-cat {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.fact-cat svg {
-  width: 13px;
-  height: 13px;
-  color: var(--ink2);
 }
 
 /* ---------- Brief: facts in a row ---------- */
@@ -1968,29 +2094,6 @@ code {
   outline-offset: 2px;
 }
 
-/* the secret: a password or card detail, masked until decrypted */
-.secret {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 52px;
-  padding: 8px 8px 8px 16px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-}
-.secret-value {
-  flex: 1;
-  min-width: 0;
-  font-family: var(--mono);
-  font-size: 15px;
-  letter-spacing: 0.02em;
-  word-break: break-all;
-}
-.secret-value.masked {
-  color: var(--muted);
-  letter-spacing: 0.18em;
-}
 .reveal {
   animation: reveal 0.5s var(--ease) both;
 }
@@ -2058,8 +2161,12 @@ code {
 .form-grid-3 {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
-/* bank picker: brand-coloured tiles plus "Other" */
+/* bank: the most used as tiles; the fifth opens every other bank, grouped and searchable */
 .bank-picker {
+  display: grid;
+  gap: 8px;
+}
+.bank-tiles {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
@@ -2069,6 +2176,7 @@ code {
   flex-direction: column;
   align-items: center;
   gap: 6px;
+  min-width: 0;
   padding: 10px 6px 9px;
   font: inherit;
   font-size: 12px;
@@ -2084,13 +2192,26 @@ code {
   border-color: var(--axis);
   color: var(--ink);
 }
-.bank-option[aria-checked='true'] {
+.bank-option[aria-pressed='true'] {
   color: var(--ink);
   border-color: var(--tint, var(--ink));
   background: color-mix(in srgb, var(--tint, var(--ink)) 6%, var(--raised));
   box-shadow: 0 0 0 1px var(--tint, var(--ink));
 }
-.bank-other-plus {
+.bank-option.is-open {
+  color: var(--ink);
+  border-color: var(--ink2);
+  background: var(--surface);
+}
+.bank-option-label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bank-more-icon,
+.bank-add {
+  flex: none;
   display: grid;
   place-items: center;
   width: 26px;
@@ -2099,9 +2220,135 @@ code {
   border: 1.5px dashed var(--axis);
   border-radius: 50%;
 }
-.bank-other-plus svg {
-  width: 13px;
-  height: 13px;
+.bank-add {
+  width: 24px;
+  height: 24px;
+}
+.bank-more-icon svg,
+.bank-add svg {
+  width: 12px;
+  height: 12px;
+}
+.bank-browser {
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lift);
+  overflow: hidden;
+}
+.bank-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px 0 14px;
+  border-bottom: 1px solid var(--line);
+}
+.bank-search > svg {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  color: var(--muted);
+}
+.bank-search input {
+  flex: 1;
+  min-width: 0;
+  height: 42px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  outline: none;
+}
+.bank-search input::placeholder {
+  color: var(--muted);
+}
+.bank-list {
+  max-height: 268px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 6px 6px;
+  scroll-padding: 32px 0 6px;
+}
+.bank-group {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 9px 8px 5px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--raised);
+}
+.bank-group span {
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--axis);
+}
+.bank-items {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px 4px;
+}
+.bank-items.is-results {
+  grid-template-columns: 1fr;
+  padding-top: 6px;
+}
+.bank-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 6px 8px;
+  font-size: 13px;
+  color: var(--ink);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.bank-item.is-active {
+  background: var(--page);
+}
+.bank-item-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bank-item-group {
+  flex: none;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.bank-item-check {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: var(--ok);
+}
+.bank-item.is-custom {
+  color: var(--ink2);
+}
+.bank-foot {
+  padding: 7px 14px;
+  font-size: 11.5px;
+  color: var(--muted);
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+}
+.pop-down {
+  animation: pop-down 0.22s var(--ease) both;
+}
+@keyframes pop-down {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
 }
 .field-note {
   font-size: 12px;
@@ -2227,15 +2474,7 @@ code {
   color: var(--muted);
 }
 .card-preview .bank-card {
-  min-height: 0;
-  gap: 12px;
-  padding: 16px 18px;
-  box-shadow: none;
-  border-style: dashed;
-  border-color: var(--axis);
-}
-.card-preview .bank-card.is-big:hover {
-  border-color: var(--axis);
+  box-shadow: 0 8px 20px -12px rgb(22 26 22 / 0.4);
 }
 
 /* change key: three steps that tick off as you go */
@@ -2388,6 +2627,110 @@ code {
 .breach-how b {
   color: var(--ink);
   font-weight: 600;
+}
+fieldset.bare {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  transition: opacity 0.25s;
+}
+fieldset.bare:disabled {
+  opacity: 0.5;
+}
+/* while the vault check runs: what is happening, for how long, and that the rest waits */
+.breach-progress {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.bp-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.bp-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  color: var(--bull-ink);
+  background: color-mix(in srgb, var(--bull) 10%, var(--raised));
+  border-radius: 50%;
+  animation: bp-pulse 1.8s ease-out infinite;
+}
+.bp-icon svg {
+  width: 16px;
+  height: 16px;
+}
+@keyframes bp-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--bull) 30%, transparent);
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 9px color-mix(in srgb, var(--bull) 0%, transparent);
+  }
+}
+.bp-text {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink2);
+}
+.bp-text b {
+  font-size: 14px;
+  color: var(--ink);
+}
+.bp-time {
+  font-family: var(--serif);
+  font-size: 20px;
+  line-height: 1.2;
+  color: var(--ink);
+}
+.bp-bar {
+  position: relative;
+  height: 4px;
+  overflow: hidden;
+  background: var(--grid);
+  border-radius: 2px;
+}
+.bp-bar i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 36%;
+  background: var(--bull);
+  border-radius: inherit;
+  animation: bp-slide 1.4s var(--ease) infinite;
+}
+@keyframes bp-slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(280%);
+  }
+}
+.bp-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.bp-note svg {
+  flex: none;
+  width: 12px;
+  height: 12px;
 }
 .btn-primary.is-busy {
   background: linear-gradient(90deg, var(--ink) 0%, #3a403a 50%, var(--ink) 100%);
@@ -2673,6 +3016,15 @@ code {
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   animation: backdrop-in 0.18s ease both;
+  transition: background-color 0.35s ease;
+}
+/* a dialog doing slow work: the page behind dims further and nothing responds to clicks */
+.modal-backdrop.is-busy {
+  background: color-mix(in srgb, #161a16 55%, transparent);
+  cursor: progress;
+}
+.modal[aria-busy='true'] {
+  cursor: progress;
 }
 @keyframes backdrop-in {
   from {
@@ -3026,10 +3378,10 @@ code {
   margin-top: 10px;
 }
 .sk-card {
-  width: 320px;
+  width: 330px;
   max-width: 80%;
-  height: 176px;
-  border-radius: 14px;
+  aspect-ratio: 1.586;
+  border-radius: 16px;
 }
 .sk-search {
   height: 46px;
@@ -3259,8 +3611,18 @@ code {
 }
 
 @media (max-width: 600px) {
-  .bank-picker {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+  .bank-tiles {
+    gap: 6px;
+  }
+  .bank-option {
+    padding: 9px 2px 8px;
+    font-size: 11.5px;
+  }
+  .bank-items {
+    grid-template-columns: 1fr;
+  }
+  .overview-actions {
+    padding-bottom: 2px;
   }
   .breach-tiles {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3336,13 +3698,16 @@ code {
   .toolbar .btn-label {
     display: none;
   }
-  /* modals become bottom sheets on phones */
+  /* modals become bottom sheets on phones. The auto margin sits the sheet at the bottom;
+     unlike align-items: flex-end it gives way when the sheet is taller than the screen,
+     so the overflow goes below (scrollable) instead of above (cut off). */
   .modal-backdrop {
-    align-items: flex-end;
+    align-items: flex-start;
     padding: 6vh 0 0;
   }
   .modal,
   .modal.wide {
+    margin-top: auto;
     max-width: none;
     border-radius: 18px 18px 0 0;
     border-bottom: 0;
@@ -3386,7 +3751,8 @@ code {
   kbd,
   .keys,
   .modal-foot,
-  .picker-foot {
+  .picker-foot,
+  .strip-nav {
     display: none !important;
   }
   .btn {

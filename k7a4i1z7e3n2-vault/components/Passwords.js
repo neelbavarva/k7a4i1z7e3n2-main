@@ -1,18 +1,19 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronRight, Copy, KeyRound, Nfc, Plus, Search, ShieldAlert, Trash2, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Copy, KeyRound, Lock, Plus, Search, ShieldAlert, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { PASSWORD_CATEGORIES } from "@/lib/categories";
 import { http } from "@/lib/http";
 import { fmtAgo, fmtDate } from "@/lib/format";
-import { detectNetwork, groupNumber, parseBankName } from "@/lib/cards";
+import { bankColor, cardFace, detectNetwork, parseBankName, rowFaces } from "@/lib/cards";
 import BreachCheck from "./BreachCheck";
 import Modal from "./k7/Modal";
-import NetworkMark from "./k7/NetworkMark";
+import BankLogo, { BankMark } from "./k7/BankLogo";
+import NetworkMark, { markRatio } from "./k7/NetworkMark";
 import Seg from "./k7/Seg";
 import SecretInput from "./k7/SecretInput";
-import ServiceIcon, { CATEGORY_ICON, tintFor } from "./k7/ServiceIcon";
+import ServiceIcon, { CATEGORY_ICON } from "./k7/ServiceIcon";
 import { useKey } from "./k7/hooks";
 
 const catLabel = (v) => PASSWORD_CATEGORIES.find((c) => c.value === v)?.label || "Others";
@@ -147,6 +148,9 @@ export default function Passwords({ refreshKey = 0, onManage }) {
         return list;
     }, [passwords, categoryFilter, searchQuery, sortDirection]);
 
+    // each card's colours, so the strip and the dialog agree and neighbours never match
+    const faces = useMemo(() => rowFaces(cards), [cards]);
+
     const groups = useMemo(() => {
         const cats = categoryFilter === "all" ? PASSWORD_CATEGORIES : PASSWORD_CATEGORIES.filter((c) => c.value === categoryFilter);
         return cats.map((c) => ({ ...c, rows: visible.filter((p) => catKey(p.category) === c.value) })).filter((g) => g.rows.length);
@@ -161,7 +165,36 @@ export default function Passwords({ refreshKey = 0, onManage }) {
     return (
         <div className={deleteMode ? "delete-mode" : ""}>
             <section className="overview">
-                <h1 className="overview-title">Your vault</h1>
+                <div className="overview-row">
+                    <h1 className="overview-title">Your vault</h1>
+                    <div className="overview-actions">
+                        <button
+                            type="button"
+                            className="btn"
+                            onClick={() => setBreachOpen(true)}
+                            aria-label="Breach check"
+                            title="Check passwords against known breaches"
+                        >
+                            <ShieldAlert aria-hidden="true" />
+                            <span className="btn-label">Breach check</span>
+                        </button>
+                        <button type="button" className="btn" onClick={() => onManage?.("changeKey")} aria-label="Change key" title="Change encryption key">
+                            <KeyRound aria-hidden="true" />
+                            <span className="btn-label">Change key</span>
+                        </button>
+                        <button
+                            type="button"
+                            className="btn btn-toggle"
+                            aria-pressed={deleteMode}
+                            onClick={() => setDeleteMode((s) => !s)}
+                            aria-label="Delete mode"
+                            title={deleteMode ? "Delete mode: on" : "Delete mode: off"}
+                        >
+                            <Trash2 aria-hidden="true" />
+                            <span className="btn-label">{deleteMode ? "Deleting" : "Delete"}</span>
+                        </button>
+                    </div>
+                </div>
                 <hr className="rule" />
             </section>
 
@@ -177,26 +210,9 @@ export default function Passwords({ refreshKey = 0, onManage }) {
                 </div>
             )}
 
-            <section className="group" style={{ marginTop: 22 }} aria-labelledby="g-cards">
-                <div className="group-head">
-                    <h2 id="g-cards">Cards</h2>
-                    <span className="count">{cards.length}</span>
-                </div>
-                {error.cards && <p className="form-error" style={{ marginTop: 8 }}>{error.cards}</p>}
-                <div className="cards-strip stagger">
-                    {cards.map((card, i) => (
-                        <BankCard key={card._id} card={card} style={{ "--i": i }} onClick={() => setOpenCard(card)} />
-                    ))}
-                    <button type="button" className="add-card" style={{ "--i": cards.length }} onClick={() => onManage?.("card")}>
-                        <span className="add-card-plus" aria-hidden="true">
-                            <Plus />
-                        </span>
-                        Add a card
-                    </button>
-                </div>
-            </section>
+            <CardStrip cards={cards} faces={faces} error={error.cards} onOpen={setOpenCard} onAdd={() => onManage?.("card")} />
 
-            <section className="group" style={{ marginTop: 4 }} aria-labelledby="g-passwords">
+            <section className="group" aria-labelledby="g-passwords">
                 <div className="group-head" style={{ marginBottom: 10 }}>
                     <h2 id="g-passwords">Passwords</h2>
                     <span className="count">{passwords.length}</span>
@@ -248,24 +264,6 @@ export default function Passwords({ refreshKey = 0, onManage }) {
                     />
                     <span className="spacer" />
                     <Seg label="Sort by date added" options={SORTS} value={sortDirection} onChange={setSortDirection} />
-                    <button type="button" className="btn" onClick={() => setBreachOpen(true)} title="Check passwords against known breaches">
-                        <ShieldAlert aria-hidden="true" />
-                        <span className="btn-label">Breach check</span>
-                    </button>
-                    <button type="button" className="btn" onClick={() => onManage?.("changeKey")} title="Change encryption key">
-                        <KeyRound aria-hidden="true" />
-                        <span className="btn-label">Change key</span>
-                    </button>
-                    <button
-                        type="button"
-                        className="btn btn-toggle"
-                        aria-pressed={deleteMode}
-                        onClick={() => setDeleteMode((s) => !s)}
-                        title={deleteMode ? "Delete mode: on" : "Delete mode: off"}
-                    >
-                        <Trash2 aria-hidden="true" />
-                        <span className="btn-label">{deleteMode ? "Deleting" : "Delete"}</span>
-                    </button>
                 </div>
 
                 <p className={`search-hint${q ? " on" : ""}`} aria-live="polite">
@@ -331,6 +329,7 @@ export default function Passwords({ refreshKey = 0, onManage }) {
             />
             <CardDialog
                 card={openCard}
+                faces={faces}
                 deleteMode={deleteMode}
                 onClose={() => setOpenCard(null)}
                 onDeleted={(id) => {
@@ -380,45 +379,169 @@ function PasswordRow({ p, i, deleteMode, onOpen }) {
     );
 }
 
-/** Bank, type and network from the stored bankName, plus the colour to draw the card in. */
+/** Prev / next for a sideways scroller whose scrollbar is hidden, and which ends have more. */
+function useScroller(count) {
+    const ref = useRef(null);
+    const [edges, setEdges] = useState({ start: true, end: true });
+    useEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+        const update = () =>
+            setEdges({ start: el.scrollLeft <= 4, end: el.scrollLeft + el.clientWidth >= el.scrollWidth - 4 });
+        update();
+        el.addEventListener("scroll", update, { passive: true });
+        const ro = new ResizeObserver(update);
+        ro.observe(el);
+        return () => {
+            el.removeEventListener("scroll", update);
+            ro.disconnect();
+        };
+    }, [count]);
+    /** Scroll a page of whole cards, so the snap lands on a card edge. */
+    const page = (dir) => {
+        const el = ref.current;
+        const item = el?.firstElementChild;
+        if (!item) return;
+        const step = item.getBoundingClientRect().width + parseFloat(getComputedStyle(el).columnGap || 0);
+        el.scrollBy({ left: dir * step * Math.max(1, Math.floor((el.clientWidth - 64) / step)), behavior: "smooth" });
+    };
+    return { ref, edges, page };
+}
+
+function CardStrip({ cards, faces, error, onOpen, onAdd }) {
+    const { ref, edges, page } = useScroller(cards.length);
+    const scrolls = !(edges.start && edges.end);
+    return (
+        <section className="group cards-group" aria-labelledby="g-cards">
+            <div className="group-head">
+                <h2 id="g-cards">Cards</h2>
+                <span className="count">{cards.length}</span>
+                {scrolls && (
+                    <span className="strip-nav fade-in">
+                        <button type="button" className="btn btn-icon" onClick={() => page(-1)} disabled={edges.start} aria-label="Previous cards">
+                            <ChevronLeft />
+                        </button>
+                        <button type="button" className="btn btn-icon" onClick={() => page(1)} disabled={edges.end} aria-label="Next cards">
+                            <ChevronRight />
+                        </button>
+                    </span>
+                )}
+            </div>
+            {error && <p className="form-error" style={{ marginTop: 8 }}>{error}</p>}
+            <div ref={ref} className={`cards-strip stagger${edges.start ? "" : " more-start"}${edges.end ? "" : " more-end"}`}>
+                {cards.map((card, i) => (
+                    <BankCard key={card._id} card={card} face={faces.get(card._id)} style={{ "--i": i }} onClick={() => onOpen(card)} />
+                ))}
+                <button type="button" className="add-card" style={{ "--i": cards.length }} onClick={onAdd}>
+                    <span className="add-card-plus" aria-hidden="true">
+                        <Plus />
+                    </span>
+                    Add a card
+                </button>
+            </div>
+        </section>
+    );
+}
+
+/** Bank, type and network from the stored bankName, the bank's tile colour and the card's face. */
 export function cardInfo(card, number) {
     const info = parseBankName(card?.bankName || "");
-    const bankLabel = info.known?.name || info.bank || "Card";
     return {
         ...info,
-        bankLabel,
+        bankLabel: info.known?.name || info.bank || "Card",
         network: info.network || detectNetwork(number) || null,
-        tint: info.known?.color || tintFor(info.bank || card?.cardName),
+        color: info.known?.color || bankColor(info.bank || card?.cardName),
+        face: cardFace(info.known, info.bank),
     };
 }
 
-/** The bank's monogram in its colour: a known bank's short name, otherwise its first letter. */
-export function BankMark({ card, size = 28 }) {
-    const info = cardInfo(card);
-    const text = ((info.known?.short || info.bank).match(/[\p{L}\p{N}]/u)?.[0] || "?").toUpperCase();
+/** Hidden characters as round dots; the font's own bullet is small and square. */
+function Dots({ n }) {
     return (
-        <span className="svc bank-mark" style={{ "--svc": `${size}px`, "--tint": info.tint }} aria-hidden="true">
-            <span className="svc-coin">{text}</span>
+        <span className="dots" aria-hidden="true">
+            {Array.from({ length: n }, (_, k) => (
+                <i key={k} />
+            ))}
+        </span>
+    );
+}
+/** Text with its runs of "•" drawn as Dots. */
+const dotted = (text) =>
+    String(text)
+        .split(/(•+)/)
+        .filter(Boolean)
+        .map((part, i) => (part[0] === "•" ? <Dots key={i} n={part.length} /> : part));
+
+/** Split for display: Amex is 4-6-5, everything else in fours. Works on dots as well as digits. */
+const groupsOf = (s, network) =>
+    network?.id === "amex" ? [s.slice(0, 4), s.slice(4, 10), s.slice(10, 15)].filter(Boolean) : s.match(/.{1,4}/g) || [];
+
+/** Sizes a mark of this shape (width / height) to about `area` cqw², so wide and tall ones weigh the same. */
+function fitArea(ratio, area, { minH, maxH, maxW }) {
+    let h = Math.min(maxH, Math.max(minH, Math.sqrt(area / ratio)));
+    const w = Math.min(maxW, h * ratio);
+    h = w / ratio;
+    return { width: `${w}cqw`, height: `${h}cqw` };
+}
+
+const startsWith = (text, prefix) => !!prefix && text.toLowerCase().startsWith(prefix.toLowerCase());
+
+/**
+ * What a card is called on its face, the way a card app names it: the bank's short name and
+ * the product ("HDFC Regalia"), or the bank and the type when it has no name ("SBI Debit").
+ * The line under the number then adds what the title didn't say.
+ */
+function cardWords(info, cardName) {
+    const known = info.known;
+    const short = known?.short || info.bank || "";
+    const name = (cardName || "").trim();
+    if (name) {
+        const named = [known?.short, known?.name, info.bank].some((b) => startsWith(name, b));
+        return { title: named || !short ? name : `${short} ${name}`, line: info.type ? `${info.type} card` : info.bankLabel };
+    }
+    if (!short) return { title: info.type ? `${info.type} card` : "New card", line: "" };
+    return {
+        title: info.type ? `${short} ${info.type}` : short,
+        line: known && known.name !== known.short ? known.name : "",
+    };
+}
+
+/** Top right of a card: the bank's logo, in its colours with dark lettering turned white. */
+function CardLogo({ info }) {
+    const bank = info.known;
+    if (!bank) return null;
+    const [ratio, symbol] = bank.logo || [0, false];
+    if (ratio > 0) return <BankLogo id={bank.id} className="bc-logo is-lift" style={fitArea(ratio, 190, { minH: 4.8, maxH: 10, maxW: 36 })} />;
+    // a symbol without a wordmark, or no logo at all: the name set in type
+    return (
+        <span className="bc-wordmark">
+            {symbol && <BankLogo id={bank.id} symbol className="bc-sym is-lift" />}
+            <span>{bank.name}</span>
         </span>
     );
 }
 
-export function BankCard({ card, data, big, onClick, style }) {
+/**
+ * A card in the manner of a card app: what it is in bold capitals top left, the bank's logo
+ * top right, the number and a spaced line under it bottom left, the network's mark bottom
+ * right. The face is a quiet colour pair with faint contour lines. Everything is sized in
+ * container units, so the strip's card and the dialog's bigger one are one design at two
+ * scales. `info` overrides what's read from the card (the add-card preview).
+ */
+export function BankCard({ card, data, info: given, face, big, onClick, style }) {
     const locked = isLocked(card);
     const Tag = big ? "div" : "button";
-    const info = cardInfo(card, data?.number);
+    const info = given || cardInfo(card, data?.number);
+    const amex = info.network?.id === "amex";
+    const words = cardWords(info, card.cardName);
     const exp = data?.validTill
         ? (() => {
               const v = data.validTill.replace(/\D/g, "");
               return v.length >= 2 ? `${v.slice(0, 2)}/${v.slice(2, 4)}` : v;
           })()
         : "••/••";
-    const raw = String(data?.number || "").replace(/\s/g, "");
-    const number = raw
-        ? /^\d+$/.test(raw)
-            ? groupNumber(raw, info.network)
-            : raw.replace(/(.{4})(?=.)/g, "$1 ") // the add-card preview pads with dots
-        : `•••• •••• •••• ${card.lastOfNumber || "••••"}`;
+    const shown = String(data?.number || "").replace(/\s/g, "") || "•".repeat(amex ? 11 : 12) + (card.lastOfNumber || "••••");
+    const [c1, c2] = face || info.face;
     return (
         <Tag
             {...(big
@@ -426,52 +549,51 @@ export function BankCard({ card, data, big, onClick, style }) {
                 : {
                       type: "button",
                       onClick,
-                      "aria-label": [card.cardName || "Card", info.bankLabel, info.type, info.network?.name, card.lastOfNumber && `ending ${card.lastOfNumber}`]
+                      "aria-label": [card.cardName || "Card", info.bankLabel, info.type, info.network?.name, card.lastOfNumber && `ending ${card.lastOfNumber}`, locked && "locked"]
                           .filter(Boolean)
                           .join(", "),
                   })}
             className={`bank-card${big ? " is-big" : ""}${locked ? " is-locked" : ""}`}
-            style={{ ...style, "--tint": info.tint }}
+            style={{ ...style, "--c1": c1, "--c2": c2 }}
         >
             <span className="bc-top">
-                <BankMark card={card} />
-                <span className="bc-id">
-                    <span className="bc-name">{card.cardName || info.bankLabel}</span>
-                    <span className="bc-bank">
-                        {card.cardName ? info.bankLabel : null}
-                        {info.type && <span className={`bc-type${card.cardName ? "" : " is-first"}`}>{info.type}</span>}
-                    </span>
+                <span className="bc-head">
+                    <span className="bc-title">{words.title}</span>
+                    {locked && (
+                        <span className="bc-locked">
+                            <Lock aria-hidden="true" />
+                            Locked
+                        </span>
+                    )}
                 </span>
-                {locked && (
-                    <span className="tag is-locked">
-                        <i />
-                        Locked
-                    </span>
-                )}
-            </span>
-            <span className="bc-mid" aria-hidden="true">
-                <span className="bc-chip" />
-                <Nfc className="bc-nfc" />
-            </span>
-            <span className={`bc-number${data?.number ? " reveal" : ""}`} aria-label="Card number">
-                {number}
+                <CardLogo info={info} />
             </span>
             <span className="bc-bottom">
-                <dl className="bc-facts">
-                    <div>
-                        <dt>Expires</dt>
-                        <dd className={data?.validTill ? "reveal" : ""}>{exp}</dd>
-                    </div>
-                    <div>
-                        <dt>CVV</dt>
-                        <dd className={data?.cvv ? "reveal" : ""}>{data?.cvv || "•••"}</dd>
-                    </div>
-                    <div>
-                        <dt>PIN</dt>
-                        <dd className={data?.pin ? "reveal" : ""}>{data?.pin || "••••"}</dd>
-                    </div>
-                </dl>
-                <NetworkMark network={info.network} className="bc-net" />
+                <span className="bc-lines">
+                    <span className={`bc-number${data?.number ? " reveal" : ""}`} aria-label="Card number">
+                        {groupsOf(shown, info.network).map((g, i) => (
+                            <span key={i}>{dotted(g)}</span>
+                        ))}
+                    </span>
+                    {big ? (
+                        <span className="bc-line bc-facts">
+                            <span>
+                                <i>Valid thru</i> <b className={data?.validTill ? "reveal" : ""}>{dotted(exp)}</b>
+                            </span>
+                            <span>
+                                <i>CVV</i> <b className={data?.cvv ? "reveal" : ""}>{dotted(data?.cvv || (amex ? "••••" : "•••"))}</b>
+                            </span>
+                            <span>
+                                <i>PIN</i> <b className={data?.pin ? "reveal" : ""}>{dotted(data?.pin || "••••")}</b>
+                            </span>
+                        </span>
+                    ) : (
+                        words.line && <span className="bc-line">{words.line}</span>
+                    )}
+                </span>
+                {info.network && (
+                    <NetworkMark network={info.network} light className="bc-net" style={fitArea(markRatio(info.network), 85, { minH: 4.2, maxH: 8.6, maxW: 19 })} />
+                )}
             </span>
         </Tag>
     );
@@ -531,24 +653,16 @@ function HideTimer({ left, onHide }) {
     );
 }
 
-/** Small facts under the secret: label on the left, value (and maybe an action) on the right. */
-function Facts({ rows }) {
-    return (
-        <dl className="facts">
-            {rows.filter(Boolean).map(([k, v, action]) => (
-                <div key={k}>
-                    <dt>{k}</dt>
-                    <dd>
-                        <span>{v}</span>
-                        {action}
-                    </dd>
-                </div>
-            ))}
-        </dl>
-    );
+/** A dialog subtitle made of short facts, separated by dots. Empty items are left out. */
+function SubLine({ items }) {
+    return items.filter(Boolean).map((item, i) => (
+        <span key={i} className="sub-item">
+            {item}
+        </span>
+    ));
 }
 
-function CardDialog({ card, deleteMode, onClose, onDeleted }) {
+function CardDialog({ card, faces, deleteMode, onClose, onDeleted }) {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(false);
     const [deleting, setDeleting] = useState(false);
@@ -595,12 +709,21 @@ function CardDialog({ card, deleteMode, onClose, onDeleted }) {
         <Modal
             open={!!card}
             onClose={onClose}
-            icon={<BankMark card={c} size={42} />}
+            icon={<BankMark bank={cinfo.known} name={cinfo.bank} color={cinfo.color} size={42} />}
             title={c.cardName || cinfo.bankLabel}
-            sub={[cinfo.bankLabel, cinfo.type, c.lastOfNumber && `ending ${c.lastOfNumber}`].filter(Boolean).join(" · ")}
+            sub={
+                <SubLine
+                    items={[
+                        cinfo.bankLabel,
+                        cinfo.type,
+                        c.lastOfNumber && `ending ${c.lastOfNumber}`,
+                        c.createdAt && <span title={fmtDate(c.createdAt)}>Added {fmtAgo(c.createdAt)}</span>,
+                    ]}
+                />
+            }
         >
             <div className="modal-body">
-                <BankCard card={c} data={data} big />
+                <BankCard card={c} data={data} face={faces.get(c._id)} big />
                 <LockedNote item={c} />
                 {deleteMode ? (
                     <DangerZone what="card" onDelete={remove} loading={deleting} />
@@ -615,15 +738,6 @@ function CardDialog({ card, deleteMode, onClose, onDeleted }) {
                 ) : (
                     <KeyForm what="card" onSubmit={decrypt} loading={loading} />
                 )}
-                <Facts
-                    rows={[
-                        ["Bank", cinfo.bankLabel],
-                        cinfo.type && ["Type", cinfo.type],
-                        cinfo.network && ["Network", <NetworkMark key="n" network={cinfo.network} className="fact-net" />],
-                        c.cardName && ["Card", c.cardName],
-                        c.createdAt && ["Added", fmtDate(c.createdAt)],
-                    ]}
-                />
             </div>
         </Modal>
     );
@@ -680,21 +794,51 @@ function PasswordDialog({ password, deleteMode, onClose, onDeleted }) {
             onClose={onClose}
             icon={<ServiceIcon name={p.name} category={cat} locked={isLocked(p)} size={42} />}
             title={p.name || "Password"}
-            sub={p.email || "No email or username"}
+            sub={
+                <SubLine
+                    items={[
+                        <>
+                            <CatIcon cat={cat} />
+                            {catLabel(p.category)}
+                        </>,
+                        p.createdAt && <span title={fmtDate(p.createdAt)}>Added {fmtAgo(p.createdAt)}</span>,
+                    ]}
+                />
+            }
         >
             <div className="modal-body">
-                <div className={`secret${value ? " is-open" : ""}`}>
-                    <KeyRound className="secret-icon" aria-hidden="true" />
-                    {value ? (
-                        <span className="secret-value reveal" key={value}>
-                            {value}
-                        </span>
-                    ) : (
-                        <span className="secret-value masked" aria-label="Hidden">
-                            ••••••••••••
-                        </span>
+                <div className="cred">
+                    {p.email && (
+                        <div className="cred-row">
+                            <span className="cred-text">
+                                <span className="cred-label">Email or username</span>
+                                <span className="cred-value">{p.email}</span>
+                            </span>
+                            <CopyButton value={p.email} what="username" />
+                        </div>
                     )}
-                    {value && <CopyButton value={value} what="password" />}
+                    <div className={`cred-row is-secret${value ? " is-open" : ""}`}>
+                        <span className="cred-text">
+                            <span className="cred-label">Password</span>
+                            {value ? (
+                                <span className="cred-value reveal" key={value}>
+                                    {value}
+                                </span>
+                            ) : (
+                                <span className="cred-value cred-masked" aria-label="Hidden">
+                                    <Dots n={12} />
+                                </span>
+                            )}
+                        </span>
+                        {value ? (
+                            <CopyButton value={value} what="password" />
+                        ) : (
+                            <span className="cred-state">
+                                <Lock aria-hidden="true" />
+                                Encrypted
+                            </span>
+                        )}
+                    </div>
                 </div>
                 <LockedNote item={p} />
                 {deleteMode ? (
@@ -704,19 +848,6 @@ function PasswordDialog({ password, deleteMode, onClose, onDeleted }) {
                 ) : (
                     <KeyForm what="password" onSubmit={decrypt} loading={loading} />
                 )}
-                <Facts
-                    rows={[
-                        p.email && ["Username", p.email, <CopyButton key="c" value={p.email} what="username" />],
-                        [
-                            "Category",
-                            <span className="fact-cat" key="cat">
-                                <CatIcon cat={cat} />
-                                {catLabel(p.category)}
-                            </span>,
-                        ],
-                        p.createdAt && ["Added", `${fmtDate(p.createdAt)} · ${fmtAgo(p.createdAt)}`],
-                    ]}
-                />
             </div>
         </Modal>
     );

@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { ChevronRight, Copy, KeyRound, RefreshCw, ShieldAlert, ShieldCheck, Vault } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { ChevronRight, Copy, KeyRound, Lock, RefreshCw, ShieldAlert, ShieldCheck, Vault } from "lucide-react";
 import { http } from "@/lib/http";
 import Modal from "./k7/Modal";
 import Seg from "./k7/Seg";
@@ -72,6 +72,7 @@ export default function BreachCheck({ open, onClose, total, onOpenPassword }) {
     };
 
     const close = () => {
+        if (loading) return;
         onClose();
         // forget the key and results once the dialog has animated out
         setTimeout(() => {
@@ -87,6 +88,7 @@ export default function BreachCheck({ open, onClose, total, onOpenPassword }) {
             open={open}
             onClose={close}
             wide
+            busy={loading}
             className="breach"
             icon={
                 <span className="breach-mark" aria-hidden="true">
@@ -101,44 +103,82 @@ export default function BreachCheck({ open, onClose, total, onOpenPassword }) {
             }
         >
             <div className="modal-body">
-                <Seg wide label="What to check" options={MODES} value={mode} onChange={setMode} />
+                <fieldset className="bare" disabled={loading}>
+                    <Seg wide label="What to check" options={MODES} value={mode} onChange={setMode} />
+                </fieldset>
                 {mode === "any" ? (
                     <QuickCheck key="any" />
                 ) : report ? (
                     <Report report={report} onOpenPassword={onOpenPassword} onAgain={() => setReport(null)} />
                 ) : (
                     <form className="form" onSubmit={run}>
-                        <ol className="breach-how">
-                            <li>
-                                <b>Decrypted on the server</b> with your key, the same way Change key does. Passwords under a different
-                                key are skipped and never count as a wrong attempt.
-                            </li>
-                            <li>
-                                <b>Only a fingerprint is shared.</b> Each password is hashed (SHA-1) and just the first 5 of its 40
-                                characters go to Have I Been Pwned. The match is made on the server.
-                            </li>
-                            <li>
-                                <b>Nothing is revealed here.</b> You get names and breach counts, never the passwords.
-                            </li>
-                        </ol>
-                        <div className="field">
-                            <label htmlFor="breach-key">Decryption key</label>
-                            <SecretInput id="breach-key" value={key} onChange={(e) => setKey(e.target.value)} placeholder="The key your passwords use" autoFocus />
-                        </div>
+                        <fieldset className="bare form" disabled={loading}>
+                            <ol className="breach-how">
+                                <li>
+                                    <b>Decrypted on the server</b> with your key, the same way Change key does. Passwords under a different
+                                    key are skipped and never count as a wrong attempt.
+                                </li>
+                                <li>
+                                    <b>Only a fingerprint is shared.</b> Each password is hashed (SHA-1) and just the first 5 of its 40
+                                    characters go to Have I Been Pwned. The match is made on the server.
+                                </li>
+                                <li>
+                                    <b>Nothing is revealed here.</b> You get names and breach counts, never the passwords.
+                                </li>
+                            </ol>
+                            <div className="field">
+                                <label htmlFor="breach-key">Decryption key</label>
+                                <SecretInput id="breach-key" value={key} onChange={(e) => setKey(e.target.value)} placeholder="The key your passwords use" autoFocus />
+                            </div>
+                        </fieldset>
                         {error && <p className="form-error">{error}</p>}
-                        <button type="submit" className={`btn btn-primary btn-block${loading ? " is-busy" : ""}`} disabled={loading || !key.trim()}>
-                            <ShieldCheck aria-hidden="true" />
-                            {loading ? `Checking ${total} passwords…` : `Check ${total} password${total === 1 ? "" : "s"}`}
-                        </button>
-                        {loading && (
-                            <p className="small muted" aria-live="polite">
-                                Each password is decrypted with a deliberately slow key function, so this takes a few seconds.
-                            </p>
+                        {loading ? (
+                            <BreachProgress total={total} />
+                        ) : (
+                            <button type="submit" className="btn btn-primary btn-block" disabled={!key.trim()}>
+                                <ShieldCheck aria-hidden="true" />
+                                Check {total} password{total === 1 ? "" : "s"}
+                            </button>
                         )}
                     </form>
                 )}
             </div>
         </Modal>
+    );
+}
+
+/** While the vault check runs: what's happening, how long it's been, and that everything else waits. */
+function BreachProgress({ total }) {
+    const [secs, setSecs] = useState(0);
+    useEffect(() => {
+        const started = Date.now();
+        const id = setInterval(() => setSecs(Math.floor((Date.now() - started) / 1000)), 500);
+        return () => clearInterval(id);
+    }, []);
+    return (
+        <div className="breach-progress fade-in" role="status">
+            <div className="bp-head">
+                <span className="bp-icon" aria-hidden="true">
+                    <ShieldCheck />
+                </span>
+                <span className="bp-text">
+                    <b>
+                        Checking {total} password{total === 1 ? "" : "s"}…
+                    </b>
+                    <span>Each one is decrypted with a deliberately slow key function, then looked up by its fingerprint.</span>
+                </span>
+                <span className="bp-time num-tab" aria-hidden="true">
+                    {Math.floor(secs / 60)}:{String(secs % 60).padStart(2, "0")}
+                </span>
+            </div>
+            <div className="bp-bar" aria-hidden="true">
+                <i />
+            </div>
+            <p className="bp-note">
+                <Lock aria-hidden="true" />
+                The vault is locked until the check finishes. Keep this tab open.
+            </p>
+        </div>
     );
 }
 
