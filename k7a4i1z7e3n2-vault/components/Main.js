@@ -16,7 +16,7 @@ const TABS = [
     { value: "trades", label: "Trades", title: "Trade journal (2)" },
 ];
 
-export default function Main({ onLogout }) {
+export default function Main({ unlockedAt, onLogout }) {
     const [activeTab, setActiveTab] = useState(() => {
         if (typeof window === "undefined") return "passwords";
         const saved = window.localStorage.getItem("mainActiveSection");
@@ -31,9 +31,9 @@ export default function Main({ onLogout }) {
     useEffect(() => {
         localStorage.setItem("mainActiveSection", activeTab);
         window.scrollTo({ top: 0 });
+        document.title = `${activeTab === "trades" ? "Trade journal" : "Vault"} · k7a4i1z7e3n2`;
     }, [activeTab]);
 
-    const unlockedAt = Number(typeof window !== "undefined" ? localStorage.getItem("auth") : 0);
     const isVault = activeTab === "passwords";
     const openNew = () => (isVault ? setManage("password") : setNewTradeOpen(true));
 

@@ -1,22 +1,32 @@
-// Forex trading sessions, in New York time (ET).
-// While the market is shut (Friday 5pm ET to Sunday 5pm ET) there is no
-// session to show, so getMarketSession() returns null and the UI shows nothing.
+// Forex trading sessions. Their hours are fixed in UTC; in India time they are
+// Asian 5:30am to 2:30pm, London 2:30pm to 9:30pm and New York 5:30pm to 2:30am,
+// as the journal has always used them. The trading week follows New York: the
+// market shuts Friday 5pm ET and opens again Sunday 5pm ET, and while it is shut
+// there is no session to show, so getMarketSession() returns null.
 
-type Session = { name: string; start: number; end: number };
+type Session = { name: string; start: number; end: number }; // minutes after midnight UTC
 
+// first match wins, so New York shows while it overlaps London
 const SESSIONS: Session[] = [
-    { name: "New York session", start: 17 * 60 + 30, end: 2 * 60 + 30 },
-    { name: "London session", start: 14 * 60 + 30, end: 21 * 60 + 30 },
-    { name: "Asian session", start: 5 * 60 + 30, end: 14 * 60 + 30 },
+    { name: "New York session", start: 12 * 60, end: 21 * 60 },
+    { name: "London session", start: 9 * 60, end: 16 * 60 },
+    { name: "Asian session", start: 0, end: 9 * 60 },
 ];
 
 const WEEK_OPEN = 17 * 60; // 5:00 pm ET
+const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const etFormat = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    weekday: "short",
+    hour: "numeric",
+    minute: "numeric",
+    hourCycle: "h23",
+});
 
-function etNow() {
-    const et = new Date(
-        new Date().toLocaleString("en-US", { timeZone: "America/New_York" })
-    );
-    return { day: et.getDay(), minutes: et.getHours() * 60 + et.getMinutes() };
+/** Day of the week and minutes after midnight in New York, daylight saving included. */
+function etClock(now: Date) {
+    const part = (type: string) => etFormat.formatToParts(now).find((p) => p.type === type)?.value || "";
+    return { day: DAYS.indexOf(part("weekday")), minutes: Number(part("hour")) * 60 + Number(part("minute")) };
 }
 
 function isWeekend(day: number, minutes: number) {
@@ -32,23 +42,18 @@ function span(mins: number) {
     return `${h > 0 ? h + "hr " : ""}${m}min`;
 }
 
-const inside = (s: Session, m: number) =>
-    s.start < s.end ? m >= s.start && m < s.end : m >= s.start || m < s.end;
+const inside = (s: Session, m: number) => (s.start < s.end ? m >= s.start && m < s.end : m >= s.start || m < s.end);
 
 export type MarketSession = { name: string; detail: string; active: boolean };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function getMarketSession(marketPointer?: any): MarketSession | null {
-    if (marketPointer?.currencies?.fx === "closed") return null;
-    const { day, minutes } = etNow();
-    if (isWeekend(day, minutes)) return null;
+export function getMarketSession(now: Date = new Date()): MarketSession | null {
+    const { day, minutes: et } = etClock(now);
+    if (isWeekend(day, et)) return null;
+    const minutes = now.getUTCHours() * 60 + now.getUTCMinutes();
 
     for (const s of SESSIONS) {
         if (inside(s, minutes)) {
-            const left =
-                s.start < s.end || minutes < s.end
-                    ? s.end - minutes
-                    : 24 * 60 - minutes + s.end;
+            const left = s.start < s.end || minutes < s.end ? s.end - minutes : 24 * 60 - minutes + s.end;
             return { name: s.name, detail: `ends in ${span(left)}`, active: true };
         }
     }

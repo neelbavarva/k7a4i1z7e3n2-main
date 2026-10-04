@@ -5,21 +5,21 @@ import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { http } from "@/lib/http";
 import { TRADE_TYPES, grade } from "@/lib/format";
+import { checklistScore, checklistState, rrValue, storedDate, tfLabels, tickPart, tickWhole, todayIso } from "@/lib/trades";
 import TradeSymbols from "./TradeSymbols";
 import MarketIcon from "./k7/MarketIcon";
 import Modal from "./k7/Modal";
 import PairPicker from "./k7/PairPicker";
 import Seg from "./k7/Seg";
-import { tfLabels } from "./Trades";
 
-const today = () => new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" });
 const SYMBOLS = TradeSymbols.map((s) => s.symbol);
 
-function Box({ on }) {
+/** A checkbox square: ticked, partly ticked (some of its parts), or empty. */
+function Box({ state }) {
     return (
-        <span className={`check${on ? " on" : ""}`} aria-hidden="true">
+        <span className={`check${state === "on" ? " on" : state === "part" ? " part" : ""}`} aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20 6 9 17l-5-5" />
+                {state === "part" ? <path d="M6 12h12" /> : <path d="M20 6 9 17l-5-5" />}
             </svg>
         </span>
     );
@@ -38,6 +38,7 @@ function Field({ label, id, className = "", children }) {
 export default function AddTrade({ open, onClose, onSaved }) {
     const [strategy, setStrategy] = useState(null);
     const [secondaryStrategy, setSecondaryStrategy] = useState(null);
+    const [saving, setSaving] = useState(false);
 
     const load = () => {
         http("/trades/getStrategyPoints")
@@ -57,7 +58,7 @@ export default function AddTrade({ open, onClose, onSaved }) {
     const failed = strategy === "network_error" || secondaryStrategy === "network_error";
 
     return (
-        <Modal open={open} onClose={onClose} wide title="New trade" sub="Grade it against your checklist, then log the details.">
+        <Modal open={open} onClose={onClose} wide busy={saving} className="new-trade" title="New trade" sub="Grade it against your checklist, then log the details.">
             <div className="modal-body">
                 {!ready ? (
                     <div className="skeleton" aria-busy="true" aria-label="Loading checklist" style={{ display: "grid", gap: 12 }}>
@@ -67,7 +68,7 @@ export default function AddTrade({ open, onClose, onSaved }) {
                     </div>
                 ) : failed ? (
                     <div className="empty-card" style={{ marginTop: 0 }}>
-                        <h2>The checklist didn&apos;t load</h2>
+                        <h2>The checklist didn’t load</h2>
                         <p>The server may be waking up. Try again in a moment.</p>
                         <button
                             type="button"
@@ -85,6 +86,7 @@ export default function AddTrade({ open, onClose, onSaved }) {
                     <TradeForm
                         strategy={strategy}
                         secondaryStrategy={secondaryStrategy}
+                        onSaving={setSaving}
                         onDone={() => {
                             onSaved?.();
                             onClose();
@@ -96,15 +98,15 @@ export default function AddTrade({ open, onClose, onSaved }) {
     );
 }
 
-function TradeForm({ strategy, secondaryStrategy, onDone }) {
+function TradeForm({ strategy, secondaryStrategy, onSaving, onDone }) {
     const [selected, setSelected] = useState({});
-    const [totalPercentage, setTotalPercentage] = useState(0);
     const [loading, setLoading] = useState(false);
     const [pickerOpen, setPickerOpen] = useState(false);
+    const [tried, setTried] = useState(false);
 
     const [tradeSymbol, setTradeSymbol] = useState("");
     const [tradeType, setTradeType] = useState("");
-    const [dateOfTrade, setDateOfTrade] = useState(today);
+    const [day, setDay] = useState(todayIso);
     const [riskRewardRatio, setRiskRewardRatio] = useState("");
     const [tradeStatus, setTradeStatus] = useState("");
     const [totalPnL, setTotalPnL] = useState("");
@@ -120,78 +122,69 @@ function TradeForm({ strategy, secondaryStrategy, onDone }) {
         return Array.isArray(p) ? p : [];
     }, [timeFrame, strategy, secondaryStrategy]);
 
-    // switching time frame swaps the checklist, so start the score over
-    useEffect(() => {
+    const switchTimeFrame = (tf) => {
+        // a different checklist, so the score starts over
+        setTimeFrame(tf);
         setSelected({});
-        setTotalPercentage(0);
-    }, [timeFrame]);
-
-    const handleCheckboxChange = (id) => {
-        setSelected((prev) => {
-            const nextSel = { ...prev, [id]: !prev[id] };
-            let total = 0;
-            points.forEach((item) => {
-                if (item._id === id && !prev[id]) {
-                    (item.secondaryStrategyPoints || []).forEach((child) => {
-                        delete nextSel[child._id];
-                    });
-                } else if ((item.secondaryStrategyPoints || []).some((child) => child._id === id)) {
-                    const allChildren = (item.secondaryStrategyPoints || []).every((child) => nextSel[child._id]);
-                    if (allChildren) {
-                        (item.secondaryStrategyPoints || []).forEach((child) => {
-                            delete nextSel[child._id];
-                        });
-                        nextSel[item._id] = true;
-                    } else {
-                        delete nextSel[item._id];
-                    }
-                }
-                if (nextSel[item._id]) total += item.percentage;
-                (item.secondaryStrategyPoints || []).forEach((child) => {
-                    if (nextSel[child._id]) total += child.percentage;
-                });
-            });
-            setTotalPercentage(total);
-            return nextSel;
-        });
     };
+
+    const toggle = (item) => setSelected((prev) => tickWhole(prev, item));
+    const toggleChild = (item, child) => setSelected((prev) => tickPart(prev, item, child));
+
+    const totalPercentage = counterTrade ? 0 : checklistScore(selected, points);
+    const closed = tradeStatus === "Closed";
+    const rr = rrValue(riskRewardRatio);
+    const pnl = Number(totalPnL);
+    const missing = [
+        !tradeSymbol && "pair",
+        !day && "date",
+        !tradeType && "account",
+        !tradeStatus && "status",
+        !(rr > 0) && "risk : reward",
+        closed && (totalPnL.trim() === "" || !Number.isFinite(pnl)) && "result",
+    ].filter(Boolean);
 
     const addNewTrade = async (e) => {
         e.preventDefault();
+        setTried(true);
+        if (missing.length || loading) return;
         setLoading(true);
+        onSaving(true);
         const responses = points.map((item) => ({
             question: item.name,
-            checked: !!selected[item._id],
+            checked: !counterTrade && !!selected[item._id],
             secondaryResponses: (item.secondaryStrategyPoints || []).map((child) => ({
                 question: child.name,
-                checked: !!selected[child._id],
+                checked: !counterTrade && !!selected[child._id],
                 _id: child._id,
             })),
         }));
 
         const payload = {
             responses,
-            riskRewardRatio,
+            riskRewardRatio: String(+rr.toFixed(2)),
             tradeType,
-            dateOfTrade,
+            dateOfTrade: storedDate(day),
             tradeSymbol,
             tradeStatus,
             totalPercentage,
-            totalPnL: parseFloat(totalPnL) || 0,
-            description,
+            totalPnL: closed ? pnl : 0,
+            description: description.trim(),
             isLowerTf: timeFrame === "lower",
-            lowTf,
-            midTf,
-            highTf,
+            lowTf: closed ? lowTf.trim() : "",
+            midTf: closed ? midTf.trim() : "",
+            highTf: closed ? highTf.trim() : "",
         };
 
         try {
             await http("/trades/newTrade", { method: "POST", body: payload });
             toast.success("Trade saved", { description: [tradeSymbol, tradeType, tradeStatus].filter(Boolean).join(" · ") });
+            onSaving(false);
             onDone();
         } catch (error) {
             console.error("Error in POST trade:", error);
             toast.error("Could not save trade", { description: "Check the details and try again." });
+            onSaving(false);
         } finally {
             setLoading(false);
         }
@@ -200,164 +193,210 @@ function TradeForm({ strategy, secondaryStrategy, onDone }) {
     const g = grade(totalPercentage || 1);
     const pct = Math.max(0, Math.min(100, totalPercentage));
     const labels = tfLabels(timeFrame === "lower");
+    const ticked = points.filter((item) => checklistState(selected, item) === "on").length;
 
     return (
-        <form className="form" onSubmit={addNewTrade}>
-            <div className="toolbar" style={{ marginTop: 0 }}>
-                <Seg
-                    label="Time frame"
-                    value={timeFrame}
-                    onChange={setTimeFrame}
-                    options={[
-                        { value: "lower", label: "Lower time frame" },
-                        { value: "higher", label: "Higher time frame" },
-                    ]}
-                />
-                <span className="spacer" />
-                <label className="switch-row">
-                    Counter trade
-                    <button
-                        type="button"
-                        role="switch"
-                        aria-checked={counterTrade}
-                        className="switch"
-                        onClick={() => setCounterTrade((c) => !c)}
+        <form className="form" onSubmit={addNewTrade} noValidate>
+            <fieldset className="bare form" disabled={loading}>
+                <div className="toolbar" style={{ marginTop: 0 }}>
+                    <Seg
+                        label="Time frame"
+                        value={timeFrame}
+                        onChange={switchTimeFrame}
+                        options={[
+                            { value: "lower", label: "Lower time frame" },
+                            { value: "higher", label: "Higher time frame" },
+                        ]}
                     />
-                </label>
-            </div>
+                    <span className="spacer" />
+                    <label className="switch-row">
+                        Counter trade
+                        <button type="button" role="switch" aria-checked={counterTrade} className="switch" onClick={() => setCounterTrade((c) => !c)} />
+                    </label>
+                </div>
 
-            {counterTrade ? (
-                <p className="note fade-in">Counter trade: the checklist is skipped and the trade is saved without a grade.</p>
-            ) : (
-                <div className="fade-in" style={{ display: "grid", gap: 12 }}>
-                    <div className="grade-panel">
-                        <div className={`grade-big g-${g.key}`} aria-label={`Grade ${g.label}`}>
-                            <span key={g.label}>{g.label}</span>
-                        </div>
-                        <div>
-                            <div className="grade-top">
-                                <span>Checklist score</span>
-                                <b>{totalPercentage}%</b>
+                {counterTrade ? (
+                    <p className="note fade-in">Counter trade: the checklist is skipped and the trade is saved without a grade.</p>
+                ) : (
+                    <div className="fade-in checklist-block">
+                        <div className="grade-panel">
+                            <div className={`grade-big g-${g.key}`} aria-hidden="true">
+                                <span key={g.label}>{g.label}</span>
                             </div>
-                            <div className="meter lg" aria-hidden="true">
-                                <div
-                                    className={`meter-fill ${g.key === "a" ? "ok" : g.key === "b" ? "warn" : "down"}`}
-                                    style={{ width: `${pct}%` }}
-                                />
-                                {[70, 80, 90].map((x) => (
-                                    <span key={x} className="meter-tick" style={{ left: `${x}%` }} />
+                            <div>
+                                <div className="grade-top">
+                                    <span>
+                                        Checklist score <span className="muted">· {ticked} of {points.length} ticked</span>
+                                    </span>
+                                    <b aria-live="polite" aria-label={`Score ${totalPercentage}%, grade ${g.label}`}>
+                                        {totalPercentage}%
+                                    </b>
+                                </div>
+                                <div className="meter lg" aria-hidden="true">
+                                    <div
+                                        className={`meter-fill ${g.key === "a" ? "ok" : g.key === "b" ? "warn" : "down"}`}
+                                        style={{ width: `${pct}%` }}
+                                    />
+                                    {[70, 80, 90].map((x) => (
+                                        <span key={x} className="meter-tick" style={{ left: `${x}%` }} />
+                                    ))}
+                                </div>
+                                <div className="grade-scale" aria-hidden="true">
+                                    <span className={g.key === "d" ? "on" : ""} style={{ left: 0 }}>
+                                        D
+                                    </span>
+                                    <span className={g.key === "c" ? "on" : ""} style={{ left: "75%" }}>
+                                        C
+                                    </span>
+                                    <span className={g.key === "b" ? "on" : ""} style={{ left: "85%" }}>
+                                        B
+                                    </span>
+                                    <span className={g.key === "a" ? "on" : ""} style={{ left: "95%" }}>
+                                        A
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <ul className="checklist stagger" key={timeFrame} aria-label="Checklist">
+                            {points.map((item, i) => {
+                                const state = checklistState(selected, item);
+                                const kids = item.secondaryStrategyPoints || [];
+                                return (
+                                    <li key={item._id} style={{ "--i": i }}>
+                                        <button
+                                            type="button"
+                                            className="cl-item"
+                                            role="checkbox"
+                                            aria-checked={state === "on" ? true : state === "part" ? "mixed" : false}
+                                            onClick={() => toggle(item)}
+                                        >
+                                            <Box state={state} />
+                                            <span className="cl-name">{item.name}</span>
+                                            <span className="lead" />
+                                            <span className="pct">{item.percentage}%</span>
+                                        </button>
+                                        {kids.length > 0 && (
+                                            <ul className="cl-kids" aria-label={`Parts of ${item.name}`}>
+                                                {kids.map((child) => {
+                                                    const on = state === "on" || !!selected[child._id];
+                                                    return (
+                                                        <li key={child._id}>
+                                                            <button
+                                                                type="button"
+                                                                className="cl-item"
+                                                                role="checkbox"
+                                                                aria-checked={on}
+                                                                onClick={() => toggleChild(item, child)}
+                                                            >
+                                                                <Box state={on ? "on" : "off"} />
+                                                                <span className="cl-name">{child.name}</span>
+                                                                <span className="lead" />
+                                                                <span className="pct">{child.percentage}%</span>
+                                                            </button>
+                                                        </li>
+                                                    );
+                                                })}
+                                            </ul>
+                                        )}
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    </div>
+                )}
+
+                <div className="section-title" style={{ margin: "6px 0 0" }}>
+                    <h3>Details</h3>
+                </div>
+                <div className="form-grid">
+                    <Field label="Pair">
+                        <button
+                            type="button"
+                            className={`btn pair-btn pair-field${tried && !tradeSymbol ? " is-invalid" : ""}`}
+                            onClick={() => setPickerOpen(true)}
+                        >
+                            {tradeSymbol ? <MarketIcon symbol={tradeSymbol} size={18} /> : null}
+                            <span className={`pair-field-text${tradeSymbol ? "" : " muted"}`}>{tradeSymbol || "Choose a pair"}</span>
+                            <ChevronDown className="chev" aria-hidden="true" />
+                        </button>
+                    </Field>
+                    <Field label="Date of trade" id="nt-date">
+                        <input
+                            id="nt-date"
+                            type="date"
+                            className={`input${tried && !day ? " is-invalid" : ""}`}
+                            value={day}
+                            max={todayIso()}
+                            onChange={(e) => setDay(e.target.value)}
+                        />
+                    </Field>
+                    <Field label="Account" className="span-2">
+                        <Seg wide label="Account" options={TRADE_TYPES} value={tradeType} onChange={setTradeType} className={tried && !tradeType ? "is-invalid" : ""} />
+                    </Field>
+                    <Field label="Status">
+                        <Seg wide label="Status" options={["Open", "Closed"]} value={tradeStatus} onChange={setTradeStatus} className={tried && !tradeStatus ? "is-invalid" : ""} />
+                    </Field>
+                    <Field label="Risk : reward" id="nt-rr">
+                        <div className="input-affix is-wide">
+                            <span aria-hidden="true">1 :</span>
+                            <input
+                                id="nt-rr"
+                                className={`input num-tab${tried && !(rr > 0) ? " is-invalid" : ""}`}
+                                inputMode="decimal"
+                                value={riskRewardRatio}
+                                // the "1 :" is already there, so a pasted "1:2.5" keeps just the 2.5
+                                onChange={(e) => setRiskRewardRatio(e.target.value.replace(/^\s*1\s*:\s*/, ""))}
+                                placeholder="2.5"
+                                autoComplete="off"
+                            />
+                        </div>
+                    </Field>
+                    {closed && (
+                        <>
+                            <Field label="Result (USD)" id="nt-pnl" className="span-2 fade-in">
+                                <div className="input-affix">
+                                    <span aria-hidden="true">$</span>
+                                    <input
+                                        id="nt-pnl"
+                                        className={`input num-tab${tried && missing.includes("result") ? " is-invalid" : ""}`}
+                                        inputMode="decimal"
+                                        value={totalPnL}
+                                        onChange={(e) => setTotalPnL(e.target.value)}
+                                        placeholder="240 for a win, -85 for a loss"
+                                        autoComplete="off"
+                                    />
+                                </div>
+                            </Field>
+                            <div className="form-grid form-grid-3 span-2 fade-in">
+                                {[
+                                    [labels[0], lowTf, setLowTf, "nt-low"],
+                                    [labels[1], midTf, setMidTf, "nt-mid"],
+                                    [labels[2], highTf, setHighTf, "nt-high"],
+                                ].map(([l, v, setV, id]) => (
+                                    <Field key={id} label={`${l} chart`} id={id}>
+                                        <input id={id} className="input mono" value={v} onChange={(e) => setV(e.target.value)} placeholder="TradingView link" autoComplete="off" />
+                                    </Field>
                                 ))}
                             </div>
-                            <div className="grade-scale" aria-hidden="true">
-                                <span className={g.key === "d" ? "on" : ""} style={{ left: 0 }}>
-                                    D
-                                </span>
-                                <span className={g.key === "c" ? "on" : ""} style={{ left: "75%" }}>
-                                    C
-                                </span>
-                                <span className={g.key === "b" ? "on" : ""} style={{ left: "85%" }}>
-                                    B
-                                </span>
-                                <span className={g.key === "a" ? "on" : ""} style={{ left: "95%" }}>
-                                    A
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <ul className="checklist stagger" key={timeFrame} aria-label="Checklist">
-                        {points.map((item, i) => (
-                            <li key={item._id} style={{ "--i": i }}>
-                                <button
-                                    type="button"
-                                    className="cl-item"
-                                    role="checkbox"
-                                    aria-checked={!!selected[item._id]}
-                                    onClick={() => handleCheckboxChange(item._id)}
-                                >
-                                    <Box on={!!selected[item._id]} />
-                                    <span>{item.name}</span>
-                                    <span className="lead" />
-                                    <span className="pct">{item.percentage}%</span>
-                                </button>
-                                {!selected[item._id] && item.secondaryStrategyPoints?.length > 0 && (
-                                    <ul className="cl-sub cl-child">
-                                        {item.secondaryStrategyPoints.map((child) => (
-                                            <li key={child._id}>
-                                                <button
-                                                    type="button"
-                                                    className="cl-item"
-                                                    role="checkbox"
-                                                    aria-checked={!!selected[child._id]}
-                                                    onClick={() => handleCheckboxChange(child._id)}
-                                                >
-                                                    <Box on={!!selected[child._id]} />
-                                                    <span>{child.name}</span>
-                                                    <span className="lead" />
-                                                    <span className="pct">{child.percentage}%</span>
-                                                </button>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                )}
-                            </li>
-                        ))}
-                    </ul>
+                        </>
+                    )}
+                    <Field label="Notes" id="nt-desc" className="span-2">
+                        <textarea id="nt-desc" className="textarea" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Why you took it" />
+                    </Field>
                 </div>
-            )}
+            </fieldset>
 
-            <div className="section-title" style={{ marginBottom: 0 }}>
-                <h3>Details</h3>
+            <div className="save-row">
+                {tried && missing.length > 0 && (
+                    <p className="form-error fade-in" role="alert">
+                        Still needed: {missing.join(", ")}.
+                    </p>
+                )}
+                <button type="submit" className={`btn btn-primary btn-block${loading ? " is-busy" : ""}`} disabled={loading}>
+                    {loading ? "Saving…" : "Save trade"}
+                </button>
             </div>
-            <div className="form-grid">
-                <Field label="Pair">
-                    <button type="button" className="btn pair-btn" style={{ height: 38, justifyContent: "flex-start" }} onClick={() => setPickerOpen(true)}>
-                        {tradeSymbol ? <MarketIcon symbol={tradeSymbol} size={18} /> : null}
-                        <span style={{ flex: 1, textAlign: "left", color: tradeSymbol ? "var(--ink)" : "var(--muted)" }}>
-                            {tradeSymbol || "Choose a pair"}
-                        </span>
-                        <ChevronDown className="chev" aria-hidden="true" />
-                    </button>
-                </Field>
-                <Field label="Date of trade" id="nt-date">
-                    <input id="nt-date" className="input" value={dateOfTrade} onChange={(e) => setDateOfTrade(e.target.value)} placeholder="25 June 2025" />
-                </Field>
-                <Field label="Account" className="span-2">
-                    <Seg wide label="Account" options={TRADE_TYPES} value={tradeType} onChange={setTradeType} />
-                </Field>
-                <Field label="Status">
-                    <Seg wide label="Status" options={["Open", "Closed"]} value={tradeStatus} onChange={setTradeStatus} />
-                </Field>
-                <Field label="Risk / reward" id="nt-rr">
-                    <input id="nt-rr" className="input num-tab" value={riskRewardRatio} onChange={(e) => setRiskRewardRatio(e.target.value)} placeholder="e.g. 1:3" />
-                </Field>
-                <Field label="Total P&L (USD)" id="nt-pnl" className="span-2">
-                    <input id="nt-pnl" className="input num-tab" inputMode="decimal" value={totalPnL} onChange={(e) => setTotalPnL(e.target.value)} placeholder="0 while open" />
-                </Field>
-                {tradeStatus === "Closed" &&
-                    [
-                        [labels[0], lowTf, setLowTf, "nt-low"],
-                        [labels[1], midTf, setMidTf, "nt-mid"],
-                        [labels[2], highTf, setHighTf, "nt-high"],
-                    ].map(([l, v, setV, id]) => (
-                        <Field key={id} label={`${l} chart`} id={id} className="span-2 fade-in">
-                            <input
-                                id={id}
-                                className="input mono"
-                                value={v}
-                                onChange={(e) => setV(e.target.value)}
-                                placeholder="https://s3.tradingview.com/snapshots/X/XXXXXXXX.png"
-                            />
-                        </Field>
-                    ))}
-                <Field label="Notes" id="nt-desc" className="span-2">
-                    <textarea id="nt-desc" className="textarea" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Why you took it" />
-                </Field>
-            </div>
-
-            <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
-                {loading ? "Saving…" : "Save trade"}
-            </button>
 
             <PairPicker open={pickerOpen} onClose={() => setPickerOpen(false)} pairs={SYMBOLS} value={tradeSymbol} onPick={setTradeSymbol} />
         </form>

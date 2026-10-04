@@ -6,20 +6,15 @@ const crypto = require("crypto");
 const { body, validationResult } = require("express-validator");
 const argon2 = require("argon2");
 const rateLimit = require("express-rate-limit");
+const { ipKeyGenerator } = rateLimit;
 
 const decryptLimiter = rateLimit({
     windowMs: 60 * 1000,
     max: 6,
-    keyGenerator: (req) => {
-        const ip =
-            req.ip ||
-            (req.headers &&
-                (req.headers["x-forwarded-for"] || "").split(",")[0]) ||
-            req.connection?.remoteAddress ||
-            req.socket?.remoteAddress ||
-            "unknown";
-        return `${ip}:${req.params?.id || ""}`;
-    },
+    // per address and item; IPv6 addresses count by their /56 block, so one
+    // device can't sidestep the limit by hopping addresses in its range
+    keyGenerator: (req) =>
+        `${ipKeyGenerator(req.ip || req.socket?.remoteAddress || "unknown")}:${req.params?.id || ""}`,
     handler: (req, res) =>
         res.status(429).json({ message: "Too many requests" }),
 });

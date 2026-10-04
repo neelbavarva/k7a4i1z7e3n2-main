@@ -670,24 +670,33 @@ function CardDialog({ card, faces, deleteMode, onClose, onDeleted }) {
     if (card) shown.current = card;
     const c = shown.current;
     const left = useAutoHide(!!data, () => setData(null));
+    // a reveal answered after the dialog closed or moved to another card is dropped
+    const request = useRef(0);
 
     useEffect(() => {
-        if (card) setData(null);
+        request.current++;
+        if (card) {
+            setData(null);
+            setLoading(false);
+        }
     }, [card]);
 
     if (!c) return null;
     const cinfo = cardInfo(c, data?.number);
 
     const decrypt = async (key) => {
+        const id = ++request.current;
         try {
             setLoading(true);
-            setData(await http(`/cards/decryptCard/${c._id}`, { method: "POST", body: { key } }));
+            const got = await http(`/cards/decryptCard/${c._id}`, { method: "POST", body: { key } });
+            if (id === request.current) setData(got);
         } catch (err) {
             console.error(err);
+            if (id !== request.current) return;
             decryptError(err, "Card");
             setData(null);
         } finally {
-            setLoading(false);
+            if (id === request.current) setLoading(false);
         }
     };
 
@@ -751,24 +760,32 @@ function PasswordDialog({ password, deleteMode, onClose, onDeleted }) {
     if (password) shown.current = password;
     const p = shown.current;
     const left = useAutoHide(value !== null, () => setValue(null));
+    // a reveal answered after the dialog closed or moved to another password is dropped
+    const request = useRef(0);
 
     useEffect(() => {
-        if (password) setValue(null);
+        request.current++;
+        if (password) {
+            setValue(null);
+            setLoading(false);
+        }
     }, [password]);
 
     if (!p) return null;
 
     const decrypt = async (key) => {
+        const id = ++request.current;
         try {
             setLoading(true);
             const data = await http(`/passwords/decryptPassword/${p._id}`, { method: "POST", body: { key } });
-            setValue(data?.password ?? null);
+            if (id === request.current) setValue(data?.password ?? null);
         } catch (err) {
             console.error(err);
+            if (id !== request.current) return;
             decryptError(err, "Password");
             setValue(null);
         } finally {
-            setLoading(false);
+            if (id === request.current) setLoading(false);
         }
     };
 

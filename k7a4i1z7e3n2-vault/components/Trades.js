@@ -1,18 +1,21 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import { Check, ChevronDown, ChevronRight, ClockArrowDown, ClockArrowUp, Download, X } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Download, Maximize2, Minus, X } from "lucide-react";
 import { toast } from "sonner";
 import { http } from "@/lib/http";
-import { TRADE_TYPES, grade, money, parseTradeDate, pnlOf, sideOf } from "@/lib/format";
+import { TRADE_TYPES, money, pnlOf, sideOf } from "@/lib/format";
+import { byMonth, dayLabel, isOpen, longDate, newestFirst, rrText, statsOf, tfLabels } from "@/lib/trades";
 import { TradeSymbolIconMap } from "./TradeSymbols";
-import StrategyAnalysis from "./StrategyAnalysis";
-import MarketIcon, { PairCode } from "./k7/MarketIcon";
+import { Breakdown, Performance } from "./StrategyAnalysis";
+import ChartViewer from "./k7/ChartViewer";
+import MarketIcon, { splitPair } from "./k7/MarketIcon";
 import Modal from "./k7/Modal";
 import PairPicker from "./k7/PairPicker";
 import SessionBar from "./k7/SessionBar";
 import Seg from "./k7/Seg";
+import { GradeChip, TfTag, TypeTag } from "./k7/TradeTags";
 import { useKey } from "./k7/hooks";
 
 const TF_OPTIONS = [
@@ -21,35 +24,7 @@ const TF_OPTIONS = [
     { value: "higher", label: "Higher" },
 ];
 
-// chart slots per time frame: lower = 15m / 1H / 4H, higher = 4H / 1D / W
-export const tfLabels = (isLower) => (isLower ? ["15min", "1H", "4H"] : ["4H", "1D", "W"]);
-
-export function GradeChip({ pct }) {
-    const g = grade(pct);
-    return (
-        <span className={`grade g-${g.key}`} title={g.title}>
-            {g.label}
-        </span>
-    );
-}
-
-export function TypeTag({ type }) {
-    return (
-        <span className={`ttype t-${String(type || "").toLowerCase()}`}>
-            <i aria-hidden="true" />
-            {type || "—"}
-        </span>
-    );
-}
-
-function TfTag({ lower }) {
-    return (
-        <span className="tf">
-            {lower ? <ClockArrowDown aria-hidden="true" /> : <ClockArrowUp aria-hidden="true" />}
-            {lower ? "Lower" : "Higher"}
-        </span>
-    );
-}
+const byTf = (tf) => (t) => (tf === "lower" ? t.isLowerTf : tf === "higher" ? !t.isLowerTf : true);
 
 export default function Trades({ refreshKey = 0, onNew }) {
     const [trades, setTrades] = useState([]);
@@ -85,34 +60,23 @@ export default function Trades({ refreshKey = 0, onNew }) {
         return fromTrades.length ? fromTrades : Object.keys(TradeSymbolIconMap).sort();
     }, [trades]);
 
-    // time frame + type: what the stats and pair ranking are computed over
+    // time frame + account: what the pair breakdown compares across
     const byTfAndType = useMemo(
-        () =>
-            trades
-                .filter((t) => (tfFilter === "lower" ? t.isLowerTf : tfFilter === "higher" ? !t.isLowerTf : true))
-                .filter((t) => typeFilter === "all" || String(t.tradeType) === typeFilter),
+        () => trades.filter(byTf(tfFilter)).filter((t) => typeFilter === "all" || String(t.tradeType) === typeFilter),
         [trades, tfFilter, typeFilter]
     );
-
-    const filtered = useMemo(() => {
-        const list = byTfAndType
-            .map((t, i) => ({ t, i, d: parseTradeDate(t.dateOfTrade) }))
-            .filter(({ t }) => pairFilter === "all" || String(t.tradeSymbol) === pairFilter);
-        // newest first; trades without a readable date keep their order at the end
-        list.sort((a, b) => {
-            const an = Number.isNaN(a.d);
-            const bn = Number.isNaN(b.d);
-            if (an !== bn) return an ? 1 : -1;
-            if (an) return a.i - b.i;
-            return b.d - a.d || b.i - a.i;
-        });
-        return list.map((x) => x.t);
-    }, [byTfAndType, pairFilter]);
+    // and the pair: what everything else shows
+    const filtered = useMemo(
+        () => newestFirst(byTfAndType.filter((t) => pairFilter === "all" || String(t.tradeSymbol) === pairFilter)),
+        [byTfAndType, pairFilter]
+    );
 
     const typeCounts = useMemo(() => {
-        const base = trades.filter((t) => (tfFilter === "lower" ? t.isLowerTf : tfFilter === "higher" ? !t.isLowerTf : true));
-        const c = { all: base.length };
-        for (const t of base) c[t.tradeType] = (c[t.tradeType] || 0) + 1;
+        const c = { all: 0 };
+        for (const t of trades.filter(byTf(tfFilter))) {
+            c.all++;
+            c[t.tradeType] = (c[t.tradeType] || 0) + 1;
+        }
         return c;
     }, [trades, tfFilter]);
 
@@ -122,29 +86,37 @@ export default function Trades({ refreshKey = 0, onNew }) {
         return c;
     }, [byTfAndType]);
 
-    const groups = [
-        { key: "open", title: "Open", rows: filtered.filter((t) => t.tradeStatus === "Open"), note: "Close them out with P&L and charts" },
-        { key: "closed", title: "Closed", rows: filtered.filter((t) => t.tradeStatus !== "Open") },
-    ];
-
+    const open = filtered.filter(isOpen);
+    const months = useMemo(() => byMonth(filtered.filter((t) => !isOpen(t))), [filtered]);
     const filterKey = `${tfFilter}-${typeFilter}-${pairFilter}`;
+    const filtering = filterKey !== "all-all-all";
+    const clearFilters = () => {
+        setTfFilter("all");
+        setTypeFilter("all");
+        setPairFilter("all");
+    };
 
     return (
         <>
             <section className="overview">
-                <h1 className="overview-title">Trade journal</h1>
-                <p className="overview-lede">
-                    Every trade, graded against your checklist. Filter by time frame, account or pair; the numbers follow your
-                    filters.
-                </p>
+                <div className="overview-row">
+                    <h1 className="overview-title">Trade journal</h1>
+                    <div className="overview-actions">
+                        <a className="btn" href="/Forex.zip" download aria-label="Old trades" title="Download trades from before this journal (zip)">
+                            <Download aria-hidden="true" />
+                            <span className="btn-label">Old trades</span>
+                        </a>
+                    </div>
+                </div>
+                <hr className="rule" />
             </section>
 
             <SessionBar />
 
-            <div className="filters">
+            <div className="toolbar trade-filters">
                 <Seg label="Time frame" options={TF_OPTIONS} value={tfFilter} onChange={setTfFilter} />
                 <Seg
-                    label="Account type"
+                    label="Account"
                     value={typeFilter}
                     onChange={setTypeFilter}
                     options={[
@@ -158,77 +130,80 @@ export default function Trades({ refreshKey = 0, onNew }) {
                     <ChevronDown className="chev" aria-hidden="true" />
                     <kbd>P</kbd>
                 </button>
-                {pairFilter !== "all" && (
-                    <button type="button" className="btn btn-ghost" onClick={() => setPairFilter("all")}>
+                {filtering && (
+                    <button type="button" className="btn btn-ghost fade-in" onClick={clearFilters}>
                         <X aria-hidden="true" />
-                        Clear pair
+                        Clear filters
                     </button>
                 )}
             </div>
 
             {loading ? (
                 <div className="skeleton" aria-busy="true" aria-label="Loading trades">
-                    <div className="sk sk-brief" />
+                    <div className="sk sk-perf" />
+                    <div className="sk-pair">
+                        <div className="sk sk-break" />
+                        <div className="sk sk-break" />
+                    </div>
                     <div className="sk sk-rows" />
+                </div>
+            ) : failed ? (
+                <div className="empty-card fade-in">
+                    <h2>Trades didn’t load</h2>
+                    <p>This is usually a brief network hiccup, or the server is waking up. Try again in a moment.</p>
+                    <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={() => {
+                            setLoading(true);
+                            fetchTrades();
+                        }}
+                    >
+                        Try again
+                    </button>
+                </div>
+            ) : !trades.length ? (
+                <div className="empty-card fade-in">
+                    <h2>No trades yet</h2>
+                    <p>Log your first trade and grade it against your checklist.</p>
+                    <button type="button" className="btn btn-primary" onClick={onNew}>
+                        New trade
+                    </button>
                 </div>
             ) : (
                 <>
-                    <StrategyAnalysis trades={byTfAndType} pair={pairFilter} allPairs={allPairs} />
-
-                    {failed && (
-                        <div className="empty-card fade-in">
-                            <h2>Trades didn&apos;t load</h2>
-                            <p>This is usually a brief network hiccup, or the server is waking up. Try again in a moment.</p>
-                            <button type="button" className="btn btn-primary" onClick={() => { setLoading(true); fetchTrades(); }}>
-                                Try again
-                            </button>
+                    <section className="group" aria-labelledby="g-perf">
+                        <div className="group-head">
+                            <h2 id="g-perf">Performance</h2>
+                            {filtering && <span className="group-note">Following your filters</span>}
                         </div>
-                    )}
+                        <Performance trades={filtered} replay={filterKey} />
+                        <Breakdown trades={filtered} pairTrades={byTfAndType} pair={pairFilter} onPair={setPairFilter} />
+                    </section>
 
-                    {!failed && !trades.length && (
-                        <div className="empty-card fade-in">
-                            <h2>No trades yet</h2>
-                            <p>Log your first trade and grade it against your checklist.</p>
-                            <button type="button" className="btn btn-primary" onClick={onNew}>
-                                New trade
-                            </button>
+                    <section className="group" aria-labelledby="g-journal">
+                        <div className="group-head">
+                            <h2 id="g-journal">Journal</h2>
+                            <span className="count">{filtered.length}</span>
                         </div>
-                    )}
 
-                    {!failed && trades.length > 0 && !filtered.length && (
-                        <p className="empty-note" style={{ marginTop: 24 }}>
-                            No trades match these filters.
-                        </p>
-                    )}
+                        {!filtered.length && (
+                            <div className="empty-card fade-in">
+                                <h2>No trades match</h2>
+                                <p>Nothing was logged for this mix of time frame, account and pair.</p>
+                                <button type="button" className="btn" onClick={clearFilters}>
+                                    Clear filters
+                                </button>
+                            </div>
+                        )}
 
-                    {groups.map((g) =>
-                        g.rows.length ? (
-                            <section key={g.key} className="group" aria-labelledby={`g-${g.key}`}>
-                                <div className="group-head">
-                                    <h2 id={`g-${g.key}`}>{g.title}</h2>
-                                    <span className="count">{g.rows.length}</span>
-                                    {g.note && <span className="group-note">{g.note}</span>}
-                                </div>
-                                <div className="rows-card">
-                                    <div className="row-headings trow trow-head" aria-hidden="true">
-                                        <span>Pair</span>
-                                        <span>Grade</span>
-                                        <span>Account</span>
-                                        <span>Date</span>
-                                        <span>R:R</span>
-                                        <span>P&amp;L</span>
-                                        <span className="col-tf">Time frame</span>
-                                        <span />
-                                    </div>
-                                    <ul className="rows stagger" key={filterKey}>
-                                        {g.rows.map((t, i) => (
-                                            <TradeRow key={t._id} t={t} i={i} onOpen={() => setSelected(t)} />
-                                        ))}
-                                    </ul>
-                                </div>
-                            </section>
-                        ) : null
-                    )}
+                        {open.length > 0 && (
+                            <TradeGroup key={`open-${filterKey}`} title="Open" rows={open} note="Close them with the result and charts" withMonth onOpen={setSelected} />
+                        )}
+                        {months.map((m) => (
+                            <TradeGroup key={`${m.key}-${filterKey}`} title={m.label} rows={m.rows} onOpen={setSelected} />
+                        ))}
+                    </section>
                 </>
             )}
 
@@ -254,34 +229,66 @@ export default function Trades({ refreshKey = 0, onNew }) {
     );
 }
 
-function TradeRow({ t, i, onOpen }) {
+/** A month (or the open trades): its heading with the count and net, then its rows. */
+function TradeGroup({ title, rows, note, withMonth, onOpen }) {
+    const s = statsOf(rows);
+    return (
+        <div className="group trade-group">
+            <div className="group-head">
+                <h3 className="group-title">{title}</h3>
+                <span className="count">{rows.length}</span>
+                {note ? (
+                    <span className="group-note">{note}</span>
+                ) : (
+                    <span className="group-sum">
+                        <span className="muted">
+                            {s.wins}W {s.losses}L
+                        </span>
+                        <b className={sideOf(s.net)}>{money(s.net)}</b>
+                    </span>
+                )}
+            </div>
+            <div className="rows-card">
+                <ul className="rows stagger">
+                    {rows.map((t, i) => (
+                        <TradeRow key={t._id} t={t} i={i} withMonth={withMonth} onOpen={() => onOpen(t)} />
+                    ))}
+                </ul>
+            </div>
+        </div>
+    );
+}
+
+function TradeRow({ t, i, withMonth, onOpen }) {
     const pnl = pnlOf(t);
+    const pending = isOpen(t) && !pnl;
     return (
         <li style={{ "--i": i }}>
-            <button type="button" className="row-btn trow" onClick={onOpen}>
+            <button type="button" className="row-btn jrow" onClick={onOpen}>
                 <span className="row-main col-pair">
-                    <MarketIcon symbol={t.tradeSymbol} size={22} />
-                    <span className="row-title">{t.tradeSymbol}</span>
+                    <MarketIcon symbol={t.tradeSymbol} size={26} />
+                    <span className="row-text">
+                        <span className="row-title">{t.tradeSymbol}</span>
+                        <span className="row-sub">{t.description || "No notes"}</span>
+                    </span>
                 </span>
+                <span className="row-meta col-date">{dayLabel(t, withMonth)}</span>
                 <span className="col-grade">
                     <GradeChip pct={t.totalPercentage || 0} />
                 </span>
                 <span className="col-type">
                     <TypeTag type={t.tradeType} />
                 </span>
-                <span className="row-meta col-date">{t.dateOfTrade}</span>
-                <span className="row-num row-meta col-rr">{t.riskRewardRatio || "—"}</span>
-                <span className={`row-num pnl col-pnl ${sideOf(pnl)}`}>
-                    {t.tradeStatus === "Open" && !pnl ? <span className="muted">—</span> : money(pnl)}
-                </span>
                 <span className="col-tf">
                     <TfTag lower={t.isLowerTf} />
                 </span>
-                <span className="col-meta">
+                <span className="row-num row-meta col-rr">{rrText(t.riskRewardRatio)}</span>
+                <span className={`row-num pnl col-pnl ${sideOf(pnl)}`}>{pending ? <span className="open-tag">Open</span> : money(pnl)}</span>
+                <span className="col-meta" aria-hidden="true">
                     <GradeChip pct={t.totalPercentage || 0} />
                     <TypeTag type={t.tradeType} />
-                    <span className="row-meta">{t.dateOfTrade}</span>
-                    {t.riskRewardRatio ? <span className="row-meta">R:R {t.riskRewardRatio}</span> : null}
+                    <span>{dayLabel(t, true)}</span>
+                    <span>{rrText(t.riskRewardRatio)}</span>
                 </span>
                 <ChevronRight className="row-go" aria-hidden="true" />
             </button>
@@ -289,43 +296,81 @@ function TradeRow({ t, i, onOpen }) {
     );
 }
 
-function Checks({ responses }) {
-    const items = responses || [];
-    const total = items.reduce((n, r) => n + 1 + (r.secondaryResponses || []).length, 0);
-    const done = items.reduce((n, r) => n + (r.checked ? 1 : 0) + (r.secondaryResponses || []).filter((c) => c.checked).length, 0);
-    if (!items.length) return null;
+/** The trade's pair as a serif code with a soft slash, for the dialog title. */
+function PairTitle({ symbol }) {
+    const { base, quote } = splitPair(symbol);
+    if (!quote) return symbol || "Trade";
     return (
-        <div>
-            <div className="section-title">
-                <h3>Checklist</h3>
-                <span>
-                    {done} of {total} ticked
-                </span>
-            </div>
-            <ul className="checks stagger">
-                {items.map((item, i) => (
-                    <React.Fragment key={item.question}>
-                        <li style={{ "--i": i }}>
-                            <Mark ok={item.checked} />
-                            <span>{item.question}</span>
-                        </li>
-                        {(item.secondaryResponses || []).map((child) => (
-                            <li key={child._id || child.question} className="child" style={{ "--i": i }}>
-                                <Mark ok={child.checked} />
-                                <span>{child.question}</span>
-                            </li>
-                        ))}
-                    </React.Fragment>
-                ))}
-            </ul>
-        </div>
+        <>
+            {base}
+            <span className="slash">/</span>
+            {quote}
+        </>
     );
 }
 
-function Mark({ ok }) {
+function SubLine({ items }) {
+    return items.filter(Boolean).map((item, i) => (
+        <span key={i} className="sub-item">
+            {item}
+        </span>
+    ));
+}
+
+/**
+ * The checklist as it was scored. A ticked group (like "All time frames in sync")
+ * ticks everything under it; a group with only some of its parts ticked shows a dash.
+ */
+function Checks({ responses, score }) {
+    const items = responses || [];
+    if (!items.length) return null;
+    const stateOf = (item) => {
+        const kids = item.secondaryResponses || [];
+        if (item.checked) return "ok";
+        return kids.some((c) => c.checked) ? "part" : "no";
+    };
+    const ticked = items.filter((item) => stateOf(item) === "ok").length;
     return (
-        <span className={`check-icon ${ok ? "ok" : "no"}`} aria-label={ok ? "Yes" : "No"}>
-            {ok ? <Check /> : <X />}
+        <section>
+            <div className="section-title">
+                <h3>Checklist</h3>
+                <span>
+                    {ticked} of {items.length} ticked · {score}%
+                </span>
+            </div>
+            <ul className="checks stagger">
+                {items.map((item, i) => {
+                    const state = stateOf(item);
+                    const kids = item.secondaryResponses || [];
+                    return (
+                        <li key={item.question} style={{ "--i": i }}>
+                            <div className="check-row">
+                                <CheckMark state={state} />
+                                <span>{item.question}</span>
+                            </div>
+                            {kids.length > 0 && (
+                                <ul className="check-kids">
+                                    {kids.map((c) => (
+                                        <li key={c._id || c.question} className="check-row">
+                                            <CheckMark state={item.checked || c.checked ? "ok" : "no"} />
+                                            <span>{c.question}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </li>
+                    );
+                })}
+            </ul>
+        </section>
+    );
+}
+
+function CheckMark({ state }) {
+    const label = state === "ok" ? "Yes" : state === "part" ? "Partly" : "No";
+    return (
+        <span className={`check-icon ${state}`} role="img" aria-label={label}>
+            {state === "ok" ? <Check /> : state === "part" ? <Minus /> : <X />}
         </span>
     );
 }
@@ -333,12 +378,16 @@ function Mark({ ok }) {
 function TradeDetail({ trade, onClose, onUpdated }) {
     const [form, setForm] = useState({ totalPnL: "", description: "", lowTf: "", midTf: "", highTf: "" });
     const [submitting, setSubmitting] = useState(false);
-    const t = trade;
+    const [viewing, setViewing] = useState(null); // index of the chart open full screen
+    // keep the last trade while the dialog animates out
+    const shown = useRef(trade);
+    if (trade) shown.current = trade;
+    const t = shown.current;
 
     useEffect(() => {
-        if (trade && trade.tradeStatus === "Open") {
+        if (trade && isOpen(trade)) {
             setForm({
-                totalPnL: trade.totalPnL ?? "",
+                totalPnL: trade.totalPnL ? String(trade.totalPnL) : "",
                 description: trade.description || "",
                 lowTf: trade.lowTf || "",
                 midTf: trade.midTf || "",
@@ -348,7 +397,7 @@ function TradeDetail({ trade, onClose, onUpdated }) {
     }, [trade]);
 
     if (!t) return null;
-    const isOpen = t.tradeStatus === "Open";
+    const live = isOpen(t);
     const pnl = pnlOf(t);
     const labels = tfLabels(t.isLowerTf);
     const shots = [
@@ -357,15 +406,18 @@ function TradeDetail({ trade, onClose, onUpdated }) {
         [labels[2], t.highTf],
     ].filter(([, src]) => src);
     const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+    const pnlValid = form.totalPnL.trim() !== "" && Number.isFinite(Number(form.totalPnL));
 
-    const closeTrade = async () => {
+    const closeTrade = async (e) => {
+        e.preventDefault();
+        if (!pnlValid || submitting) return;
         setSubmitting(true);
         try {
             await http(`/trades/updateTrade/${t._id}`, {
                 method: "PUT",
                 body: {
                     tradeStatus: "Closed",
-                    totalPnL: form.totalPnL || t.totalPnL,
+                    totalPnL: Number(form.totalPnL),
                     description: form.description || t.description,
                     lowTf: form.lowTf || t.lowTf,
                     midTf: form.midTf || t.midTf,
@@ -373,7 +425,7 @@ function TradeDetail({ trade, onClose, onUpdated }) {
                     riskRewardRatio: t.riskRewardRatio,
                 },
             });
-            toast.success("Trade closed", { description: `${t.tradeSymbol} · ${money(parseFloat(form.totalPnL) || 0)}` });
+            toast.success("Trade closed", { description: `${t.tradeSymbol} · ${money(Number(form.totalPnL))}` });
             await onUpdated();
         } catch (error) {
             console.error("Error closing trade:", error);
@@ -383,137 +435,143 @@ function TradeDetail({ trade, onClose, onUpdated }) {
         }
     };
 
-    const downloadOld = () => {
-        const a = document.createElement("a");
-        a.href = "/Forex.zip";
-        a.download = "Forex.zip";
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-    };
-
     return (
-        <Modal open={!!trade} onClose={onClose} wide head={false} label={`${t.tradeSymbol} trade`}>
-            <div className="modal-head">
-                <div>
-                    <PairCode symbol={t.tradeSymbol} size={30} />
-                    <div className="chips">
-                        <GradeChip pct={t.totalPercentage || 0} />
-                        <span className="chip">
-                            <TypeTag type={t.tradeType} />
-                        </span>
-                        <span className={`chip ${isOpen ? "live" : ""}`}>
-                            <i />
-                            {t.tradeStatus || "Closed"}
-                        </span>
-                        <span className="chip">
-                            <TfTag lower={t.isLowerTf} />
-                        </span>
-                    </div>
-                </div>
-                <button type="button" className="btn btn-ghost btn-icon modal-close" onClick={onClose} aria-label="Close">
-                    <X />
-                </button>
-            </div>
-
+        <Modal
+            open={!!trade}
+            onClose={onClose}
+            wide
+            busy={submitting}
+            className="trade-dialog"
+            icon={<MarketIcon symbol={t.tradeSymbol} size={40} />}
+            title={<PairTitle symbol={t.tradeSymbol} />}
+            sub={
+                <SubLine
+                    items={[
+                        longDate(t),
+                        t.tradeType ? `${t.tradeType} account` : null,
+                        t.isLowerTf ? "Lower TF" : "Higher TF",
+                        live ? (
+                            <>
+                                <i className="live-dot" aria-hidden="true" />
+                                Open
+                            </>
+                        ) : null,
+                    ]}
+                />
+            }
+        >
             <div className="modal-body">
-                <dl className="brief three">
-                    <div className="brief-cell">
-                        <dt>Date</dt>
-                        <dd className="brief-text">{t.dateOfTrade || "—"}</dd>
-                    </div>
-                    <div className="brief-cell">
-                        <dt>Risk / reward</dt>
-                        <dd className="brief-num sm">{t.riskRewardRatio || "—"}</dd>
-                    </div>
+                <dl className="brief three trade-facts">
                     <div className="brief-cell">
                         <dt>P&amp;L</dt>
-                        <dd className={`brief-num sm ${sideOf(pnl)}`}>{money(pnl)}</dd>
+                        <dd className={`brief-num sm ${live && !pnl ? "" : sideOf(pnl)}`}>{live && !pnl ? <span className="muted">Open</span> : money(pnl)}</dd>
+                    </div>
+                    <div className="brief-cell">
+                        <dt>Risk : reward</dt>
+                        <dd className="brief-num sm">{rrText(t.riskRewardRatio)}</dd>
+                    </div>
+                    <div className="brief-cell">
+                        <dt>Grade</dt>
+                        <dd className="brief-num sm grade-cell">
+                            <GradeChip pct={t.totalPercentage || 0} />
+                            {t.totalPercentage ? (
+                                <span>
+                                    {t.totalPercentage}
+                                    <small>%</small>
+                                </span>
+                            ) : (
+                                <span className="muted brief-hint">No checklist</span>
+                            )}
+                        </dd>
                     </div>
                 </dl>
 
                 {t.totalPercentage ? (
-                    <Checks responses={t.responses} />
+                    <Checks responses={t.responses} score={t.totalPercentage} />
                 ) : (
-                    <p className="note">Counter trade, so no checklist was scored.</p>
+                    <p className="note">A counter trade, so it wasn’t scored against the checklist.</p>
                 )}
 
-                {isOpen ? (
-                    <div>
+                {t.description && !live ? (
+                    <section>
+                        <div className="section-title">
+                            <h3>Notes</h3>
+                        </div>
+                        <p className="note">{t.description}</p>
+                    </section>
+                ) : null}
+
+                {shots.length > 0 && !live && (
+                    <section>
+                        <div className="section-title">
+                            <h3>Charts</h3>
+                            <span>Choose one to see it full screen</span>
+                        </div>
+                        <div className="shots">
+                            {shots.map(([label, src], i) => (
+                                <button key={label} type="button" className="shot fade-in" onClick={() => setViewing(i)} aria-label={`View the ${label} chart full screen`}>
+                                    <Image src={src} alt="" width={640} height={360} sizes="(max-width: 600px) 100vw, 220px" />
+                                    <span className="shot-cap">
+                                        {label}
+                                        <Maximize2 aria-hidden="true" />
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
+                        <ChartViewer
+                            shots={shots}
+                            index={viewing}
+                            title={t.tradeSymbol}
+                            sub={longDate(t)}
+                            onIndex={setViewing}
+                            onClose={() => setViewing(null)}
+                        />
+                    </section>
+                )}
+
+                {live && (
+                    <form className="close-trade" onSubmit={closeTrade}>
                         <div className="section-title">
                             <h3>Close this trade</h3>
-                            <span>Add the result and chart snapshots</span>
+                            <span>The result, chart snapshots and what you learned</span>
                         </div>
-                        <div className="form">
-                            <div className="form-grid">
-                                <div className="field span-2">
-                                    <label htmlFor="ct-pnl">Total P&amp;L (USD)</label>
-                                    <input id="ct-pnl" className="input num-tab" inputMode="decimal" value={form.totalPnL} onChange={set("totalPnL")} placeholder="e.g. 240 or -85" />
+                        <fieldset className="bare form" disabled={submitting}>
+                            <div className="field">
+                                <label htmlFor="ct-pnl">Result (USD)</label>
+                                <div className="input-affix">
+                                    <span aria-hidden="true">$</span>
+                                    <input
+                                        id="ct-pnl"
+                                        className="input num-tab"
+                                        inputMode="decimal"
+                                        value={form.totalPnL}
+                                        onChange={set("totalPnL")}
+                                        placeholder="240 for a win, -85 for a loss"
+                                        autoComplete="off"
+                                    />
                                 </div>
+                            </div>
+                            <div className="form-grid form-grid-3">
                                 {[
                                     ["lowTf", labels[0]],
                                     ["midTf", labels[1]],
                                     ["highTf", labels[2]],
                                 ].map(([k, l]) => (
-                                    <div className="field span-2" key={k}>
+                                    <div className="field" key={k}>
                                         <label htmlFor={`ct-${k}`}>{l} chart</label>
-                                        <input
-                                            id={`ct-${k}`}
-                                            className="input mono"
-                                            value={form[k]}
-                                            onChange={set(k)}
-                                            placeholder="https://s3.tradingview.com/snapshots/X/XXXXXXXX.png"
-                                        />
+                                        <input id={`ct-${k}`} className="input mono" value={form[k]} onChange={set(k)} placeholder="TradingView link" autoComplete="off" />
                                     </div>
                                 ))}
-                                <div className="field span-2">
-                                    <label htmlFor="ct-desc">Notes</label>
-                                    <textarea id="ct-desc" className="textarea" value={form.description} onChange={set("description")} placeholder="What happened, what you'd repeat, what you wouldn't" />
-                                </div>
                             </div>
-                            <button type="button" className="btn btn-primary btn-block" onClick={closeTrade} disabled={submitting}>
-                                {submitting ? "Saving…" : "Close trade"}
-                            </button>
-                        </div>
-                    </div>
-                ) : (
-                    <>
-                        {t.description ? (
-                            <div>
-                                <div className="section-title">
-                                    <h3>Notes</h3>
-                                </div>
-                                <p className="note">{t.description}</p>
+                            <div className="field">
+                                <label htmlFor="ct-desc">Notes</label>
+                                <textarea id="ct-desc" className="textarea" value={form.description} onChange={set("description")} placeholder="What happened, what you'd repeat, what you wouldn't" />
                             </div>
-                        ) : null}
-
-                        {shots.length ? (
-                            <div>
-                                <div className="section-title">
-                                    <h3>Charts</h3>
-                                    <span>{shots.map(([l]) => l).join(" · ")}</span>
-                                </div>
-                                <div className="shots">
-                                    {shots.map(([label, src]) => (
-                                        <figure className="shot fade-in" key={label}>
-                                            <figcaption>
-                                                {label}
-                                                <a href={src} target="_blank" rel="noreferrer">
-                                                    Open
-                                                </a>
-                                            </figcaption>
-                                            <Image src={src} alt={`${t.tradeSymbol} ${label} chart`} width={900} height={500} />
-                                        </figure>
-                                    ))}
-                                </div>
-                            </div>
-                        ) : (
-                            <button type="button" className="btn btn-block" onClick={downloadOld}>
-                                <Download aria-hidden="true" />
-                                Download old trades data
-                            </button>
-                        )}
-                    </>
+                        </fieldset>
+                        <button type="submit" className={`btn btn-primary btn-block${submitting ? " is-busy" : ""}`} disabled={!pnlValid || submitting}>
+                            {submitting ? "Closing…" : "Close trade"}
+                        </button>
+                    </form>
                 )}
             </div>
         </Modal>

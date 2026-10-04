@@ -6,20 +6,15 @@ const crypto = require("crypto");
 const { body, validationResult } = require("express-validator");
 const argon2 = require("argon2");
 const rateLimit = require("express-rate-limit");
+const { ipKeyGenerator } = rateLimit;
 
 const decryptLimiter = rateLimit({
     windowMs: 60 * 1000,
     max: 6,
-    keyGenerator: (req) => {
-        const ip =
-            req.ip ||
-            (req.headers &&
-                (req.headers["x-forwarded-for"] || "").split(",")[0]) ||
-            req.connection?.remoteAddress ||
-            req.socket?.remoteAddress ||
-            "unknown";
-        return `${ip}:${req.params?.id || ""}`;
-    },
+    // per address and item; IPv6 addresses count by their /56 block, so one
+    // device can't sidestep the limit by hopping addresses in its range
+    keyGenerator: (req) =>
+        `${ipKeyGenerator(req.ip || req.socket?.remoteAddress || "unknown")}:${req.params?.id || ""}`,
     handler: (req, res) =>
         res.status(429).json({ message: "Too many requests" }),
 });
@@ -412,6 +407,10 @@ router.post(
 // k-anonymity: only the first 5 hex characters of each SHA-1 hash leave this
 // server; the matching is done here. Plaintext never leaves the server.
 // Free, no API key: https://haveibeenpwned.com/API/v3#PwnedPasswords
+// A client that accepts text/event-stream hears how many passwords are done
+// while it runs ({ type: "progress", done, total }), then gets the report as
+// the last message ({ type: "result", summary, results }). Anyone else gets
+// the report in one go, as before.
 // ---------------------------------------------------------------------------
 
 const https = require("https");
@@ -482,48 +481,82 @@ router.post(
         if (!errors.isEmpty())
             return res.status(400).json({ errors: errors.array() });
 
+        // stop decrypting for a client that has gone (tab closed or reloaded)
+        let gone = false;
+        res.on("close", () => {
+            if (!res.writableFinished) gone = true;
+        });
+
+        let send = null;
+        if (req.accepts(["json", "text/event-stream"]) === "text/event-stream") {
+            res.set({
+                "Content-Type": "text/event-stream",
+                // proxies must pass each message on as it is written
+                "Cache-Control": "no-cache, no-transform",
+                "X-Accel-Buffering": "no",
+            });
+            res.flushHeaders();
+            send = (msg) => {
+                if (!gone) res.write(`data: ${JSON.stringify(msg)}\n\n`);
+            };
+        }
+
         try {
             const query = { archive: false };
             if (req.user) query.owner = req.user;
             const docs = await Password.find(query);
+            const total = docs.length;
+            let done = 0;
+            send?.({ type: "progress", done, total });
 
             let concurrency =
                 parseInt(process.env.CHANGE_KEY_CONCURRENCY, 10) || 10;
             concurrency = Math.max(1, Math.min(concurrency, 100));
 
-            // 1. decrypt and hash; keep only the hash
-            const hashed = []; // { doc, hash }
+            // one range lookup per distinct prefix, shared by every password with it
+            const ranges = new Map(); // prefix -> Promise<Map | null>
+            let lookupFailed = 0;
+            const rangeFor = (prefix) => {
+                if (!ranges.has(prefix))
+                    ranges.set(
+                        prefix,
+                        pwnedRange(prefix).catch(() => {
+                            lookupFailed++;
+                            return null; // null: this prefix couldn't be checked
+                        })
+                    );
+                return ranges.get(prefix);
+            };
+
+            // 1. decrypt, hash and look up each password; keep only the hash.
+            // A password counts as done once it's looked up, or skipped.
+            const hashed = []; // { doc, hash, range }
             let skipped = 0;
             await runPool(docs, concurrency, async (doc) => {
-                let plain;
+                if (gone) return;
                 try {
-                    plain = await decryptText(doc.password, req.body.key);
-                } catch {
-                    skipped++;
-                    return;
-                }
-                const hash = crypto
-                    .createHash("sha1")
-                    .update(plain, "utf8")
-                    .digest("hex")
-                    .toUpperCase();
-                plain = null;
-                hashed.push({ doc, hash });
-            });
-
-            // 2. one range lookup per distinct prefix
-            const prefixes = [...new Set(hashed.map((h) => h.hash.slice(0, 5)))];
-            const ranges = new Map();
-            let lookupFailed = 0;
-            await runPool(prefixes, 6, async (prefix) => {
-                try {
-                    ranges.set(prefix, await pwnedRange(prefix));
-                } catch {
-                    lookupFailed++;
+                    let plain;
+                    try {
+                        plain = await decryptText(doc.password, req.body.key);
+                    } catch {
+                        skipped++;
+                        return;
+                    }
+                    const hash = crypto
+                        .createHash("sha1")
+                        .update(plain, "utf8")
+                        .digest("hex")
+                        .toUpperCase();
+                    plain = null;
+                    const range = await rangeFor(hash.slice(0, 5));
+                    hashed.push({ doc, hash, range });
+                } finally {
+                    send?.({ type: "progress", done: ++done, total });
                 }
             });
+            if (gone) return;
 
-            // 3. reuse: the same password under more than one entry
+            // 2. reuse: the same password under more than one entry
             const byHash = new Map();
             for (const h of hashed)
                 byHash.set(h.hash, (byHash.get(h.hash) || 0) + 1);
@@ -531,21 +564,18 @@ router.post(
             let g = 0;
             for (const [hash, n] of byHash) if (n > 1) groupOf.set(hash, ++g);
 
-            const results = hashed.map(({ doc, hash }) => {
-                const range = ranges.get(hash.slice(0, 5));
-                return {
-                    id: doc._id.toString(),
-                    name: doc.name,
-                    email: doc.email || "",
-                    category: doc.category || "",
-                    // null when the lookup for this prefix failed
-                    breachCount: range ? range.get(hash.slice(5)) || 0 : null,
-                    reuseGroup: groupOf.get(hash) || null,
-                };
-            });
+            const results = hashed.map(({ doc, hash, range }) => ({
+                id: doc._id.toString(),
+                name: doc.name,
+                email: doc.email || "",
+                category: doc.category || "",
+                // null when the lookup for this prefix failed
+                breachCount: range ? range.get(hash.slice(5)) || 0 : null,
+                reuseGroup: groupOf.get(hash) || null,
+            }));
 
             const summary = {
-                processed: docs.length,
+                processed: total,
                 checked: hashed.length,
                 skipped, // not encrypted with this key
                 breached: results.filter((r) => r.breachCount > 0).length,
@@ -554,9 +584,14 @@ router.post(
                 lookupFailed,
                 checkedAt: new Date().toISOString(),
             };
-            res.json({ summary, results });
+            if (!send) return res.json({ summary, results });
+            send({ type: "result", summary, results });
+            res.end();
         } catch {
-            res.status(500).json({ message: "Server error" });
+            if (gone) return;
+            if (!send) return res.status(500).json({ message: "Server error" });
+            send({ type: "error", message: "Server error" });
+            res.end();
         }
     }
 );

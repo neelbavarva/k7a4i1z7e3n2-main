@@ -33,6 +33,17 @@ const CATEGORY_OPTIONS = PASSWORD_CATEGORIES.map((c) => {
 
 const digits = (v, max) => v.replace(/\D/g, "").slice(0, max);
 
+/** "MM/YY" with a real month. */
+export const validExpiry = (v) => /^(0[1-9]|1[0-2])\/\d{2}$/.test(v);
+
+/** A failed save, said plainly. */
+function saveError(err, what) {
+    if (err?.status === 400) return `The server didn’t accept this ${what}. Check the fields and try again.`;
+    if (err?.status === 401) return "The server refused the request. Lock and unlock the app, then try again.";
+    if (err?.status === 429) return "Too many requests just now. Wait a minute and try again.";
+    return `Could not save the ${what}${err?.status ? ` (${err.status})` : ""}. Check your connection and try again.`;
+}
+
 function generateRandomPassword() {
     const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     const lower = "abcdefghijklmnopqrstuvwxyz";
@@ -89,17 +100,21 @@ function Submit({ loading, ready, idle, busy }) {
 
 export default function ManageVault({ mode, onMode, onClose, onSaved }) {
     const open = !!mode;
+    // while something saves (or re-encrypts), the dialog stays open and the tabs stay put
+    const [busy, setBusy] = useState(false);
     return (
-        <Modal open={open} onClose={onClose} title="Manage vault" sub={SUB[mode || "password"]} className="manage">
+        <Modal open={open} onClose={onClose} busy={busy} title="Manage vault" sub={SUB[mode || "password"]} className="manage">
             <div className="modal-body">
-                <Seg wide label="What to do" options={MODES} value={mode} onChange={onMode} />
+                <fieldset className="bare" disabled={busy}>
+                    <Seg wide label="What to do" options={MODES} value={mode} onChange={onMode} />
+                </fieldset>
                 <div key={mode} className="fade-in">
                     {mode === "card" ? (
-                        <CardForm onDone={onSaved} onClose={onClose} />
+                        <CardForm onDone={onSaved} onClose={onClose} onBusy={setBusy} />
                     ) : mode === "changeKey" ? (
-                        <ChangeKeyForm onDone={onSaved} />
+                        <ChangeKeyForm onDone={onSaved} onBusy={setBusy} />
                     ) : (
-                        <PasswordForm onDone={onSaved} onClose={onClose} />
+                        <PasswordForm onDone={onSaved} onClose={onClose} onBusy={setBusy} />
                     )}
                 </div>
             </div>
@@ -107,7 +122,7 @@ export default function ManageVault({ mode, onMode, onClose, onSaved }) {
     );
 }
 
-function PasswordForm({ onDone, onClose }) {
+function PasswordForm({ onDone, onClose, onBusy }) {
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [category, setCategory] = useState("");
@@ -123,18 +138,21 @@ function PasswordForm({ onDone, onClose }) {
         if (!ready) return;
         try {
             setLoading(true);
+            onBusy(true);
             setError(null);
             const body = { name: name.trim(), password, key: key.trim(), category };
             if (email.trim()) body.email = email.trim();
             await http("/passwords/newPassword", { method: "POST", body });
             toast.success("Password saved", { description: name.trim() });
+            onBusy(false);
             onDone();
             onClose();
         } catch (err) {
             console.error(err);
-            setError(err.message || "Could not add password");
+            setError(saveError(err, "password"));
         } finally {
             setLoading(false);
+            onBusy(false);
         }
     };
 
@@ -204,7 +222,7 @@ function PasswordForm({ onDone, onClose }) {
     );
 }
 
-function CardForm({ onDone, onClose }) {
+function CardForm({ onDone, onClose, onBusy }) {
     const [pick, setPick] = useState(null); // { id } of a listed bank, or { name } typed in
     const [type, setType] = useState("");
     const [cardName, setCardName] = useState("");
@@ -224,13 +242,15 @@ function CardForm({ onDone, onClose }) {
     const known = pick?.id ? BANKS.find((b) => b.id === pick.id) : null;
     const bank = known?.name || pick?.name?.trim() || "";
     const bankName = composeBankName({ bank, type, network: network?.name });
-    const ready = bank && type && raw.length >= 12 && validTill.length === 5 && cvv.length >= 3 && pin.length >= 4 && key.trim();
+    const badExpiry = validTill.length === 5 && !validExpiry(validTill);
+    const ready = bank && type && raw.length >= 12 && validExpiry(validTill) && cvv.length >= 3 && pin.length >= 4 && key.trim();
 
     const submit = async (e) => {
         e.preventDefault();
         if (!ready) return;
         try {
             setLoading(true);
+            onBusy(true);
             setError(null);
             await http("/cards/newCard", {
                 method: "POST",
@@ -245,13 +265,15 @@ function CardForm({ onDone, onClose }) {
                 },
             });
             toast.success("Card saved", { description: [cardName.trim() || bank, type, network?.name].filter(Boolean).join(" · ") });
+            onBusy(false);
             onDone();
             onClose();
         } catch (err) {
             console.error(err);
-            setError(err.message || "Could not add card");
+            setError(saveError(err, "card"));
         } finally {
             setLoading(false);
+            onBusy(false);
         }
     };
 
@@ -318,7 +340,7 @@ function CardForm({ onDone, onClose }) {
                 <Field label="Valid till" id="c-exp">
                     <input
                         id="c-exp"
-                        className="input num-tab"
+                        className={`input num-tab${badExpiry ? " is-invalid" : ""}`}
                         inputMode="numeric"
                         value={validTill}
                         onChange={(e) => {
@@ -337,6 +359,7 @@ function CardForm({ onDone, onClose }) {
                     <SecretInput id="c-pin" value={pin} onChange={(e) => setPin(digits(e.target.value, 6))} placeholder="••••" />
                 </Field>
             </div>
+            {badExpiry && <p className="field-hint is-warn expiry-hint fade-in">The month in “Valid till” should be 01 to 12.</p>}
 
             <hr className="rule form-rule" />
 
@@ -371,7 +394,7 @@ function ApplyTile({ checked, onChange, icon, title, sub }) {
     );
 }
 
-function ChangeKeyForm({ onDone }) {
+function ChangeKeyForm({ onDone, onBusy }) {
     const [oldKey, setOldKey] = useState("");
     const [newKey, setNewKey] = useState("");
     const [confirmKey, setConfirmKey] = useState("");
@@ -392,19 +415,20 @@ function ChangeKeyForm({ onDone }) {
         if (!ready) return;
         try {
             setLoading(true);
+            onBusy(true);
             setError(null);
             setResult(null);
             const body = { oldKey: oldKey.trim(), newKey: newKey.trim() };
             const out = {};
             if (doPasswords) {
                 const d = await http("/passwords/changeKey", { method: "POST", body }).catch((err) => {
-                    throw new Error(`Passwords changeKey failed: ${err.status}`);
+                    throw new Error(`Re-encrypting passwords didn’t finish${err.status ? ` (${err.status})` : ""}. Run it again with the same keys: anything already on the new key is skipped.`);
                 });
                 out.passwords = d?.summary || d;
             }
             if (doCards) {
                 const d = await http("/cards/changeKey", { method: "POST", body }).catch((err) => {
-                    throw new Error(`Cards changeKey failed: ${err.status}`);
+                    throw new Error(`Re-encrypting cards didn’t finish${err.status ? ` (${err.status})` : ""}. Run it again with the same keys: anything already on the new key is skipped.`);
                 });
                 out.cards = d?.summary || d;
             }
@@ -419,6 +443,7 @@ function ChangeKeyForm({ onDone }) {
             setError(err.message || "Change key failed");
         } finally {
             setLoading(false);
+            onBusy(false);
         }
     };
 

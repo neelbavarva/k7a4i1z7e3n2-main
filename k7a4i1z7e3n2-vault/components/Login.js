@@ -18,23 +18,23 @@ export default function Login({ onSuccess }) {
     const [wrong, setWrong] = useState(0);
     const inputRef = useRef(null);
 
-    // Already signed in? Otherwise check whether this IP is blocked.
+    useEffect(() => {
+        document.title = "Locked · k7a4i1z7e3n2";
+    }, []);
+
+    // Is this device blocked after too many wrong codes?
     useEffect(() => {
         (async () => {
             try {
-                if (localStorage.getItem("auth")) {
-                    onSuccess();
-                    return;
-                }
                 const r = await apiPost("/isBlocked", {});
                 if (r && r.blocked) setBlockedInfo(r);
             } catch (e) {
-                console.error("initial auth / isBlocked check failed", e);
+                console.error("isBlocked check failed", e);
             } finally {
                 setInitializing(false);
             }
         })();
-    }, [onSuccess]);
+    }, []);
 
     const fail = () => {
         toast.error("Incorrect code", { description: "Check the code and try again." });
@@ -56,7 +56,6 @@ export default function Login({ onSuccess }) {
                     } catch (e) {
                         console.warn("reset failed", e);
                     }
-                    localStorage.setItem("auth", String(Date.now()));
                     onSuccess();
                     return;
                 }

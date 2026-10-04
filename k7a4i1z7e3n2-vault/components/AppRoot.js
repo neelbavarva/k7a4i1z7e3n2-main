@@ -1,12 +1,11 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useSyncExternalStore } from "react";
 import { Toaster } from "sonner";
 import { Check, X } from "lucide-react";
 import Login from "./Login";
 import Main from "./Main";
-
-const DAY = 24 * 60 * 60 * 1000;
+import { UNLOCK_MS, lock, subscribe, unlock, unlockedAt } from "@/lib/auth";
 
 function Toasts() {
     return (
@@ -29,41 +28,22 @@ function Toasts() {
 }
 
 export default function AppRoot() {
-    const [isAuthenticated, setIsAuthenticated] = useState(null);
+    // when this browser was unlocked (0: locked); null while rendering on the server
+    const since = useSyncExternalStore(subscribe, unlockedAt, () => null);
 
+    // an unlock lasts a day, even with the tab left open
     useEffect(() => {
-        try {
-            const ts = Number(localStorage.getItem("auth"));
-            if (ts && Date.now() - ts < DAY) setIsAuthenticated(true);
-            else {
-                localStorage.removeItem("auth");
-                setIsAuthenticated(false);
-            }
-        } catch {
-            setIsAuthenticated(false);
-        }
-    }, []);
+        if (!since) return;
+        const id = setTimeout(lock, Math.max(0, since + UNLOCK_MS - Date.now()));
+        return () => clearTimeout(id);
+    }, [since]);
 
-    if (isAuthenticated === null) return null;
+    if (since === null) return null;
 
     return (
         <>
             <Toasts />
-            {isAuthenticated ? (
-                <Main
-                    onLogout={() => {
-                        localStorage.removeItem("auth");
-                        setIsAuthenticated(false);
-                    }}
-                />
-            ) : (
-                <Login
-                    onSuccess={() => {
-                        localStorage.setItem("auth", String(Date.now()));
-                        setIsAuthenticated(true);
-                    }}
-                />
-            )}
+            {since ? <Main unlockedAt={since} onLogout={lock} /> : <Login onSuccess={() => unlock()} />}
         </>
     );
 }

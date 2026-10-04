@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { ChevronRight, Copy, KeyRound, Lock, RefreshCw, ShieldAlert, ShieldCheck, Vault } from "lucide-react";
-import { http } from "@/lib/http";
+import { httpStream } from "@/lib/http";
 import Modal from "./k7/Modal";
 import Seg from "./k7/Seg";
 import SecretInput from "./k7/SecretInput";
@@ -48,6 +48,7 @@ export default function BreachCheck({ open, onClose, total, onOpenPassword }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [report, setReport] = useState(null);
+    const [progress, setProgress] = useState(null); // while checking: { start, done?, total?, since?, at? }
     const [mode, setMode] = useState("vault");
 
     const run = async (e) => {
@@ -56,7 +57,14 @@ export default function BreachCheck({ open, onClose, total, onOpenPassword }) {
         try {
             setLoading(true);
             setError(null);
-            setReport(await http("/passwords/breachCheck", { method: "POST", body: { key: key.trim() } }));
+            setProgress({ start: Date.now() });
+            // the server reports each password as it's done; since: when it started counting
+            const onMessage = (m) => {
+                if (m.type !== "progress") return;
+                const at = Date.now();
+                setProgress((p) => ({ ...p, done: m.done, total: m.total, since: p.since ?? at, at }));
+            };
+            setReport(await httpStream("/passwords/breachCheck", { body: { key: key.trim() }, onMessage }));
         } catch (err) {
             console.error(err);
             setError(
@@ -133,7 +141,7 @@ export default function BreachCheck({ open, onClose, total, onOpenPassword }) {
                         </fieldset>
                         {error && <p className="form-error">{error}</p>}
                         {loading ? (
-                            <BreachProgress total={total} />
+                            <BreachProgress total={total} progress={progress} />
                         ) : (
                             <button type="submit" className="btn btn-primary btn-block" disabled={!key.trim()}>
                                 <ShieldCheck aria-hidden="true" />
@@ -147,14 +155,35 @@ export default function BreachCheck({ open, onClose, total, onOpenPassword }) {
     );
 }
 
-/** While the vault check runs: what's happening, how long it's been, and that everything else waits. */
-function BreachProgress({ total }) {
-    const [secs, setSecs] = useState(0);
+const clock = (ms) => {
+    const s = Math.floor(ms / 1000);
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+};
+
+/** Roughly how long is left, from how fast the passwords so far went; null until that's clear. */
+function timeLeft({ done, total, since, at }, now) {
+    if (done < 3 || at - since < 2000) return null;
+    const left = ((at - since) / done) * (total - done) - Math.max(0, now - at);
+    if (left < 10_000) return "Almost done";
+    if (left < 55_000) return `About ${Math.round(left / 10_000) * 10} sec left`;
+    return `About ${Math.max(1, Math.round(left / 60_000))} min left`;
+}
+
+/** While the vault check runs: how far it has got, how long is left, and that everything else waits. */
+function BreachProgress({ total, progress }) {
+    const [now, setNow] = useState(null);
     useEffect(() => {
-        const started = Date.now();
-        const id = setInterval(() => setSecs(Math.floor((Date.now() - started) / 1000)), 500);
+        const id = setInterval(() => setNow(Date.now()), 500);
         return () => clearInterval(id);
     }, []);
+
+    const elapsed = Math.max(0, (now ?? progress.start) - progress.start);
+    const counting = progress.done !== undefined;
+    // an older API says nothing until it has finished: after a moment, just show it's working
+    const waiting = !counting && elapsed >= 1500;
+    const of = counting ? progress.total : total;
+    const done = progress.done ?? 0;
+    const left = counting ? timeLeft(progress, now ?? progress.at) : null;
     return (
         <div className="breach-progress fade-in" role="status">
             <div className="bp-head">
@@ -163,16 +192,46 @@ function BreachProgress({ total }) {
                 </span>
                 <span className="bp-text">
                     <b>
-                        Checking {total} password{total === 1 ? "" : "s"}…
+                        Checking {of} password{of === 1 ? "" : "s"}…
                     </b>
                     <span>Each one is decrypted with a deliberately slow key function, then looked up by its fingerprint.</span>
                 </span>
-                <span className="bp-time num-tab" aria-hidden="true">
-                    {Math.floor(secs / 60)}:{String(secs % 60).padStart(2, "0")}
-                </span>
+                {waiting ? (
+                    <span className="bp-time num-tab" aria-hidden="true">
+                        {clock(elapsed)}
+                    </span>
+                ) : (
+                    // the hidden copy keeps it as wide as it will get, so the text beside it never reflows
+                    <span className="bp-count num-tab" aria-hidden="true">
+                        <span>
+                            {done}
+                            <small>/{of}</small>
+                        </span>
+                        <span className="bp-sizer">
+                            {of}
+                            <small>/{of}</small>
+                        </span>
+                    </span>
+                )}
             </div>
-            <div className="bp-bar" aria-hidden="true">
-                <i />
+            <div className="bp-track">
+                <div
+                    className={`bp-bar${waiting ? " is-waiting" : ""}`}
+                    role="progressbar"
+                    aria-label="Passwords checked"
+                    aria-valuemin={0}
+                    aria-valuemax={of}
+                    aria-valuenow={waiting ? undefined : done}
+                    aria-valuetext={waiting ? undefined : `${done} of ${of} checked`}
+                >
+                    <i style={waiting ? undefined : { width: `${of ? (done / of) * 100 : 0}%` }} />
+                </div>
+                {!waiting && (
+                    <div className="bp-meta num-tab" aria-hidden="true">
+                        <span>{clock(elapsed)} elapsed</span>
+                        {left && <span>{left}</span>}
+                    </div>
+                )}
             </div>
             <p className="bp-note">
                 <Lock aria-hidden="true" />

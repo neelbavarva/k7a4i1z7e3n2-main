@@ -79,22 +79,3 @@ export default function MarketIcon({ symbol, size = 22 }) {
         </span>
     );
 }
-
-/** "GBP/USD" set as a serif code with a soft slash, like the base site's hero. */
-export function PairCode({ symbol, size = 32 }) {
-    const { base, quote } = splitPair(symbol);
-    return (
-        <span className="pair-code">
-            <MarketIcon symbol={symbol} size={size} />
-            <span>
-                {base}
-                {quote && (
-                    <>
-                        <span className="slash">/</span>
-                        {quote}
-                    </>
-                )}
-            </span>
-        </span>
-    );
-}
