@@ -1,21 +1,23 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
-import { Moon, Search, Trash2, X } from 'lucide-react';
+import { Rabbit, Search, Snail, X } from 'lucide-react';
 import { byWeek, fmtPct, fmtR, fmtRate, isOpen, parseDay, sideOf, statsOf } from '@/lib/journal';
 import { isDemo } from '@/lib/api';
+import { ON_PACE, PACE_LABEL, paceKey, paceOf, type Pace } from '@/lib/pace';
 import type { Trade, TradeStatus, TradeType } from '@/lib/types';
 import { useJournal } from '../JournalContext';
 import { useCountUp, useKey } from '../hooks';
 import Seg from '../ui/Seg';
 import MarketIcon from '../ui/MarketIcon';
 import DayStatusCard from './DayStatusCard';
-import { TradeRow } from './bits';
-import BatmanDialog from './BatmanDialog';
-import CleanupDialog from './CleanupDialog';
+import { PaceIcon, TradeRow } from './bits';
 
 type TypeFilter = 'all' | TradeType;
 type OutcomeFilter = 'all' | TradeStatus;
+type PaceFilter = 'all' | 'NONE' | Pace;
+
+const paceKind = (t: Trade): 'NONE' | Pace => paceOf(t) ?? 'NONE';
 
 export default function TradesView() {
   const j = useJournal();
@@ -24,8 +26,7 @@ export default function TradesView() {
   const [outcome, setOutcome] = useState<OutcomeFilter>('all');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
-  const [batmanOpen, setBatmanOpen] = useState(false);
-  const [cleanupOpen, setCleanupOpen] = useState(false);
+  const [pace, setPace] = useState<PaceFilter>('all');
   const searchRef = useRef<HTMLInputElement>(null);
 
   useKey('/', () => searchRef.current?.focus());
@@ -38,25 +39,42 @@ export default function TradesView() {
     return true;
   };
 
-  // pair search and dates narrow everything; type and outcome then split it
+  // pair search and dates narrow everything; type, outcome and pace then split it
   const base = useMemo(
     () => j.trades.filter((t) => (!q || t.pair.toUpperCase().replace('/', '').includes(q)) && inRange(t)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [j.trades, q, from, to],
   );
+  const byType = (t: Trade) => type === 'all' || t.tradeType === type;
+  const byOutcome = (t: Trade) => outcome === 'all' || t.status === outcome;
+  const byPace = (t: Trade) => pace === 'all' || paceKind(t) === pace;
   const filtered = useMemo(
-    () => base.filter((t) => (type === 'all' || t.tradeType === type) && (outcome === 'all' || t.status === outcome)),
-    [base, type, outcome],
+    () => base.filter((t) => byType(t) && byOutcome(t) && byPace(t)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [base, type, outcome, pace],
   );
 
+  // each switch counts what the other filters leave
   const typeCounts = useMemo(() => {
     const c: Record<string, number> = { all: 0, NORMAL: 0, DEMO: 0, MISSED: 0 };
-    for (const t of base.filter((t) => outcome === 'all' || t.status === outcome)) {
+    for (const t of base.filter((t) => byOutcome(t) && byPace(t))) {
       c.all++;
       c[t.tradeType]++;
     }
     return c;
-  }, [base, outcome]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [base, outcome, pace]);
+  // the trades every filter but pace leaves: the pace switch and the pace breakdown split these
+  const paceBase = useMemo(
+    () => base.filter((t) => byType(t) && byOutcome(t)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [base, type, outcome],
+  );
+  const paceCounts = useMemo(() => {
+    const c: Record<PaceFilter, number> = { all: paceBase.length, NONE: 0, RUSHING: 0, DRAGGING: 0 };
+    for (const t of paceBase) c[paceKind(t)]++;
+    return c;
+  }, [paceBase]);
 
   // matching pairs while searching: one card each
   const matches = useMemo(() => {
@@ -68,11 +86,12 @@ export default function TradesView() {
 
   const open = filtered.filter(isOpen);
   const weeks = useMemo(() => byWeek(filtered.filter((t) => !isOpen(t))), [filtered]);
-  const filtering = !!(q || from || to || type !== 'all' || outcome !== 'all');
+  const filtering = !!(q || from || to || type !== 'all' || outcome !== 'all' || pace !== 'all');
   const clear = () => {
     setQuery('');
     setType('all');
     setOutcome('all');
+    setPace('all');
     setFrom('');
     setTo('');
   };
@@ -82,27 +101,11 @@ export default function TradesView() {
       <section className="overview">
         <div className="overview-row">
           <h1 className="overview-title">Trade journal</h1>
-          <div className="overview-actions">
-            <button
-              type="button"
-              className={`btn${j.batman ? ' is-batman' : ''}`}
-              onClick={() => setBatmanOpen(true)}
-              aria-pressed={!!j.batman}
-              title="Block real and missed entries for a while"
-            >
-              <Moon aria-hidden="true" />
-              <span className="btn-label">Batman mode</span>
-            </button>
-            <button type="button" className="btn btn-ghost" onClick={() => setCleanupOpen(true)} title="Erase the whole journal">
-              <Trash2 aria-hidden="true" />
-              <span className="btn-label">Reset</span>
-            </button>
-          </div>
         </div>
         <hr className="rule" />
       </section>
 
-      <DayStatusCard onBatman={() => setBatmanOpen(true)} />
+      <DayStatusCard />
 
       <div className="searchbar">
         <Search aria-hidden="true" />
@@ -168,6 +171,18 @@ export default function TradesView() {
             { value: 'LOSS', label: 'Loss' },
           ]}
         />
+        <Seg
+          label="Pace"
+          className="pace-seg"
+          value={pace}
+          onChange={setPace}
+          options={[
+            { value: 'all', label: 'Any pace', count: paceCounts.all },
+            { value: 'NONE', label: ON_PACE, count: paceCounts.NONE, className: 'p-none' },
+            { value: 'RUSHING', label: PACE_LABEL.RUSHING, icon: <Rabbit aria-hidden="true" />, count: paceCounts.RUSHING, className: 'p-rushing' },
+            { value: 'DRAGGING', label: PACE_LABEL.DRAGGING, icon: <Snail aria-hidden="true" />, count: paceCounts.DRAGGING, className: 'p-dragging' },
+          ]}
+        />
         <div className="dates" role="group" aria-label="Date range">
           <input type="date" className="input input-sm" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} aria-label="From" />
           <span aria-hidden="true">–</span>
@@ -212,6 +227,7 @@ export default function TradesView() {
       ) : (
         <>
           <Summary trades={filtered} filtering={filtering} />
+          <PaceBreakdown trades={paceBase} value={pace} onPick={setPace} filtering={!!(q || from || to || type !== 'all' || outcome !== 'all')} />
 
           {!filtered.length && (
             <div className="empty-card fade-in">
@@ -236,9 +252,6 @@ export default function TradesView() {
           )}
         </>
       )}
-
-      <BatmanDialog open={batmanOpen} onClose={() => setBatmanOpen(false)} />
-      <CleanupDialog open={cleanupOpen} onClose={() => setCleanupOpen(false)} />
     </>
   );
 }
@@ -283,6 +296,65 @@ function Summary({ trades, filtering }: { trades: Trade[]; filtering: boolean })
           <dd className="brief-sub">{fmtPct(s.percent)} of risk</dd>
         </div>
       </dl>
+    </section>
+  );
+}
+
+/**
+ * The three kinds of trade side by side: how many, how they did, and their share of the whole.
+ * Each column filters the list to that pace (again to show everything).
+ */
+function PaceBreakdown({ trades, value, onPick, filtering }: { trades: Trade[]; value: PaceFilter; onPick: (p: PaceFilter) => void; filtering: boolean }) {
+  const kinds: ('NONE' | Pace)[] = ['NONE', 'RUSHING', 'DRAGGING'];
+  const groups = kinds.map((k) => {
+    const list = trades.filter((t) => paceKind(t) === k);
+    return { k, n: list.length, ...statsOf(list) };
+  });
+  // whole-number shares that add up to 100: the leftover points go to the biggest remainders
+  const total = trades.length || 1;
+  const share = groups.map((g) => Math.floor((g.n / total) * 100));
+  const order = groups.map((g, i) => i).sort((a, b) => ((groups[b].n / total) * 100 - share[b]) - ((groups[a].n / total) * 100 - share[a]));
+  for (let left = trades.length ? 100 - share.reduce((a, b) => a + b, 0) : 0, i = 0; left > 0; left--, i++) share[order[i % 3]]++;
+  return (
+    <section className="group" aria-labelledby="g-pace">
+      <div className="group-head">
+        <h2 id="g-pace">Pace</h2>
+        <span className="group-note">{filtering ? 'Following your filters' : 'Every trade: real, demo and missed'}</span>
+      </div>
+      <div className="pace-card">
+        <div className="pace-bar" aria-hidden="true">
+          {groups.map((g) => g.n > 0 && <span key={g.k} className={`p-${paceKey(g.k === 'NONE' ? null : g.k)}`} style={{ flexGrow: g.n }} />)}
+        </div>
+        <div className="pace-cells">
+          {groups.map((g, i) => {
+            const on = value === g.k;
+            return (
+              <button
+                key={g.k}
+                type="button"
+                className={`pace-cell p-${paceKey(g.k === 'NONE' ? null : g.k)}`}
+                aria-pressed={on}
+                onClick={() => onPick(on ? 'all' : g.k)}
+                title={on ? 'Show every pace' : `Show only ${g.k === 'NONE' ? ON_PACE.toLowerCase() : PACE_LABEL[g.k].toLowerCase()} trades`}
+              >
+                <span className="pace-name">
+                  {g.k === 'NONE' ? <i aria-hidden="true" /> : <PaceIcon pace={g.k} />}
+                  {g.k === 'NONE' ? ON_PACE : PACE_LABEL[g.k]}
+                  <span className="pace-share">{share[i]}%</span>
+                </span>
+                <span className="pace-num">
+                  {g.n}
+                  <small>{g.n === 1 ? 'trade' : 'trades'}</small>
+                </span>
+                <span className="pace-stats">
+                  <b className={g.closed ? sideOf(g.r) : ''}>{g.closed ? fmtR(g.r) : '—'}</b>
+                  <span>{fmtRate(g.winRate)} won</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </section>
   );
 }

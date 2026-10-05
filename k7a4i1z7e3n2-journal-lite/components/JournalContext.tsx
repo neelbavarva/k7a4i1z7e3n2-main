@@ -24,8 +24,6 @@ export type Journal = {
   newTrade: () => void;
   /** Null until the browser has the time (server render and hydration; see useNow). */
   today: DayStatus | null;
-  batman: string | null;
-  setBatman: (until: string | null) => void;
   /** Why a trade type can't be entered right now (for a trade dated today). */
   blocked: Partial<Record<TradeType, string>>;
 };

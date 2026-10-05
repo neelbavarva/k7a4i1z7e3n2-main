@@ -79,7 +79,7 @@ export default function App() {
         </Suspense>
       ) : route === 'size' ? (
         <Suspense fallback={<div className="skeleton" aria-busy="true" />}>
-          <Calculator nowMs={nowMs} timezone={timezone} is24Hour={is24Hour} />
+          <Calculator nowMs={nowMs} timezone={timezone} is24Hour={is24Hour} onPickZone={() => setPicking(true)} />
         </Suspense>
       ) : (
         <Dashboard day={day} is24Hour={is24Hour} onPickZone={() => setPicking(true)} />

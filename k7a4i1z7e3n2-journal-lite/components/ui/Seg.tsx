@@ -2,7 +2,15 @@
 
 import type { ReactNode } from 'react';
 
-export type SegOption<T extends string> = { value: T; label: ReactNode; count?: number; title?: string; disabled?: boolean; icon?: ReactNode };
+export type SegOption<T extends string> = {
+  value: T;
+  label: ReactNode;
+  count?: number;
+  title?: string;
+  disabled?: boolean;
+  icon?: ReactNode;
+  className?: string;
+};
 
 /** Segmented control, the same switch the other Kaizen sites use. */
 export default function Seg<T extends string>({
@@ -30,6 +38,7 @@ export default function Seg<T extends string>({
           onClick={() => onChange(o.value)}
           title={o.title}
           disabled={o.disabled}
+          className={o.className}
         >
           {o.icon}
           {o.label}

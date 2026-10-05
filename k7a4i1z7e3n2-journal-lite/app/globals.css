@@ -24,6 +24,12 @@
   --band: rgba(110, 120, 104, 0.16);
   --high: #d03b3b;
   --medium: #eda100;
+  /* pace (lib/pace.ts): rushing runs hot, dragging runs cold, on pace stays quiet. Clear of the
+     colours already taken: blue profit and missed, red loss, green real and open, amber demo */
+  --rush: #ee6a24;
+  --rush-ink: #b5470c;
+  --drag: #7c5ce6;
+  --drag-ink: #5a3fc0;
   --focus: #2a78d6;
   --shadow: 0 1px 2px rgba(22, 26, 22, 0.04), 0 6px 20px rgba(22, 26, 22, 0.05);
   --shadow-lift: 0 2px 4px rgba(22, 26, 22, 0.05), 0 12px 28px rgba(22, 26, 22, 0.08);
@@ -477,6 +483,9 @@ a.brand {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px 20px;
+  /* as tall as a row of buttons (34px + 3px) even with none, so the title sits where the split
+     view expects it (see "Split view") */
+  min-height: 37px;
 }
 .overview-actions {
   display: flex;
@@ -1539,15 +1548,6 @@ html:has(dialog[open]) {
   animation: shimmer 1.4s linear infinite;
   opacity: 1;
 }
-.btn.is-batman {
-  color: var(--raised);
-  background: #23263a;
-  border-color: #23263a;
-}
-.btn.is-batman:hover {
-  background: #31354f;
-  border-color: #31354f;
-}
 .danger-ghost {
   color: var(--bear-ink);
 }
@@ -1831,10 +1831,6 @@ dialog.picker {
   height: 11px;
   stroke-width: 2.4;
 }
-.mark-chip.king {
-  color: var(--warn);
-  background: color-mix(in srgb, var(--medium) 18%, transparent);
-}
 .mark-chip.sf {
   color: var(--ok);
   background: color-mix(in srgb, var(--ok) 13%, transparent);
@@ -1845,6 +1841,198 @@ dialog.picker {
 }
 .group-head + .rows-card {
   margin-top: 10px;
+}
+
+/* ---------- Pace: rushing, dragging, on pace ---------- */
+
+.p-rushing {
+  --pace: var(--rush);
+  --pace-ink: var(--rush-ink);
+}
+.p-dragging {
+  --pace: var(--drag);
+  --pace-ink: var(--drag-ink);
+}
+.p-none {
+  --pace: var(--axis);
+  --pace-ink: var(--ink2);
+}
+/* the tag: a hare or a snail and the word, in its colour */
+.pace-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 9px 0 7px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 20px;
+  color: var(--pace-ink);
+  background: color-mix(in srgb, var(--pace) 14%, transparent);
+  border-radius: 99px;
+}
+.pace-tag svg {
+  width: 13px;
+  height: 13px;
+  stroke-width: 2.2;
+}
+.pace-tag i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.pace-tag.p-none {
+  font-weight: 500;
+  background: var(--grid);
+}
+.mark-chip.pace {
+  color: var(--pace-ink);
+  background: color-mix(in srgb, var(--pace) 16%, transparent);
+}
+/* a rushed or dragged trade carries its colour down the edge of its row */
+.rows > li[data-pace='rushing'] > .row-btn {
+  box-shadow: inset 3px 0 0 var(--rush);
+}
+.rows > li[data-pace='dragging'] > .row-btn {
+  box-shadow: inset 3px 0 0 var(--drag);
+}
+/* the switch: the chosen pace fills with its colour; the others keep a coloured icon as a hint */
+.pace-seg button svg {
+  width: 14px;
+  height: 14px;
+}
+.pace-seg button.p-rushing svg,
+.pace-seg button.p-dragging svg {
+  color: var(--pace);
+}
+.pace-seg button.p-rushing[aria-pressed='true'],
+.pace-seg button.p-dragging[aria-pressed='true'] {
+  color: var(--pace-ink);
+  background: color-mix(in srgb, var(--pace) 13%, var(--raised));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pace) 38%, transparent);
+}
+.pace-seg button[aria-pressed='true'] .seg-count {
+  color: inherit;
+}
+.pace-row {
+  flex-wrap: wrap;
+}
+
+/* the breakdown under the summary: share, count and result of each pace */
+.pace-card {
+  margin-top: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.pace-bar {
+  display: flex;
+  gap: 2px;
+  height: 5px;
+  background: var(--grid);
+}
+.pace-bar span {
+  min-width: 4px;
+  background: var(--pace);
+  transition: flex-grow 0.5s var(--ease);
+}
+.pace-cells {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.pace-cell {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
+  padding: 14px 18px 16px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  transition: background-color 0.15s, box-shadow 0.15s;
+}
+.pace-cell + .pace-cell {
+  border-left: 1px solid var(--grid);
+}
+.pace-cell:hover {
+  background: var(--raised);
+}
+.pace-cell[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--pace) 7%, var(--raised));
+  box-shadow: inset 0 -2px 0 var(--pace);
+}
+.pace-cell:focus-visible {
+  outline-offset: -2px;
+  border-radius: 0;
+}
+.pace-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--pace-ink);
+}
+.pace-name svg {
+  flex: none;
+  width: 15px;
+  height: 15px;
+}
+.pace-name i {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.pace-share {
+  margin-left: auto;
+  font-weight: 500;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.pace-num {
+  font-family: var(--serif);
+  font-size: 26px;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+.pace-num small {
+  margin-left: 6px;
+  font-family: var(--font);
+  font-size: 12px;
+  color: var(--muted);
+}
+.pace-stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  font-size: 12.5px;
+  color: var(--ink2);
+  font-variant-numeric: tabular-nums;
+}
+.pace-stats b {
+  font-weight: 600;
+}
+.pace-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--muted);
+}
+.pace-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 /* search matches: one small card per pair */
@@ -1967,10 +2155,6 @@ dialog.picker {
 .tone-idle .day-icon {
   color: var(--muted);
   background: var(--grid);
-}
-.tone-batman .day-icon {
-  color: #fff;
-  background: #23263a;
 }
 .tone-locked {
   border-color: color-mix(in srgb, var(--bear) 30%, var(--line));
@@ -2620,6 +2804,17 @@ dialog.viewer::backdrop {
 .cal-trade.is-demo .cal-res {
   font-weight: 500;
 }
+/* rushed and dragged trades: a tint and an edge in their colour */
+.cal-trade.p-rushing,
+.cal-trade.p-dragging {
+  background: color-mix(in srgb, var(--pace) 10%, transparent);
+  box-shadow: inset 2px 0 0 var(--pace);
+}
+.cal-trade.p-rushing:hover,
+.cal-trade.p-dragging:hover {
+  background: color-mix(in srgb, var(--pace) 15%, var(--raised));
+  box-shadow: inset 2px 0 0 var(--pace), 0 0 0 1px var(--line);
+}
 .cal-more {
   align-self: flex-start;
   padding: 0 4px;
@@ -2868,6 +3063,10 @@ dialog.viewer::backdrop {
   .cal-dots i.is-loss {
     background: var(--bear);
   }
+  .cal-dots i.p-rushing,
+  .cal-dots i.p-dragging {
+    box-shadow: 0 0 0 1.5px var(--pace);
+  }
   .rank-row {
     grid-template-columns: 4.6rem minmax(0, 1fr) minmax(0, 1fr);
     gap: 10px;
@@ -2939,11 +3138,31 @@ dialog.viewer::backdrop {
   .btn-label {
     display: none;
   }
+  .pace-cell {
+    padding: 12px 12px 14px;
+  }
+  .pace-name {
+    flex-wrap: wrap;
+    row-gap: 2px;
+  }
+  .pace-share {
+    flex-basis: 100%;
+    margin-left: 0;
+  }
+  .pace-num {
+    font-size: 22px;
+  }
+  .pace-num small {
+    display: none;
+  }
   .overview {
     padding-top: 18px;
   }
   .overview-actions {
     padding-bottom: 2px;
+  }
+  .overview-row {
+    min-height: 36px;
   }
   .brief-cell {
     padding: 14px 14px 16px;

@@ -294,7 +294,7 @@ kbd {
 /* ---------- Head ---------- */
 
 .overview {
-  padding-top: 28px;
+  padding-top: 10px;
 }
 .overview-title {
   font-family: var(--serif);
@@ -310,9 +310,9 @@ kbd {
   margin: 12px 0 22px;
 }
 
-/* timezone bar: looks like the search bar on FX Fundamental Bias, opens the picker */
+/* timezone bar, under the status bar like the other sites' tab bars: looks like the search bar on
+   FX Fundamental Bias, opens the picker */
 .zonebar {
-  margin-top: 20px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -2144,16 +2144,19 @@ td {
 
 /* ---------- Site nav (beside the title) ---------- */
 
-/* the title row is as tall as the title, so the title sits where it always has (the split view lines it up) */
+/* the title row is as tall as the title: the switch hangs a little into the space around it, so the
+   title's place depends on nothing but the bars above it (the split view lines it up) */
 .overview-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 14px 24px;
+  margin-top: 24px;
 }
 .site-nav {
   flex: none;
+  margin: -3px 0;
 }
 .site-nav a {
   display: inline-flex;
@@ -3056,6 +3059,7 @@ td {
   .site-nav {
     display: flex;
     width: 100%;
+    margin: 0;
   }
   .site-nav a {
     flex: 1;
@@ -3095,6 +3099,22 @@ td {
   .is-framed .page {
     padding-left: 32px;
     padding-right: 32px;
+  }
+}
+
+/* The rows line up with the sites beside this one. The status bar matches theirs; 10px under it, the
+   timezone bar centres on the Journal's and Vault's tab bars and the Screener's top bar (91px down);
+   and the title shares the Journal's and Vault's title baseline, which follows the Screener's title,
+   clamp(38px, 5.4vw, 64px), and 34px at 640px and below. 0.844 is Young Serif's baseline at
+   line-height 1.05; 16px was measured against the Journal at 520 to 900px wide. */
+.is-framed .overview-row {
+  --title: clamp(32px, 4vw, 46px);
+  --screener-title: clamp(38px, 5.4vw, 64px);
+  margin-top: calc(16px + 0.844 * (var(--screener-title) - var(--title)));
+}
+@media (max-width: 640px) {
+  .is-framed .overview-row {
+    --screener-title: 34px;
   }
 }
 

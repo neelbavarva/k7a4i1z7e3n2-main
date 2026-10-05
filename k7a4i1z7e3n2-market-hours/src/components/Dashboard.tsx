@@ -21,9 +21,8 @@ import {
   formatLongDay,
   formatWhen,
   offsetMinutes,
-  cityOfZone,
 } from '../marketTime';
-import { Flag, SiteNav, isMac } from './common';
+import { Flag, SiteNav, ZoneBar } from './common';
 import SessionsChart from './SessionsChart';
 import VolumeChart from './VolumeChart';
 import AmdChart from './AmdChart';
@@ -45,13 +44,13 @@ export default function Dashboard({ day, is24Hour, onPickZone }: Props) {
   return (
     <main className="fade-in">
       <section className="overview" aria-labelledby="page-title">
+        <ZoneBar timezone={timezone} nowMs={nowMs} is24Hour={is24Hour} onClick={onPickZone} />
         <div className="overview-row">
           <h1 id="page-title" className="overview-title">
             Forex market hours
           </h1>
           <SiteNav current="hours" />
         </div>
-        <ZoneBar timezone={timezone} nowMs={nowMs} is24Hour={is24Hour} onClick={onPickZone} />
       </section>
 
       <section className="hero" aria-label="Today at a glance">
@@ -70,29 +69,6 @@ export default function Dashboard({ day, is24Hour, onPickZone }: Props) {
         <OverlapTable day={day} is24Hour={is24Hour} />
       </div>
     </main>
-  );
-}
-
-// ---------------------------------------------------------------------------
-
-function ZoneBar({ timezone, nowMs, is24Hour, onClick }: { timezone: string; nowMs: number; is24Hour: boolean; onClick: () => void }) {
-  const region = timezone === 'UTC' ? 'Coordinated Universal Time' : timezone.split('/').slice(0, -1).join(' · ').replace(/_/g, ' ');
-  return (
-    <button type="button" className="zonebar" onClick={onClick} aria-label={`Timezone: ${cityOfZone(timezone)}. Change timezone`}>
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <circle cx="12" cy="12" r="9" />
-        <path d="M3 12h18M12 3c2.6 2.6 3.9 5.6 3.9 9s-1.3 6.4-3.9 9c-2.6-2.6-3.9-5.6-3.9-9S9.4 5.6 12 3z" />
-      </svg>
-      <span className="zb-city">{cityOfZone(timezone)}</span>
-      <span className="zb-meta">
-        {region} · {formatGmtOffset(offsetMinutes(timezone, nowMs))}
-      </span>
-      <span className="zb-time">
-        {formatClock(nowMs, timezone, is24Hour)} · {formatDay(nowMs, timezone)}
-      </span>
-      <span className="zb-change">Change</span>
-      <kbd>{isMac ? '⌘K' : '/'}</kbd>
-    </button>
   );
 }
 

@@ -8,7 +8,7 @@ import { parseNum, sizePosition } from '../positionSize';
 import type { Sizing } from '../positionSize';
 import { convert, priceOf, useRates } from '../rates';
 import type { RateTable } from '../rates';
-import { SiteNav, isMac } from './common';
+import { SiteNav, ZoneBar, isMac } from './common';
 import Dropdown from './Dropdown';
 import type { DropdownOption } from './Dropdown';
 import { currencySymbol, formatMoney, formatNumber, formatPercent, formatPrice, formatRate } from './format';
@@ -106,9 +106,10 @@ interface Props {
   nowMs: number;
   timezone: string;
   is24Hour: boolean;
+  onPickZone: () => void;
 }
 
-export default function Calculator({ nowMs, timezone, is24Hour }: Props) {
+export default function Calculator({ nowMs, timezone, is24Hour, onPickZone }: Props) {
   const [s, set] = useCalcSettings();
   const { table, loading, failed } = useRates(true);
   const [pairOpen, setPairOpen] = useState(false);
@@ -254,6 +255,7 @@ export default function Calculator({ nowMs, timezone, is24Hour }: Props) {
   return (
     <main className="fade-in">
       <section className="overview" aria-labelledby="page-title">
+        <ZoneBar timezone={timezone} nowMs={nowMs} is24Hour={is24Hour} onClick={onPickZone} shortcut={false} />
         <div className="overview-row">
           <h1 id="page-title" className="overview-title">
             Position size calculator

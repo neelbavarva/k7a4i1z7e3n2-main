@@ -157,7 +157,3 @@ export const markBlownWeek = (weekStart: string, blownThrough: string) =>
 export const undoBlownWeek = (weekStart: string) =>
   demo.demoOn() ? demo.undoBlownWeek(weekStart) : request<void>(`${PROXY}/blown-weeks/${weekStart}`, json('DELETE'));
 
-export const cleanup = () =>
-  demo.demoOn()
-    ? demo.cleanup()
-    : request<{ deletedTrades: number; deletedBlownWeeks: number; deletedImages: number }>(`${PROXY}/cleanup`, json('POST', { confirmation: 'DELETE ALL' }));

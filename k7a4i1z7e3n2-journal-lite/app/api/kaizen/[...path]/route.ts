@@ -1,6 +1,7 @@
 // Trusted write proxy. The browser sends a mutation here; this server checks it against the
 // API contract, adds the private X-API-Key and forwards it. Only the exact operations the
-// journal uses are allowed, and the key is read from the server environment only.
+// journal uses are allowed (never /cleanup: trades are deleted one at a time), and the key is
+// read from the server environment only.
 
 import {
   DATE_RE,
@@ -9,7 +10,6 @@ import {
   NAME_MAX,
   UUID_RE,
   checkBlownWeek,
-  checkCleanup,
   checkCreateTrade,
   checkRename,
   checkUpdateTrade,
@@ -37,7 +37,6 @@ function match(method: string, path: string[]): Route | null {
   if (a === 'images' && id && c === undefined && method === 'DELETE') return { kind: 'none' };
   if (a === 'blown-weeks' && b !== undefined && DATE_RE.test(b) && c === undefined && method === 'PUT') return { kind: 'json', check: checkBlownWeek };
   if (a === 'blown-weeks' && b !== undefined && DATE_RE.test(b) && c === undefined && method === 'DELETE') return { kind: 'none' };
-  if (a === 'cleanup' && b === undefined && method === 'POST') return { kind: 'json', check: checkCleanup };
   return null;
 }
 

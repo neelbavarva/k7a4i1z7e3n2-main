@@ -19,13 +19,14 @@ import {
   shiftMonth,
   sideOf,
 } from '@/lib/journal';
+import { PACES, PACE_LABEL, paceKey, paceOf } from '@/lib/pace';
 import type { CalendarDay, CalendarMonth, Ranked, Trade, TradeType } from '@/lib/types';
 import { useJournal } from '../JournalContext';
 import { useKey } from '../hooks';
 import Seg from '../ui/Seg';
 import Modal from '../ui/Modal';
 import MarketIcon from '../ui/MarketIcon';
-import { TradeRow } from '../trades/bits';
+import { PaceTag, TradeRow } from '../trades/bits';
 import PairPicker from './PairPicker';
 import BlownWeekDialog from './BlownWeekDialog';
 
@@ -139,6 +140,14 @@ export default function CalendarView() {
             Clear
           </button>
         )}
+        <span className="pace-legend" aria-hidden="true">
+          {PACES.map((p) => (
+            <span key={p}>
+              <PaceTag pace={p} compact />
+              {PACE_LABEL[p]}
+            </span>
+          ))}
+        </span>
       </div>
 
       {state === 'error' && !data ? (
@@ -180,7 +189,12 @@ export default function CalendarView() {
                         <ul className="cal-trades">
                           {trades.slice(0, SHOWN).map((t) => (
                             <li key={t.id}>
-                              <button type="button" className={`cal-trade ${tone(t)}${t.tradeType === 'DEMO' ? ' is-demo' : ''}`} onClick={() => j.openTrade(t.id)} title={`${t.pair} · ${label(t)}`}>
+                              <button
+                                type="button"
+                                className={`cal-trade ${tone(t)}${t.tradeType === 'DEMO' ? ' is-demo' : ''} p-${paceKey(paceOf(t))}`}
+                                onClick={() => j.openTrade(t.id)}
+                                title={`${t.pair} · ${label(t)}${paceOf(t) ? ` · ${PACE_LABEL[paceOf(t)!]}` : ''}`}
+                              >
                                 <span className="cal-pair">{t.pair}</span>
                                 <span className="cal-res">{label(t)}</span>
                               </button>
@@ -195,7 +209,7 @@ export default function CalendarView() {
                         {trades.length > 0 && (
                           <button type="button" className="cal-dots" onClick={() => setDayOpen(day!)} aria-label={`${fmtDay(d.date)}: ${trades.length} trades, ${fmtR(day!.r)}`}>
                             {trades.slice(0, 4).map((t) => (
-                              <i key={t.id} className={tone(t)} />
+                              <i key={t.id} className={`${tone(t)} p-${paceKey(paceOf(t))}`} />
                             ))}
                           </button>
                         )}

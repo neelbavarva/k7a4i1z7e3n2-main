@@ -4,13 +4,14 @@ import { useCallback, useEffect, useState } from 'react';
 import { Check, Pencil, RotateCcw, TrendingDown, TrendingUp, X } from 'lucide-react';
 import { deleteTrade, friendly, getTrade, updateTrade, type TradePatch } from '@/lib/api';
 import { TYPE_LABEL, fmtDateTime, fmtPct, fmtR, fmtRatio, isOpen, rOf, sideOf } from '@/lib/journal';
+import { PACE_HINT, PACE_LABEL, ON_PACE, pacePatch, paceOf } from '@/lib/pace';
 import { riskError, TEXT_MAX } from '@/lib/validate';
 import type { Trade, TradeImage } from '@/lib/types';
 import { useJournal } from '../JournalContext';
 import { useToast } from '../ui/Toast';
 import Modal from '../ui/Modal';
 import MarketIcon, { PairText } from '../ui/MarketIcon';
-import { Marks, TypeTag } from './bits';
+import { Marks, PaceSeg, PaceTag, TypeTag } from './bits';
 import Gallery from './Gallery';
 
 export default function TradeDetail({ id, onClose }: { id: string | null; onClose: () => void }) {
@@ -58,7 +59,8 @@ export default function TradeDetail({ id, onClose }: { id: string | null; onClos
           <span className="sub-line">
             <TypeTag type={t.tradeType} />
             <span>{isOpen(t) ? 'Open' : t.status === 'PROFIT' ? 'Closed in profit' : 'Closed at a loss'}</span>
-            <Marks t={t} />
+            <PaceTag pace={paceOf(t)} />
+            <Marks t={t} pace={false} />
           </span>
         )
       }
@@ -129,7 +131,6 @@ function Body({
 }) {
   const toast = useToast();
   const [notes, setNotes] = useState(t.description || '');
-  const [king, setKing] = useState(t.kingDescription || '');
   const [editRisk, setEditRisk] = useState(false);
   const [risk, setRisk] = useState(String(t.riskRatio));
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -166,6 +167,7 @@ function Body({
   };
 
   const open = isOpen(t);
+  const pace = paceOf(t);
   const r = rOf(t);
   const riskProblem = riskError(risk);
   const busy = !!saving;
@@ -277,6 +279,17 @@ function Body({
           <span>How you handled it</span>
         </div>
         <ul className="review">
+          <li className={`review-row pace-row p-${pace ? pace.toLowerCase() : 'none'}`}>
+            <div>
+              <b>Pace</b>
+              <span>{PACE_HINT[pace ?? 'NONE']}</span>
+            </div>
+            <PaceSeg
+              value={pace}
+              onChange={(p) => p !== pace && patch('pace', pacePatch(p), p ? `Marked as ${PACE_LABEL[p].toLowerCase()}` : `Marked ${ON_PACE.toLowerCase()}`)}
+              disabled={busy}
+            />
+          </li>
           <li className="review-row">
             <div>
               <b>Set and forget</b>
@@ -300,38 +313,6 @@ function Body({
               <Switch label="Would’ve hit TP" on={t.sabotagedWinner} onChange={(v) => patch('sab', { sabotagedWinner: v })} disabled={busy} />
             </li>
           )}
-          <li className="review-row is-stack">
-            <div className="review-line">
-              <div>
-                <b>King trade</b>
-                <span>An exemplar: the kind of trade you want more of.</span>
-              </div>
-              <Switch
-                label="King trade"
-                on={t.isKing}
-                onChange={(v) => patch('king', v ? { isKing: true, kingDescription: king.trim() || null } : { isKing: false }, v ? 'Marked as a King trade' : undefined)}
-                disabled={busy}
-              />
-            </div>
-            {t.isKing && (
-              <div className="field fade-in">
-                <textarea
-                  className="textarea sm"
-                  value={king}
-                  onChange={(e) => setKing(e.target.value)}
-                  placeholder="Why it qualifies: the setup, the patience, the execution"
-                  maxLength={TEXT_MAX}
-                  aria-label="Why it’s a King trade"
-                  disabled={busy}
-                />
-                {king.trim() !== (t.kingDescription || '') && (
-                  <button type="button" className="btn btn-sm save-inline" onClick={() => patch('kingText', { kingDescription: king.trim() || null }, 'King note saved')} disabled={busy}>
-                    Save note
-                  </button>
-                )}
-              </div>
-            )}
-          </li>
         </ul>
       </section>
 

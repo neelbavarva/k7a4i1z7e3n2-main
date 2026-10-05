@@ -4,7 +4,7 @@ import AU from '../assets/flags/AU.svg';
 import JP from '../assets/flags/JP.svg';
 import GB from '../assets/flags/GB.svg';
 import US from '../assets/flags/US.svg';
-import { DAY_MS, clamp, formatClock, tickLabel } from '../marketTime';
+import { DAY_MS, cityOfZone, clamp, formatClock, formatDay, formatGmtOffset, offsetMinutes, tickLabel } from '../marketTime';
 import type { SessionId } from '../marketModel';
 import type { Scrub } from '../hooks';
 
@@ -13,6 +13,43 @@ const FLAGS: Record<SessionId, string> = { sydney: AU, tokyo: JP, london: GB, ne
 const BASE = import.meta.env.BASE_URL;
 
 export const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
+
+/**
+ * The timezone bar under the status bar, on both halves of the site; it opens the timezone picker.
+ * `shortcut` shows the / or ⌘K hint (off on the calculator, where those keys open the pair list).
+ */
+export function ZoneBar({
+  timezone,
+  nowMs,
+  is24Hour,
+  onClick,
+  shortcut = true,
+}: {
+  timezone: string;
+  nowMs: number;
+  is24Hour: boolean;
+  onClick: () => void;
+  shortcut?: boolean;
+}) {
+  const region = timezone === 'UTC' ? 'Coordinated Universal Time' : timezone.split('/').slice(0, -1).join(' · ').replace(/_/g, ' ');
+  return (
+    <button type="button" className="zonebar" onClick={onClick} aria-label={`Timezone: ${cityOfZone(timezone)}. Change timezone`}>
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M3 12h18M12 3c2.6 2.6 3.9 5.6 3.9 9s-1.3 6.4-3.9 9c-2.6-2.6-3.9-5.6-3.9-9S9.4 5.6 12 3z" />
+      </svg>
+      <span className="zb-city">{cityOfZone(timezone)}</span>
+      <span className="zb-meta">
+        {region} · {formatGmtOffset(offsetMinutes(timezone, nowMs))}
+      </span>
+      <span className="zb-time">
+        {formatClock(nowMs, timezone, is24Hour)} · {formatDay(nowMs, timezone)}
+      </span>
+      <span className="zb-change">Change</span>
+      {shortcut && <kbd>{isMac ? '⌘K' : '/'}</kbd>}
+    </button>
+  );
+}
 
 /** The two halves of the site, beside the page title. */
 export function SiteNav({ current }: { current: 'hours' | 'size' }) {

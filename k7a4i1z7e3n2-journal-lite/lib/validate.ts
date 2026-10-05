@@ -1,6 +1,8 @@
 // Input rules from the API contract. The forms use them for inline errors, and the
 // server proxy runs them again before anything is sent with the write key.
 
+import { isPace } from './pace';
+
 export const PAIR_RE = /^[A-Za-z0-9/_-]{3,20}$/;
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -61,7 +63,8 @@ export const checkUpdateTrade: Check = (b) => {
     (b.closedAt !== undefined && b.closedAt !== null && !isIsoDateTime(b.closedAt) ? 'The close date is not valid.' : null) ||
     (b.riskRatio !== undefined ? riskError(b.riskRatio) : null) ||
     textError(b.description) ||
-    textError(b.kingDescription, 'The King note') ||
+    // the King fields carry the pace now (see lib/pace.ts): nothing else goes in
+    (b.kingDescription !== undefined && b.kingDescription !== null && !isPace(b.kingDescription) ? 'Pace must be RUSHING or DRAGGING.' : null) ||
     (['setForget', 'isKing', 'sabotagedWinner'].some((k) => b[k] !== undefined && !isBool(b[k])) ? 'Flags must be true or false.' : null)
   );
 };
@@ -74,4 +77,3 @@ export const checkRename: Check = (b) =>
 export const checkBlownWeek: Check = (b) =>
   only(b, ['blownThrough']) || (typeof b.blownThrough !== 'string' || !DATE_RE.test(b.blownThrough) ? 'Pick a day.' : null);
 
-export const checkCleanup: Check = (b) => only(b, ['confirmation']) || (b.confirmation !== 'DELETE ALL' ? 'Type DELETE ALL exactly.' : null);

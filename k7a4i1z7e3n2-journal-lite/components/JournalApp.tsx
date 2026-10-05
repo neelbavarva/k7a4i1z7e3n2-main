@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarDays, FlaskConical, ListOrdered, Plus } from 'lucide-react';
 import { friendly, isDemo, listAllTrades, listBlownWeeks } from '@/lib/api';
-import { dayKey, dayStatus, fmtDay, parseDay } from '@/lib/journal';
-import { loadBatman, loadTab, saveBatman, saveTab, type Tab } from '@/lib/prefs';
+import { dayStatus, fmtDay, parseDay } from '@/lib/journal';
+import { loadTab, saveTab, type Tab } from '@/lib/prefs';
 import type { BlownWeek, Trade, TradeType } from '@/lib/types';
 import { JournalCtx, type Journal, type LoadState } from './JournalContext';
 import { useKey, useNow, useScrolled } from './hooks';
@@ -36,7 +36,6 @@ function Workspace() {
   const [error, setError] = useState<string | null>(null);
   const [blownWeeks, setBlownWeeks] = useState<BlownWeek[]>([]);
   const [version, setVersion] = useState(0);
-  const [batman, setBatmanState] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [demo, setDemo] = useState(false);
@@ -47,7 +46,6 @@ function Workspace() {
   // browser-only preferences, read after the first render so server and client agree
   useEffect(() => {
     setTab(loadTab());
-    setBatmanState(loadBatman());
     setDemo(isDemo());
   }, []);
 
@@ -105,27 +103,17 @@ function Workspace() {
     [bump],
   );
 
-  const setBatman = useCallback((until: string | null) => {
-    saveBatman(until);
-    setBatmanState(until);
-  }, []);
-
   const today = useMemo(() => (now ? dayStatus(trades, blownWeeks, now) : null), [trades, blownWeeks, now]);
-  const batmanActive = batman && now && batman > dayKey(now) ? batman : null;
 
   const blocked = useMemo(() => {
     const b: Partial<Record<TradeType, string>> = {};
-    if (batmanActive) {
-      const why = `Batman Mode is on until ${fmtDay(parseDay(batmanActive))}. Demo trades are still open.`;
-      b.NORMAL = why;
-      b.MISSED = why;
-    } else if (today?.lossLock) {
+    if (today?.lossLock) {
       b.NORMAL = 'One real loss today: real trading reopens at 5:00 PM New York. Demo is still open.';
     } else if (today?.blown) {
       b.NORMAL = `This week is marked blown through ${fmtDay(parseDay(today.blown.blown_through))}. Demo is still open.`;
     }
     return b;
-  }, [batmanActive, today]);
+  }, [today]);
 
   const switchTab = (t: Tab) => {
     setTab(t);
@@ -156,8 +144,6 @@ function Workspace() {
     openTrade: setSelected,
     newTrade: () => setCreating(true),
     today,
-    batman: batmanActive,
-    setBatman,
     blocked,
   };
 

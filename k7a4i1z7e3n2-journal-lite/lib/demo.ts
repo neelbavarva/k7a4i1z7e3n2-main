@@ -1,7 +1,7 @@
 // Sample-data mode (open the site with ?demo). A few months of made-up trades, screenshots and
 // blown weeks, generated around today, with an in-memory stand-in for every API call: reads,
-// writes, uploads and cleanup all work, but nothing leaves the browser tab and a reload starts
-// fresh. It follows the same rules as the real API (see /api/openapi.json).
+// writes and uploads all work, but nothing leaves the browser tab and a reload starts fresh. It
+// follows the same rules as the real API (see /api/openapi.json).
 
 import { ApiError } from './errors';
 import type { BlownWeek, CalendarMonth, Pagination, Trade, TradeDetail, TradeImage, TradeStatus, TradeType } from './types';
@@ -44,12 +44,6 @@ const NOTES = [
   null,
   null,
   null,
-];
-
-const KING_NOTES = [
-  'A+ setup: higher-timeframe level, session timing, clean trigger, and I didn’t touch it.',
-  'Patience paid: skipped two weaker entries and took the one that matched the plan.',
-  'Textbook break and retest with news risk out of the way.',
 ];
 
 const LOSS_REVIEW = ['Closed it manually before the stop, then it ran to target.', 'Took profit at 1R out of fear; it hit the full target an hour later.'];
@@ -126,7 +120,9 @@ function build(): Store {
       const status: TradeStatus = tradeType === 'MISSED' ? 'PROFIT' : r() < 0.34 ? 'PROFIT' : 'LOSS';
       const closed = new Date(Math.min(now.getTime() - 60000, created.getTime() + (1 + r() * 30) * 3600000));
       const decided = tradeType === 'MISSED' || r() < 0.75;
-      const isKing = status === 'PROFIT' && tradeType === 'NORMAL' && r() < 0.12;
+      // pace, in the King fields (lib/pace.ts): rushed trades lose more often than the rest
+      const p = r();
+      const pace = p < (status === 'LOSS' ? 0.3 : 0.12) ? 'RUSHING' : p > 0.88 ? 'DRAGGING' : null;
       const sabotaged = status === 'LOSS' && tradeType === 'NORMAL' && r() < 0.18;
       const id = uuid(++seq);
       const note = sabotaged ? pick(LOSS_REVIEW) : pick(NOTES);
@@ -139,8 +135,8 @@ function build(): Store {
         setForget: tradeType === 'MISSED' ? true : decided && r() < 0.65,
         setForgetDecided: decided,
         description: note,
-        isKing,
-        kingDescription: isKing ? pick(KING_NOTES) : null,
+        isKing: !!pace,
+        kingDescription: pace,
         sabotagedWinner: sabotaged,
         createdAt: created.toISOString(),
         closedAt: closed.toISOString(),
@@ -171,8 +167,6 @@ function build(): Store {
     t.closedAt = null;
     t.setForgetDecided = false;
     t.setForget = false;
-    t.isKing = false;
-    t.kingDescription = null;
     t.sabotagedWinner = false;
     if (t.description && LOSS_REVIEW.includes(t.description)) t.description = 'Waiting on the London close; stop and target are set.';
   }
@@ -399,12 +393,3 @@ export async function undoBlownWeek(weekStart: string) {
   s.blown = s.blown.filter((b) => b.week_start !== weekStart);
 }
 
-export async function cleanup() {
-  await wait(700);
-  const s = db();
-  const res = { deletedTrades: s.trades.length, deletedBlownWeeks: s.blown.length, deletedImages: [...s.images.values()].reduce((n, l) => n + l.length, 0) };
-  s.trades = [];
-  s.images.clear();
-  s.blown = [];
-  return res;
-}

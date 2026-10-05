@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Lock } from 'lucide-react';
-import { createTrade, friendly } from '@/lib/api';
+import { createTrade, friendly, updateTrade } from '@/lib/api';
 import { forexDay } from '@/lib/journal';
+import { PACE_HINT, PACE_LABEL, pacePatch, type PaceOrNone } from '@/lib/pace';
 import { COMMON_PAIRS, normalizePair } from '@/lib/pairs';
 import { uploadAll } from '@/lib/upload';
 import type { Pending } from '@/lib/images';
@@ -15,6 +16,7 @@ import Modal from '../ui/Modal';
 import Seg from '../ui/Seg';
 import MarketIcon from '../ui/MarketIcon';
 import Dropzone from './Dropzone';
+import { PaceSeg } from './bits';
 
 const TYPE_HINT: Record<TradeType, string> = {
   NORMAL: 'A real trade you took.',
@@ -32,6 +34,7 @@ export default function NewTrade({ open, onClose }: { open: boolean; onClose: ()
   const [pair, setPair] = useState('');
   const [risk, setRisk] = useState('');
   const [notes, setNotes] = useState('');
+  const [pace, setPace] = useState<PaceOrNone>(null);
   const [when, setWhen] = useState<'now' | 'earlier'>('now');
   const [at, setAt] = useState('');
   const [images, setImages] = useState<Pending[]>([]);
@@ -46,6 +49,7 @@ export default function NewTrade({ open, onClose }: { open: boolean; onClose: ()
     setPair('');
     setRisk('');
     setNotes('');
+    setPace(null);
     setWhen('now');
     setAt(localInput(new Date()));
     setImages([]);
@@ -78,13 +82,21 @@ export default function NewTrade({ open, onClose }: { open: boolean; onClose: ()
     setError(null);
     setBusy('Saving…');
     try {
-      const trade = await createTrade({
+      let trade = await createTrade({
         pair: normalizePair(pair),
         riskRatio: Number(risk),
         tradeType: type,
         description: notes.trim() || null,
         ...(dated ? { createdAt: dated.toISOString() } : {}),
       });
+      // the API takes the pace only on an update, so it goes on straight after
+      if (pace) {
+        try {
+          trade = await updateTrade(trade.id, pacePatch(pace));
+        } catch {
+          toast('error', `Saved without the ${PACE_LABEL[pace].toLowerCase()} mark`, 'Open the trade to mark its pace again.');
+        }
+      }
       j.applyTrade(trade);
       if (images.length) {
         setBusy(`Uploading 1 of ${images.length}…`);
@@ -174,6 +186,12 @@ export default function NewTrade({ open, onClose }: { open: boolean; onClose: ()
               </div>
               {show('risk') ? <span className="form-error">{errors.risk}</span> : <span className="field-hint">A win pays this many R; a loss costs 1R.</span>}
             </div>
+          </div>
+
+          <div className="field">
+            <span className="field-label">Pace</span>
+            <PaceSeg wide value={pace} onChange={setPace} />
+            <span className="field-hint">{PACE_HINT[pace ?? 'NONE']} You can change it later.</span>
           </div>
 
           <div className="field">

@@ -1,12 +1,12 @@
 'use client';
 
-import { Lock, Moon, Sun, Flame, PauseCircle } from 'lucide-react';
+import { Lock, Sun, Flame, PauseCircle } from 'lucide-react';
 import { fmtDay, fmtR, fmtSpan, parseDay, sideOf } from '@/lib/journal';
 import { useJournal } from '../JournalContext';
 import { useNow } from '../hooks';
 
 /** Today's forex day: time left, real trades taken, today's R, and whatever is locking entry. */
-export default function DayStatusCard({ onBatman }: { onBatman: () => void }) {
+export default function DayStatusCard() {
   const j = useJournal();
   const now = useNow(15000);
   const t = j.today;
@@ -15,17 +15,12 @@ export default function DayStatusCard({ onBatman }: { onBatman: () => void }) {
   const hide = pending ? ({ visibility: 'hidden' } as const) : undefined;
   const left = t && now ? t.endsAt.getTime() - now.getTime() : 0;
 
-  let tone: 'ok' | 'locked' | 'idle' | 'batman' = 'ok';
+  let tone: 'ok' | 'locked' | 'idle' = 'ok';
   let Icon = Sun;
   let headline = 'Open for trading';
   let detail = 'One real loss closes real trading for the rest of the forex day.';
 
-  if (j.batman) {
-    tone = 'batman';
-    Icon = Moon;
-    headline = 'Batman Mode';
-    detail = `Real and missed entries are blocked until ${fmtDay(parseDay(j.batman))}. Demo stays open.`;
-  } else if (t?.lossLock) {
+  if (t?.lossLock) {
     tone = 'locked';
     Icon = Lock;
     headline = 'Done for today';
@@ -55,11 +50,6 @@ export default function DayStatusCard({ onBatman }: { onBatman: () => void }) {
           </p>
           <p className="day-detail">{detail}</p>
         </div>
-        {tone === 'batman' && (
-          <button type="button" className="btn btn-sm" onClick={onBatman}>
-            Change
-          </button>
-        )}
       </div>
       <dl className="day-stats" style={hide}>
         <div>
