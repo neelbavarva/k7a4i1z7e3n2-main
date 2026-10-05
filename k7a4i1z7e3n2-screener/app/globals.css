@@ -2309,6 +2309,9 @@ code.block {
   .statusbar p {
     font-size: 12px;
   }
+  .sb-extra {
+    display: none;
+  }
   .topbar .kbd-hint {
     display: none;
   }
@@ -2437,6 +2440,17 @@ code.block {
   from {
     transform: translateY(24px);
     opacity: 0;
+  }
+}
+
+/* ---------- Split view ---------- */
+
+/* Inside the Kaizen split view (html.is-framed, set in app/layout.tsx) the other sites keep 32px side
+   margins down to 600px wide, where this one drops to 16px at 640px: hold 32px until they drop too. */
+@media (min-width: 601px) and (max-width: 640px) {
+  .is-framed .page {
+    padding-left: 32px;
+    padding-right: 32px;
   }
 }
 

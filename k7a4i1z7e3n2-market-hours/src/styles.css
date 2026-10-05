@@ -244,6 +244,8 @@ kbd {
   gap: 10px;
   margin: 14px 0 0;
   padding: 5px 5px 5px 14px;
+  /* as tall as the status bars on the other Kaizen sites, so the pages line up side by side */
+  min-height: 44px;
   font-size: 12.5px;
   color: var(--muted);
   background: var(--surface);
@@ -2470,6 +2472,17 @@ td {
   }
   .picker-region {
     display: none;
+  }
+}
+
+/* ---------- Split view ---------- */
+
+/* Inside the Kaizen split view (html.is-framed, set in index.html) the other sites keep 32px side
+   margins down to 600px wide, where this one drops to 16px at 640px: hold 32px until they drop too. */
+@media (min-width: 601px) and (max-width: 640px) {
+  .is-framed .page {
+    padding-left: 32px;
+    padding-right: 32px;
   }
 }
 

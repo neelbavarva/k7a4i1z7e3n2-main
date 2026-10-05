@@ -33,8 +33,8 @@ export default function BlownWeekDialog({ week, onClose }: { week: string | null
 
   if (!week) return null;
 
-  const deadline = record ? undoDeadline(record) : 0;
-  const canUndo = !!record && deadline > now.getTime();
+  const left = record && now ? undoDeadline(record) - now.getTime() : 0;
+  const canUndo = left > 0;
 
   const save = async () => {
     setBusy('save');
@@ -91,7 +91,7 @@ export default function BlownWeekDialog({ week, onClose }: { week: string | null
           <div className={`notice${canUndo ? '' : ' is-muted'}`}>
             <p>
               Blown through <b>{fmtDay(parseDay(record.blown_through))}</b>.{' '}
-              {canUndo ? `You can undo this for another ${fmtSpan(deadline - now.getTime())}.` : 'The 24-hour undo window has passed.'}
+              {canUndo ? `You can undo this for another ${fmtSpan(left)}.` : 'The 24-hour undo window has passed.'}
             </p>
           </div>
         )}

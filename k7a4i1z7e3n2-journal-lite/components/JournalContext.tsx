@@ -22,7 +22,8 @@ export type Journal = {
   bump: () => void;
   openTrade: (id: string) => void;
   newTrade: () => void;
-  today: DayStatus;
+  /** Null until the browser has the time (server render and hydration; see useNow). */
+  today: DayStatus | null;
   batman: string | null;
   setBatman: (until: string | null) => void;
   /** Why a trade type can't be entered right now (for a trade dated today). */

@@ -4754,6 +4754,51 @@ fieldset.bare:disabled {
   }
 }
 
+/* ---------- Split view ---------- */
+
+/* Shown inside the Kaizen split view (html.is-framed, set in app/layout.tsx), this page sits beside
+   FX Fundamental Bias, the Screener and Market Hours, which open with a 44px status bar. At the pane
+   widths there the top bar steps down to meet them: the brand row centres on their status bars, the
+   tabs on the Screener's top bar, and the title shares the Screener title's baseline. 0.844 is Young
+   Serif's baseline at line-height 1.05; the Screener's title is clamp(38px, 5.4vw, 64px), and 34px
+   at 640px and below. Wider than 900px the top bar is one row, centred on the status bars, and the
+   title lines up with the other sites' titles. Margin, not padding, so the bar is its usual height
+   once it sticks. */
+.is-framed .topbar {
+  margin-top: 5px;
+}
+.is-framed .overview {
+  padding-top: 17.9px;
+}
+@media (max-width: 900px) {
+  .is-framed .topbar {
+    margin-top: 7px;
+  }
+  .is-framed .topbar-in {
+    row-gap: 19px;
+  }
+  .is-framed .overview {
+    /* as variables: nested straight into one calc(), they crash the vault's CSS compiler */
+    --title: clamp(32px, 4vw, 46px);
+    --screener-title: clamp(38px, 5.4vw, 64px);
+    /* the title row is as tall as the actions (34px buttons + 3px) or the title, if that's taller */
+    padding-top: calc(6.9px - max(0px, 37px - 1.05 * var(--title)) + 0.844 * (var(--screener-title) - var(--title)));
+  }
+}
+@media (max-width: 640px) {
+  .is-framed .overview {
+    padding-top: 5.2px;
+  }
+}
+@media (max-width: 600px) {
+  .is-framed .topbar {
+    margin-top: 9px;
+  }
+  .is-framed .overview {
+    padding-top: 8.2px;
+  }
+}
+
 /* ---------- Touch screens: bigger targets, no keyboard hints ---------- */
 
 @media (pointer: coarse) {

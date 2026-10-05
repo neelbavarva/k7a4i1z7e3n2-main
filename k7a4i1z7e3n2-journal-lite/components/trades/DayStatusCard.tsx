@@ -10,7 +10,10 @@ export default function DayStatusCard({ onBatman }: { onBatman: () => void }) {
   const j = useJournal();
   const now = useNow(15000);
   const t = j.today;
-  const left = t.endsAt.getTime() - now.getTime();
+  // no time yet (server render and hydration, see useNow): the card keeps its size but shows nothing
+  const pending = !t || !now;
+  const hide = pending ? ({ visibility: 'hidden' } as const) : undefined;
+  const left = t && now ? t.endsAt.getTime() - now.getTime() : 0;
 
   let tone: 'ok' | 'locked' | 'idle' | 'batman' = 'ok';
   let Icon = Sun;
@@ -22,17 +25,17 @@ export default function DayStatusCard({ onBatman }: { onBatman: () => void }) {
     Icon = Moon;
     headline = 'Batman Mode';
     detail = `Real and missed entries are blocked until ${fmtDay(parseDay(j.batman))}. Demo stays open.`;
-  } else if (t.lossLock) {
+  } else if (t?.lossLock) {
     tone = 'locked';
     Icon = Lock;
     headline = 'Done for today';
     detail = `A real loss on ${t.lossLock.pair} closed the day. Real trading reopens in ${fmtSpan(left)}. Demo stays open.`;
-  } else if (t.blown) {
+  } else if (t?.blown) {
     tone = 'locked';
     Icon = Flame;
     headline = 'Week blown';
     detail = `No real trading through ${fmtDay(parseDay(t.blown.blown_through))}. Demo stays open.`;
-  } else if (t.shut) {
+  } else if (t?.shut) {
     tone = 'idle';
     Icon = PauseCircle;
     headline = 'Market closed';
@@ -40,15 +43,15 @@ export default function DayStatusCard({ onBatman }: { onBatman: () => void }) {
   }
 
   return (
-    <section className={`day-card tone-${tone} fade-in`} aria-label="Today">
-      <div className="day-main">
+    <section className={`day-card tone-${tone} fade-in`} aria-label="Today" aria-busy={pending || undefined}>
+      <div className="day-main" style={hide}>
         <span className="day-icon" aria-hidden="true">
           <Icon />
         </span>
         <div className="day-text">
           <p className="day-head">
             <b>{headline}</b>
-            <span className="muted"> · forex day {fmtDay(parseDay(t.day))}</span>
+            {t && <span className="muted"> · forex day {fmtDay(parseDay(t.day))}</span>}
           </p>
           <p className="day-detail">{detail}</p>
         </div>
@@ -58,18 +61,18 @@ export default function DayStatusCard({ onBatman }: { onBatman: () => void }) {
           </button>
         )}
       </div>
-      <dl className="day-stats">
+      <dl className="day-stats" style={hide}>
         <div>
-          <dt>{t.shut ? 'Opens in' : 'Day ends in'}</dt>
+          <dt>{t?.shut ? 'Opens in' : 'Day ends in'}</dt>
           <dd className="num-tab">{fmtSpan(left)}</dd>
         </div>
         <div>
           <dt>Real trades today</dt>
-          <dd className="num-tab">{t.taken.length}</dd>
+          <dd className="num-tab">{t ? t.taken.length : 0}</dd>
         </div>
         <div>
           <dt>Today’s P/L</dt>
-          <dd className={`num-tab ${sideOf(t.r)}`}>{fmtR(t.r)}</dd>
+          <dd className={`num-tab ${sideOf(t ? t.r : 0)}`}>{fmtR(t ? t.r : 0)}</dd>
         </div>
       </dl>
     </section>

@@ -29,9 +29,15 @@ export function StatusBar({ fetchedAt, latestYear, missing }: { fetchedAt?: stri
     <div className={`statusbar${missing.length ? ' is-partial' : ''}`} role="status">
       <i aria-hidden="true" />
       <p>
-        {missing.length
-          ? `Some series didn't load (${missing.join(', ')}). The rest is shown.`
-          : `World Bank data loaded${ago ? ` ${ago}` : ''}. Annual series, latest year ${latestYear}.`}
+        {missing.length ? (
+          `Some series didn't load (${missing.join(', ')}). The rest is shown.`
+        ) : (
+          <>
+            World Bank data loaded{ago ? ` ${ago}` : ''}.
+            {/* dropped on narrow screens so the bar stays one line */}
+            <span className="sb-extra"> Annual series, latest year {latestYear}.</span>
+          </>
+        )}
       </p>
       <button type="button" className="btn" onClick={() => start(() => router.refresh())} disabled={pending} aria-busy={pending}>
         <RefreshIcon className={pending ? 'spin' : undefined} />

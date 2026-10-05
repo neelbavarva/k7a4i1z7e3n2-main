@@ -61,7 +61,7 @@ export default function NewTrade({ open, onClose }: { open: boolean; onClose: ()
   const dated = when === 'earlier' && at ? when_ : null;
   const atError = when === 'earlier' && (!at || Number.isNaN(when_.getTime())) ? 'Pick when it happened.' : dated && dated > new Date() ? 'That’s in the future.' : null;
   // locks apply to entries for the current forex day, not to logging the past
-  const lock = forexDay(when_) === j.today.day ? j.blocked[type] : undefined;
+  const lock = forexDay(when_) === j.today?.day ? j.blocked[type] : undefined;
 
   const errors = {
     pair: pairError(normalizePair(pair)),
@@ -118,7 +118,7 @@ export default function NewTrade({ open, onClose }: { open: boolean; onClose: ()
               options={(['NORMAL', 'DEMO', 'MISSED'] as const).map((t) => ({
                 value: t,
                 label: t === 'NORMAL' ? 'Real' : t === 'DEMO' ? 'Demo' : 'Missed',
-                icon: forexDay(when_) === j.today.day && j.blocked[t] ? <Lock className="seg-lock" aria-hidden="true" /> : undefined,
+                icon: forexDay(when_) === j.today?.day && j.blocked[t] ? <Lock className="seg-lock" aria-hidden="true" /> : undefined,
               }))}
             />
             <span className="field-hint">{TYPE_HINT[type]}</span>

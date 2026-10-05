@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 
 const reduced = () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
@@ -44,14 +44,24 @@ export function useScrolled(px = 4) {
   return s;
 }
 
-/** The current time, refreshed every `ms`, so countdowns stay current. */
-export function useNow(ms = 30000) {
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), ms);
-    return () => clearInterval(id);
-  }, [ms]);
-  return now;
+/**
+ * The current time, refreshed every `ms`, so countdowns stay current. Null on the server and while
+ * hydrating: the page is prerendered at build time, so anything drawn from the time waits for the
+ * browser (or it won't match the HTML). Components that mount later get the time straight away.
+ */
+export function useNow(ms = 30000): Date | null {
+  const now = useRef<Date | null>(null);
+  const subscribe = useCallback(
+    (changed: () => void) => {
+      const id = setInterval(() => {
+        now.current = new Date();
+        changed();
+      }, ms);
+      return () => clearInterval(id);
+    },
+    [ms],
+  );
+  return useSyncExternalStore(subscribe, () => (now.current ??= new Date()), () => null);
 }
 
 /** Global single-key shortcuts that stay quiet while typing or when a dialog is open. */

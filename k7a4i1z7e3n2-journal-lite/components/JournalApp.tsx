@@ -110,8 +110,8 @@ function Workspace() {
     setBatmanState(until);
   }, []);
 
-  const today = useMemo(() => dayStatus(trades, blownWeeks, now), [trades, blownWeeks, now]);
-  const batmanActive = batman && batman > dayKey(now) ? batman : null;
+  const today = useMemo(() => (now ? dayStatus(trades, blownWeeks, now) : null), [trades, blownWeeks, now]);
+  const batmanActive = batman && now && batman > dayKey(now) ? batman : null;
 
   const blocked = useMemo(() => {
     const b: Partial<Record<TradeType, string>> = {};
@@ -119,9 +119,9 @@ function Workspace() {
       const why = `Batman Mode is on until ${fmtDay(parseDay(batmanActive))}. Demo trades are still open.`;
       b.NORMAL = why;
       b.MISSED = why;
-    } else if (today.lossLock) {
+    } else if (today?.lossLock) {
       b.NORMAL = 'One real loss today: real trading reopens at 5:00 PM New York. Demo is still open.';
-    } else if (today.blown) {
+    } else if (today?.blown) {
       b.NORMAL = `This week is marked blown through ${fmtDay(parseDay(today.blown.blown_through))}. Demo is still open.`;
     }
     return b;
@@ -201,7 +201,7 @@ function Workspace() {
 
         <footer className="footer">
           <p>
-            Forex day {fmtDay(parseDay(today.day))} · rolls over at 5:00 PM New York · data from the Kaizen Journal API
+            Forex day {today && `${fmtDay(parseDay(today.day))} · `}rolls over at 5:00 PM New York · data from the Kaizen Journal API
           </p>
           <p className="keys" aria-hidden="true">
             <span>

@@ -35,9 +35,17 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
+// Inside the Kaizen split view the page sits beside the other sites; globals.css then lines its
+// margins up with theirs (see "Split view" there).
+const FRAMED = "if (window.self !== window.top) document.documentElement.classList.add('is-framed');";
+
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    // suppressHydrationWarning: FRAMED may add a class to <html> before React hydrates it
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: FRAMED }} />
+      </head>
       <body>
         <a href="#main-content" className="skip-nav">Skip to main content</a>
         {children}
