@@ -10,6 +10,32 @@ import type { Scrub } from '../hooks';
 
 const FLAGS: Record<SessionId, string> = { sydney: AU, tokyo: JP, london: GB, newyork: US };
 
+const BASE = import.meta.env.BASE_URL;
+
+export const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
+
+/** The two halves of the site, beside the page title. */
+export function SiteNav({ current }: { current: 'hours' | 'size' }) {
+  return (
+    <nav className="seg site-nav" aria-label="Site">
+      <a href={`${BASE}#/`} aria-current={current === 'hours' ? 'page' : undefined}>
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 7v5l3 2" />
+        </svg>
+        Market hours
+      </a>
+      <a href={`${BASE}#/position-size`} aria-current={current === 'size' ? 'page' : undefined}>
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="5" y="3" width="14" height="18" rx="2.5" />
+          <path d="M8.5 7.5h7M8.5 12h.01M12 12h.01M15.5 12h.01M8.5 16h.01M12 16h.01M15.5 16h.01" />
+        </svg>
+        Position size
+      </a>
+    </nav>
+  );
+}
+
 /** Round country flag, as on FX Fundamental Bias. */
 export function Flag({ id, size = 20 }: { id: SessionId; size?: number }) {
   return <img className="flag" src={FLAGS[id]} alt="" width={size} height={size} style={{ width: size, height: size }} />;

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Forex market hours: Sydney, Tokyo, London and New York sessions in your timezone, with a session-overlap volume model and an AMD cycle guide.",
+  "description": "Forex market hours: Sydney, Tokyo, London and New York sessions in your timezone, with a session-overlap volume model, an AMD cycle guide and a position size calculator.",
   "engines": {
     "node": ">=20"
   },

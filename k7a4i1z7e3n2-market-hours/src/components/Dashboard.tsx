@@ -23,7 +23,7 @@ import {
   offsetMinutes,
   cityOfZone,
 } from '../marketTime';
-import { Flag } from './common';
+import { Flag, SiteNav, isMac } from './common';
 import SessionsChart from './SessionsChart';
 import VolumeChart from './VolumeChart';
 import AmdChart from './AmdChart';
@@ -45,9 +45,12 @@ export default function Dashboard({ day, is24Hour, onPickZone }: Props) {
   return (
     <main className="fade-in">
       <section className="overview" aria-labelledby="page-title">
-        <h1 id="page-title" className="overview-title">
-          Forex market hours
-        </h1>
+        <div className="overview-row">
+          <h1 id="page-title" className="overview-title">
+            Forex market hours
+          </h1>
+          <SiteNav current="hours" />
+        </div>
         <ZoneBar timezone={timezone} nowMs={nowMs} is24Hour={is24Hour} onClick={onPickZone} />
       </section>
 
@@ -71,8 +74,6 @@ export default function Dashboard({ day, is24Hour, onPickZone }: Props) {
 }
 
 // ---------------------------------------------------------------------------
-
-const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 
 function ZoneBar({ timezone, nowMs, is24Hour, onClick }: { timezone: string; nowMs: number; is24Hour: boolean; onClick: () => void }) {
   const region = timezone === 'UTC' ? 'Coordinated Universal Time' : timezone.split('/').slice(0, -1).join(' · ').replace(/_/g, ' ');

@@ -2142,6 +2142,571 @@ td {
   min-height: 60vh;
 }
 
+/* ---------- Site nav (beside the title) ---------- */
+
+/* the title row is as tall as the title, so the title sits where it always has (the split view lines it up) */
+.overview-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px 24px;
+}
+.site-nav {
+  flex: none;
+}
+.site-nav a {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 13px 5px 11px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink2);
+  text-decoration: none;
+  border-radius: 6px;
+  transition: background-color 0.15s, color 0.15s;
+}
+.site-nav a:hover {
+  color: var(--ink);
+}
+.site-nav a[aria-current='page'] {
+  background: var(--raised);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(16, 24, 32, 0.12);
+}
+.site-nav svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ---------- Position size ---------- */
+
+.rate-tag {
+  font-weight: 400;
+  color: var(--muted);
+}
+.rate-tag.is-live {
+  color: var(--good);
+}
+
+.calc {
+  display: grid;
+  grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr);
+  margin-top: 24px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.calc-form {
+  padding: 22px 24px 20px;
+  min-width: 0;
+}
+.calc-out {
+  padding: 22px 24px 20px;
+  min-width: 0;
+  background: var(--surface);
+  border-left: 1px solid var(--line);
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+.calc-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px 16px;
+}
+.field {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  min-width: 0;
+}
+.field-wide {
+  grid-column: 1 / -1;
+}
+.field-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 26px;
+}
+.field-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+.field-top .field-label {
+  align-self: center;
+}
+.seg-mini {
+  padding: 2px;
+}
+.seg-mini button {
+  padding: 2px 10px;
+  font-size: 11.5px;
+}
+
+.input-wrap {
+  display: flex;
+  align-items: center;
+  height: 42px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.input-wrap:hover {
+  border-color: var(--axis);
+}
+.input-wrap:focus-within {
+  border-color: var(--focus);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--focus) 18%, transparent);
+}
+.input-wrap input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0 12px;
+  font: inherit;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  outline: none;
+}
+
+/* a select with a search box (Dropdown.tsx), like Myfxbook's pair list */
+.dd {
+  position: relative;
+  min-width: 0;
+}
+.dd-field {
+  gap: 10px;
+  width: 100%;
+  padding: 0 14px 0 12px;
+  font: inherit;
+  font-size: 15px;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.dd.is-open .dd-field {
+  border-color: var(--focus);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--focus) 18%, transparent);
+}
+.dd-value {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dd-value b,
+.dd-option b {
+  font-weight: 600;
+}
+.dd-sub {
+  color: var(--muted);
+}
+.dd-field .dd-aside {
+  flex: none;
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.dd-chevron {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin: -4px 1px 0 2px;
+  border-right: 1.6px solid var(--muted);
+  border-bottom: 1.6px solid var(--muted);
+  transform: rotate(45deg);
+  transition: transform 0.2s var(--ease), margin 0.2s var(--ease);
+}
+.dd.is-open .dd-chevron {
+  margin-top: 4px;
+  transform: rotate(-135deg);
+}
+.dd-panel {
+  position: absolute;
+  z-index: 30;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  display: flex;
+  flex-direction: column;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 12px 36px rgba(22, 26, 22, 0.16), 0 2px 6px rgba(22, 26, 22, 0.06);
+  overflow: hidden;
+  animation: dd-in 0.16s var(--ease) both;
+}
+.dd.is-up .dd-panel {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+@keyframes dd-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+.dd.is-up .dd-panel {
+  animation-name: dd-in-up;
+}
+@keyframes dd-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+.dd-search {
+  flex: none;
+  padding: 8px;
+  border-bottom: 1px solid var(--grid);
+}
+.dd-search input {
+  width: 100%;
+  height: 34px;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.dd-search input:focus {
+  border-color: var(--focus);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 16%, transparent);
+}
+.dd-search input::placeholder {
+  color: var(--muted);
+}
+.dd-list {
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.dd-group {
+  padding: 10px 10px 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.dd-group:first-child {
+  padding-top: 6px;
+}
+.dd-list li[role='option'] {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 8px 10px;
+  font-size: 13.5px;
+  color: var(--ink);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.dd-list li[aria-selected='true'] {
+  background: var(--page);
+}
+.dd-list li[data-active='true'] {
+  background: var(--bull);
+  color: #fff;
+}
+.dd-list li[data-active='true'] .dd-sub,
+.dd-list li[data-active='true'] .dd-aside {
+  color: rgba(255, 255, 255, 0.82);
+}
+.dd-option {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dd-list .dd-aside {
+  flex: none;
+  font-size: 12.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.dd-empty {
+  padding: 12px 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.field-key {
+  flex: none;
+}
+.input-pre,
+.input-post {
+  flex: none;
+  font-size: 13px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.input-pre {
+  padding-left: 12px;
+  margin-right: -6px;
+}
+.input-post {
+  padding-right: 12px;
+  margin-left: -6px;
+}
+.input-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.field-foot {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  min-height: 24px;
+}
+.field-note {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.chips {
+  display: inline-flex;
+  gap: 6px;
+}
+.chip {
+  height: 24px;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink2);
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background-color 0.15s;
+}
+.chip:hover {
+  border-color: var(--axis);
+  color: var(--ink);
+}
+.chip[aria-pressed='true'] {
+  color: var(--bull-ink);
+  background: color-mix(in srgb, var(--bull) 8%, var(--raised));
+  border-color: color-mix(in srgb, var(--bull) 45%, transparent);
+}
+.link-btn {
+  padding: 0;
+  font: inherit;
+  font-size: 12px;
+  color: var(--bull-ink);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  text-decoration-color: color-mix(in srgb, var(--bull-ink) 35%, transparent);
+}
+.link-btn:hover {
+  text-decoration-color: currentColor;
+}
+
+/* the contract, folded away under the form */
+.calc-more {
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid var(--grid);
+}
+.calc-more summary {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  font-size: 13px;
+  cursor: pointer;
+  list-style: none;
+}
+.calc-more summary::-webkit-details-marker {
+  display: none;
+}
+.calc-more summary::before {
+  content: '';
+  flex: none;
+  align-self: center;
+  width: 6px;
+  height: 6px;
+  margin: 0 2px 0 1px;
+  border-right: 1.6px solid var(--muted);
+  border-bottom: 1.6px solid var(--muted);
+  transform: rotate(-45deg);
+  transition: transform 0.2s var(--ease);
+}
+.calc-more[open] summary::before {
+  transform: rotate(45deg);
+}
+.calc-more-title {
+  flex: none;
+  font-weight: 600;
+}
+.calc-more-sum {
+  min-width: 0;
+  font-size: 12.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.calc-more .calc-fields {
+  margin-top: 16px;
+}
+.calc-more-note {
+  margin: 14px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* the answer */
+.calc-kicker {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.calc-lots {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 4px 0 0;
+  font-family: var(--serif);
+}
+.calc-lots-num {
+  font-size: clamp(44px, 5vw, 60px);
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+.calc-lots-unit {
+  font-size: 20px;
+  color: var(--ink2);
+}
+.calc-lots.is-empty .calc-lots-num,
+.calc-lots.is-empty .calc-lots-unit {
+  color: var(--axis);
+}
+.calc-units {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.calc-problem {
+  margin: 10px 0 0;
+  font-size: 13.5px;
+  color: var(--ink2);
+}
+.calc-problem p {
+  margin: 0 0 12px;
+}
+.calc-facts {
+  margin: 18px 0 0;
+  border-top: 1px solid var(--grid);
+}
+.calc-facts > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  padding: 8px 0;
+  font-size: 13px;
+  border-bottom: 1px solid var(--grid);
+}
+.calc-facts dt {
+  color: var(--muted);
+  white-space: nowrap;
+}
+.calc-facts dd {
+  margin: 0;
+  min-width: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.calc-targets {
+  display: grid;
+  gap: 2px;
+  margin-top: 14px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.calc-targets > div {
+  display: grid;
+  grid-template-columns: 5.2em repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.calc-targets > div > :not(:first-child) {
+  text-align: right;
+}
+.calc-targets > div:first-child > :not(:first-child) {
+  font-size: 12px;
+  color: var(--ink2);
+}
+.calc-targets b {
+  font-weight: 600;
+}
+.calc-targets .up {
+  color: var(--good);
+}
+.calc-checks {
+  margin-top: 16px;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* workings and the risk table */
+.workings .formula {
+  margin: 16px 0 0;
+  white-space: nowrap; /* the sums stay lined up; a narrow screen scrolls them sideways */
+}
+.workings .formula::before {
+  content: 'With your numbers';
+}
+.calc-notes {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0 0;
+  padding-left: 18px;
+  max-width: 900px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ink2);
+}
+.calc-notes b {
+  color: var(--ink);
+}
+.risk-table tr.is-current td {
+  background: var(--raised);
+}
+.risk-table tr.is-current .c-main b {
+  color: var(--bull-ink);
+}
+
 /* ---------- Footer ---------- */
 
 .footer {
@@ -2475,6 +3040,53 @@ td {
   }
 }
 
+/* position size: the answer goes under the form, then everything to one column */
+@media (max-width: 1000px) {
+  .calc {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .calc-out {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    border-radius: 0 0 var(--radius) var(--radius);
+  }
+}
+
+@media (max-width: 640px) {
+  .site-nav {
+    display: flex;
+    width: 100%;
+  }
+  .site-nav a {
+    flex: 1;
+    justify-content: center;
+  }
+  .calc-form,
+  .calc-out {
+    padding: 18px 16px 16px;
+  }
+  .calc-fields {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+  .calc-more-sum {
+    display: none;
+  }
+  /* the closed pair field keeps the code and the price; the name is in the list */
+  .dd-field:has(.dd-aside) .dd-sub {
+    display: none;
+  }
+  .calc-lots-num {
+    font-size: 44px;
+  }
+  .calc-targets > div {
+    grid-template-columns: 4.4em repeat(3, minmax(0, 1fr));
+  }
+  .risk-table td.num {
+    text-align: left;
+  }
+}
+
 /* ---------- Split view ---------- */
 
 /* Inside the Kaizen split view (html.is-framed, set in index.html) the other sites keep 32px side
@@ -2495,6 +3107,26 @@ td {
   }
   .btn {
     height: 40px;
+  }
+  .input-wrap {
+    height: 46px;
+  }
+  .input-wrap input,
+  .dd-search input {
+    font-size: 16px; /* no zoom on focus in iOS Safari */
+  }
+  .dd-list li[role='option'] {
+    padding: 11px 10px;
+  }
+  .field-key {
+    display: none;
+  }
+  .chip {
+    height: 32px;
+    padding: 0 14px;
+  }
+  .site-nav a {
+    min-height: 34px;
   }
   .footer a {
     display: inline-block;
