@@ -16,42 +16,61 @@ export const BANK_GROUPS = [
     { id: "payments", label: "Payments banks" },
 ];
 
+/** Where banks are listed when browsing beyond India. A bank can sit in more than one. */
+export const REGIONS = [
+    { id: "in", label: "India" },
+    { id: "us", label: "United States" },
+    { id: "gb", label: "United Kingdom" },
+    { id: "eu", label: "Europe" },
+    { id: "ca", label: "Canada" },
+    { id: "apac", label: "Asia-Pacific" },
+    { id: "me", label: "Middle East" },
+    { id: "af", label: "Africa" },
+    { id: "latam", label: "Latin America" },
+    { id: "digital", label: "Digital banks" },
+];
+
+/** A bank's regions: India unless it says otherwise, plus any home regions it also belongs to. */
+export const regionsOf = (b) => [b.region || "in", ...(b.also || [])];
+
 /**
- * Banks that issue cards in India. `top` ones are shown as tiles, the rest are searchable.
- * `color` is the card's face: the brand colour of the bank's logo, taken darker and a little
- * quieter so white reads on it and it sits with the site's inks.
- * `logo` is [width / height of the full logo, has a separate symbol]; width 0 means the source
- * is only a symbol, so the name is set beside it. The logos themselves are in public/logos.
+ * Banks that issue cards: India's first (grouped as Indian banks are), then well-known banks
+ * around the world by region. New banks always go at the end: a card's face colours follow
+ * its bank's place in this list. `top` ones are the default tiles.
+ * `color` is the bank's tile tint: its brand colour, taken darker and a little quieter so white
+ * reads on it and it sits with the site's inks.
+ * Logos are in public/logos, measured in lib/logos.js. `mark` is how a bank without a logo
+ * file prints its name, when that isn't its plain name.
  */
 export const BANKS = [
-    { id: "hdfc", name: "HDFC Bank", short: "HDFC", color: "#074b8a", group: "private", top: true, logo: [6.0, true] },
-    { id: "sbi", name: "State Bank of India", short: "SBI", color: "#292075", group: "public", top: true, aliases: ["state bank"], logo: [2.92, true] },
-    { id: "iob", name: "Indian Overseas Bank", short: "IOB", color: "#1e469d", group: "public", top: true, logo: [5.65, true] },
-    { id: "axis", name: "Axis Bank", short: "Axis", color: "#891846", group: "private", top: true, logo: [4.21, true] },
+    { id: "hdfc", name: "HDFC Bank", short: "HDFC", color: "#074b8a", group: "private", top: true },
+    { id: "sbi", name: "State Bank of India", short: "SBI", color: "#292075", group: "public", top: true, aliases: ["state bank"] },
+    { id: "iob", name: "Indian Overseas Bank", short: "IOB", color: "#1e469d", group: "public", top: true },
+    { id: "axis", name: "Axis Bank", short: "Axis", color: "#891846", group: "private", top: true },
 
-    { id: "icici", name: "ICICI Bank", short: "ICICI", color: "#a12f31", group: "private", logo: [5.04, true] },
-    { id: "kotak", name: "Kotak Mahindra Bank", short: "Kotak", color: "#a1302b", group: "private", logo: [4.03, true] },
-    { id: "indusind", name: "IndusInd Bank", short: "IndusInd", color: "#98272a", group: "private", logo: [9.58, false] },
-    { id: "yes", name: "Yes Bank", short: "Yes", color: "#034e8c", group: "private", logo: [2.78, false] },
-    { id: "idfc", name: "IDFC FIRST Bank", short: "IDFC FIRST", color: "#98262b", group: "private", logo: [2.83, true] },
-    { id: "federal", name: "Federal Bank", short: "Federal", color: "#14479d", group: "private", logo: [6.03, false] },
-    { id: "rbl", name: "RBL Bank", short: "RBL", color: "#214099", group: "private", aliases: ["ratnakar"], logo: [3.38, true] },
-    { id: "bandhan", name: "Bandhan Bank", short: "Bandhan", color: "#a13029", group: "private", logo: [5.08, true] },
-    { id: "idbi", name: "IDBI Bank", short: "IDBI", color: "#045b4a", group: "private", logo: [4.78, true] },
-    { id: "sib", name: "South Indian Bank", short: "SIB", color: "#9b2b21", group: "private", logo: [2.82, true] },
-    { id: "kvb", name: "Karur Vysya Bank", short: "KVB", color: "#0b5c33", group: "private", logo: [3.57, true] },
-    { id: "cub", name: "City Union Bank", short: "CUB", color: "#2e328f", group: "private", logo: [1.08, true] },
-    { id: "karnataka", name: "Karnataka Bank", short: "Karnataka", color: "#70287d", group: "private", logo: [7.69, true] },
+    { id: "icici", name: "ICICI Bank", short: "ICICI", color: "#a12f31", group: "private" },
+    { id: "kotak", name: "Kotak Mahindra Bank", short: "Kotak", color: "#a1302b", group: "private" },
+    { id: "indusind", name: "IndusInd Bank", short: "IndusInd", color: "#98272a", group: "private" },
+    { id: "yes", name: "Yes Bank", short: "Yes", color: "#034e8c", group: "private" },
+    { id: "idfc", name: "IDFC FIRST Bank", short: "IDFC FIRST", color: "#98262b", group: "private" },
+    { id: "federal", name: "Federal Bank", short: "Federal", color: "#14479d", group: "private" },
+    { id: "rbl", name: "RBL Bank", short: "RBL", color: "#214099", group: "private", aliases: ["ratnakar"] },
+    { id: "bandhan", name: "Bandhan Bank", short: "Bandhan", color: "#a13029", group: "private" },
+    { id: "idbi", name: "IDBI Bank", short: "IDBI", color: "#045b4a", group: "private" },
+    { id: "sib", name: "South Indian Bank", short: "SIB", color: "#9b2b21", group: "private" },
+    { id: "kvb", name: "Karur Vysya Bank", short: "KVB", color: "#0b5c33", group: "private" },
+    { id: "cub", name: "City Union Bank", short: "CUB", color: "#2e328f", group: "private" },
+    { id: "karnataka", name: "Karnataka Bank", short: "Karnataka", color: "#70287d", group: "private" },
     { id: "tmb", name: "Tamilnad Mercantile Bank", short: "TMB", color: "#2c3f8f", group: "private" },
-    { id: "dcb", name: "DCB Bank", short: "DCB", color: "#26358f", group: "private", logo: [4.16, false] },
-    { id: "jk", name: "J&K Bank", short: "J&K", color: "#03527c", group: "private", aliases: ["jammu", "kashmir"], logo: [3.29, true] },
+    { id: "dcb", name: "DCB Bank", short: "DCB", color: "#26358f", group: "private" },
+    { id: "jk", name: "J&K Bank", short: "J&K", color: "#03527c", group: "private", aliases: ["jammu", "kashmir"] },
     { id: "csb", name: "CSB Bank", short: "CSB", color: "#03428e", group: "private", aliases: ["catholic syrian"] },
-    { id: "dhanlaxmi", name: "Dhanlaxmi Bank", short: "Dhanlaxmi", color: "#540443", group: "private", logo: [5.12, true] },
+    { id: "dhanlaxmi", name: "Dhanlaxmi Bank", short: "Dhanlaxmi", color: "#540443", group: "private" },
 
-    { id: "pnb", name: "Punjab National Bank", short: "PNB", color: "#8c1735", group: "public", logo: [2.46, true] },
-    { id: "bob", name: "Bank of Baroda", short: "BoB", color: "#9b3b08", group: "public", aliases: ["baroda"], logo: [3.08, true] },
-    { id: "canara", name: "Canara Bank", short: "Canara", color: "#08527c", group: "public", logo: [3.74, true] },
-    { id: "union", name: "Union Bank of India", short: "Union", color: "#a13126", group: "public", logo: [4.75, true] },
+    { id: "pnb", name: "Punjab National Bank", short: "PNB", color: "#8c1735", group: "public" },
+    { id: "bob", name: "Bank of Baroda", short: "BoB", color: "#9b3b08", group: "public", aliases: ["baroda"] },
+    { id: "canara", name: "Canara Bank", short: "Canara", color: "#08527c", group: "public" },
+    { id: "union", name: "Union Bank of India", short: "Union", color: "#a13126", group: "public" },
     { id: "boi", name: "Bank of India", short: "BOI", color: "#964008", group: "public" },
     { id: "indian", name: "Indian Bank", short: "Indian", color: "#1c4c8c", group: "public" },
     { id: "central", name: "Central Bank of India", short: "Central", color: "#a1302d", group: "public" },
@@ -66,18 +85,194 @@ export const BANKS = [
     { id: "suryoday", name: "Suryoday Small Finance Bank", short: "Suryoday", color: "#9d3808", group: "small" },
     { id: "slice", name: "slice Small Finance Bank", short: "slice", color: "#553494", group: "small" },
 
-    { id: "amex", name: "American Express", short: "Amex", color: "#014f8b", group: "foreign", logo: [1.0, true] },
-    { id: "sc", name: "Standard Chartered", short: "StanChart", color: "#034a9a", group: "foreign", aliases: ["stanchart", "scb"], logo: [2.55, true] },
-    { id: "hsbc", name: "HSBC", short: "HSBC", color: "#a13029", group: "foreign", logo: [3.71, true] },
-    { id: "citi", name: "Citibank", short: "Citi", color: "#053b6e", group: "foreign", aliases: ["citi"], logo: [1.55, true] },
-    { id: "dbs", name: "DBS Bank", short: "DBS", color: "#a1302b", group: "foreign", logo: [3.47, true] },
-    { id: "deutsche", name: "Deutsche Bank", short: "Deutsche", color: "#0f2f86", group: "foreign", logo: [0, true] },
-    { id: "barclays", name: "Barclays", short: "Barclays", color: "#06395b", group: "foreign", logo: [0, true] },
+    { id: "amex", name: "American Express", short: "Amex", color: "#014f8b", group: "foreign", also: ["us"] },
+    { id: "sc", name: "Standard Chartered", short: "StanChart", color: "#034a9a", group: "foreign", aliases: ["stanchart", "scb"], also: ["gb"] },
+    { id: "hsbc", name: "HSBC", short: "HSBC", color: "#a13029", group: "foreign", also: ["gb"] },
+    { id: "citi", name: "Citibank", short: "Citi", color: "#053b6e", group: "foreign", aliases: ["citi"], also: ["us"] },
+    { id: "dbs", name: "DBS Bank", short: "DBS", color: "#a1302b", group: "foreign", also: ["apac"] },
+    { id: "deutsche", name: "Deutsche Bank", short: "Deutsche", color: "#0f2f86", group: "foreign", also: ["eu"] },
+    { id: "barclays", name: "Barclays", short: "Barclays", color: "#06395b", group: "foreign", also: ["gb"] },
 
-    { id: "airtel", name: "Airtel Payments Bank", short: "Airtel", color: "#a13126", group: "payments", logo: [6.54, true] },
+    { id: "airtel", name: "Airtel Payments Bank", short: "Airtel", color: "#a13126", group: "payments" },
     { id: "ippb", name: "India Post Payments Bank", short: "IPPB", color: "#a12f34", group: "payments", aliases: ["post office"] },
-    { id: "jio", name: "Jio Payments Bank", short: "Jio", color: "#0c2a81", group: "payments", logo: [1.0, true] },
+    { id: "jio", name: "Jio Payments Bank", short: "Jio", color: "#0c2a81", group: "payments" },
     { id: "fino", name: "Fino Payments Bank", short: "Fino", color: "#612f8c", group: "payments" },
+
+    // ----- around the world (added later: keep new banks at the end) -----
+
+    // United States
+    { id: "chase", name: "Chase", short: "Chase", color: "#0b3d7a", region: "us", aliases: ["chase bank", "jpmorgan chase", "jpmorgan chase bank"] },
+    { id: "bofa", name: "Bank of America", short: "BofA", mark: "Bank of America", color: "#a3132c", region: "us", aliases: ["boa", "bofa", "b of a"] },
+    { id: "wells", name: "Wells Fargo", short: "Wells Fargo", color: "#a1191f", region: "us", aliases: ["wf"] },
+    { id: "capone", name: "Capital One", short: "Capital One", color: "#0b4a74", region: "us", aliases: ["capitalone", "cap one"] },
+    { id: "usbank", name: "U.S. Bank", short: "U.S. Bank", color: "#0c2074", region: "us", aliases: ["us bank", "usbank"] },
+    { id: "pnc", name: "PNC Bank", short: "PNC", color: "#b14a0d", region: "us" },
+    { id: "truist", name: "Truist", short: "Truist", color: "#3c2a6b", region: "us" },
+    { id: "goldman", name: "Goldman Sachs", short: "Goldman Sachs", color: "#3f5f86", region: "us", aliases: ["apple card", "marcus", "gs"] },
+    { id: "discover", name: "Discover", short: "Discover", color: "#a24a0f", region: "us", aliases: ["discover bank"] },
+    { id: "synchrony", name: "Synchrony", short: "Synchrony", color: "#3a3f46", region: "us" },
+    { id: "schwab", name: "Charles Schwab", short: "Schwab", color: "#0a5a8c", region: "us" },
+    { id: "ally", name: "Ally Bank", short: "Ally", color: "#5a1d6b", region: "us" },
+    { id: "usaa", name: "USAA", short: "USAA", color: "#0c2a4d", region: "us" },
+    { id: "navyfed", name: "Navy Federal Credit Union", short: "Navy Federal", color: "#0d2a5c", region: "us", aliases: ["nfcu"] },
+    { id: "citizens", name: "Citizens Bank", short: "Citizens", color: "#0b5b46", region: "us" },
+    { id: "fifththird", name: "Fifth Third Bank", short: "Fifth Third", color: "#145233", region: "us", aliases: ["53"] },
+    { id: "keybank", name: "KeyBank", short: "KeyBank", color: "#a11622", region: "us" },
+    { id: "huntington", name: "Huntington Bank", short: "Huntington", color: "#2a6b2e", region: "us" },
+
+    // Canada
+    { id: "rbc", name: "Royal Bank of Canada", short: "RBC", color: "#0b3f7a", region: "ca", aliases: ["royal bank"] },
+    { id: "td", name: "TD Bank", short: "TD", color: "#11612b", region: "ca", also: ["us"], aliases: ["td canada trust", "toronto dominion"] },
+    { id: "scotia", name: "Scotiabank", short: "Scotiabank", color: "#a1141c", region: "ca", aliases: ["bank of nova scotia", "bns"] },
+    { id: "bmo", name: "BMO", short: "BMO", mark: "BMO", color: "#0b4d8c", region: "ca", aliases: ["bank of montreal"] },
+    { id: "cibc", name: "CIBC", short: "CIBC", color: "#9b1b22", region: "ca" },
+    { id: "nbc", name: "National Bank of Canada", short: "National Bank", color: "#9e1a22", region: "ca", aliases: ["banque nationale"] },
+    { id: "desjardins", name: "Desjardins", short: "Desjardins", color: "#0c5a3c", region: "ca" },
+    { id: "tangerine", name: "Tangerine", short: "Tangerine", color: "#b1500d", region: "ca" },
+
+    // United Kingdom
+    { id: "lloyds", name: "Lloyds Bank", short: "Lloyds", color: "#0b5a33", region: "gb" },
+    { id: "natwest", name: "NatWest", short: "NatWest", color: "#42145f", region: "gb" },
+    { id: "santander", name: "Santander", short: "Santander", color: "#a8100f", region: "eu", also: ["gb", "latam", "us"] },
+    { id: "halifax", name: "Halifax", short: "Halifax", color: "#0b3a8c", region: "gb" },
+    { id: "nationwide", name: "Nationwide", short: "Nationwide", color: "#0c2f6b", region: "gb", aliases: ["nationwide building society"] },
+    { id: "rbs", name: "Royal Bank of Scotland", short: "RBS", color: "#2b2a6b", region: "gb" },
+    { id: "tsb", name: "TSB", short: "TSB", color: "#0b4a8c", region: "gb" },
+    { id: "metro", name: "Metro Bank", short: "Metro", color: "#b0102a", region: "gb" },
+    { id: "virgin", name: "Virgin Money", short: "Virgin Money", color: "#a1122a", region: "gb" },
+
+    // Europe
+    { id: "bnp", name: "BNP Paribas", short: "BNP Paribas", color: "#0b5a3c", region: "eu", aliases: ["bnp"] },
+    { id: "cagricole", name: "Crédit Agricole", short: "Crédit Agricole", color: "#0b5a52", region: "eu" },
+    { id: "socgen", name: "Société Générale", short: "Société Générale", color: "#9e1b23", region: "eu", aliases: ["sg"] },
+    { id: "commerz", name: "Commerzbank", short: "Commerzbank", color: "#6b5a12", region: "eu" },
+    { id: "sparkasse", name: "Sparkasse", short: "Sparkasse", color: "#a5121b", region: "eu" },
+    { id: "ing", name: "ING", short: "ING", color: "#b14800", region: "eu", aliases: ["ing bank", "ing direct"] },
+    { id: "rabo", name: "Rabobank", short: "Rabobank", color: "#0b3a7a", region: "eu" },
+    { id: "abn", name: "ABN AMRO", short: "ABN AMRO", color: "#0a5c55", region: "eu" },
+    { id: "bbva", name: "BBVA", short: "BBVA", color: "#0a3b78", region: "eu", also: ["latam"] },
+    { id: "caixabank", name: "CaixaBank", short: "CaixaBank", color: "#0b5a8c", region: "eu", aliases: ["la caixa"] },
+    { id: "intesa", name: "Intesa Sanpaolo", short: "Intesa", color: "#0b5a38", region: "eu" },
+    { id: "unicredit", name: "UniCredit", short: "UniCredit", color: "#a1141c", region: "eu" },
+    { id: "ubs", name: "UBS", short: "UBS", color: "#8a1c1c", region: "eu" },
+    { id: "kbc", name: "KBC", short: "KBC", color: "#0b4f7a", region: "eu" },
+    { id: "nordea", name: "Nordea", short: "Nordea", color: "#0b2f6b", region: "eu" },
+    { id: "danske", name: "Danske Bank", short: "Danske", color: "#0b3352", region: "eu" },
+    { id: "seb", name: "SEB", short: "SEB", color: "#2a6b2e", region: "eu" },
+    { id: "swedbank", name: "Swedbank", short: "Swedbank", color: "#a14a0f", region: "eu" },
+    { id: "handels", name: "Handelsbanken", short: "Handelsbanken", color: "#0b3f6b", region: "eu" },
+    { id: "dnb", name: "DNB", short: "DNB", color: "#0b5a5a", region: "eu" },
+    { id: "erste", name: "Erste Bank", short: "Erste", color: "#0b3f7a", region: "eu", aliases: ["erste group"] },
+    { id: "raiffeisen", name: "Raiffeisen Bank", short: "Raiffeisen", color: "#6b5a12", region: "eu" },
+
+    // Asia-Pacific
+    { id: "ocbc", name: "OCBC", short: "OCBC", color: "#a1141c", region: "apac" },
+    { id: "uob", name: "UOB", short: "UOB", color: "#0b3a7a", region: "apac", aliases: ["united overseas bank"] },
+    { id: "maybank", name: "Maybank", short: "Maybank", color: "#6b5a12", region: "apac" },
+    { id: "cimb", name: "CIMB Bank", short: "CIMB", color: "#a1141c", region: "apac" },
+    { id: "publicbank", name: "Public Bank", short: "Public Bank", color: "#9b1b22", region: "apac" },
+    { id: "bca", name: "Bank Central Asia", short: "BCA", color: "#0b3a7a", region: "apac" },
+    { id: "mandiri", name: "Bank Mandiri", short: "Mandiri", color: "#0b3a6b", region: "apac" },
+    { id: "bri", name: "Bank Rakyat Indonesia", short: "BRI", color: "#0b4a7a", region: "apac" },
+    { id: "bdo", name: "BDO Unibank", short: "BDO", color: "#0b3a7a", region: "apac" },
+    { id: "bpi", name: "Bank of the Philippine Islands", short: "BPI", color: "#a1141c", region: "apac" },
+    { id: "kbank", name: "Kasikornbank", short: "KBank", color: "#0b5a33", region: "apac", aliases: ["kasikorn"] },
+    { id: "bangkok", name: "Bangkok Bank", short: "Bangkok Bank", color: "#0b3a7a", region: "apac" },
+    { id: "siam", name: "Siam Commercial Bank", short: "Siam Commercial", color: "#4a2a6b", region: "apac", aliases: ["siam"] },
+    { id: "vietcombank", name: "Vietcombank", short: "Vietcombank", color: "#0b5a33", region: "apac" },
+    { id: "mufg", name: "MUFG Bank", short: "MUFG", color: "#a1141c", region: "apac", aliases: ["mitsubishi ufj"] },
+    { id: "smbc", name: "Sumitomo Mitsui Banking Corporation", short: "SMBC", color: "#0b5a33", region: "apac", aliases: ["sumitomo mitsui"] },
+    { id: "mizuho", name: "Mizuho", short: "Mizuho", color: "#0b2f6b", region: "apac" },
+    { id: "japanpost", name: "Japan Post Bank", short: "Japan Post", color: "#0b5a33", region: "apac", aliases: ["yucho"] },
+    { id: "rakuten", name: "Rakuten Bank", short: "Rakuten", color: "#a1141c", region: "apac" },
+    { id: "kb", name: "KB Kookmin Bank", short: "KB", color: "#6b5a12", region: "apac", aliases: ["kookmin"] },
+    { id: "shinhan", name: "Shinhan Bank", short: "Shinhan", color: "#0b3a7a", region: "apac" },
+    { id: "hana", name: "Hana Bank", short: "Hana", color: "#0b5a52", region: "apac" },
+    { id: "woori", name: "Woori Bank", short: "Woori", color: "#0b4a7a", region: "apac" },
+    { id: "icbc", name: "ICBC", short: "ICBC", color: "#a1141c", region: "apac", aliases: ["industrial and commercial bank of china"] },
+    { id: "ccb", name: "China Construction Bank", short: "CCB", color: "#0b3a7a", region: "apac" },
+    { id: "bankofchina", name: "Bank of China", short: "Bank of China", color: "#a1141c", region: "apac", aliases: ["boc"] },
+    { id: "abc", name: "Agricultural Bank of China", short: "ABC", color: "#0b5a42", region: "apac" },
+    { id: "cmb", name: "China Merchants Bank", short: "CMB", color: "#a1141c", region: "apac" },
+    { id: "bocom", name: "Bank of Communications", short: "BoCom", color: "#0b3a6b", region: "apac" },
+    { id: "hangseng", name: "Hang Seng Bank", short: "Hang Seng", color: "#0b5a52", region: "apac" },
+    { id: "bea", name: "Bank of East Asia", short: "BEA", color: "#a1141c", region: "apac" },
+    { id: "commbank", name: "Commonwealth Bank", short: "CommBank", color: "#6b5a12", region: "apac", aliases: ["commonwealth bank of australia", "cba"] },
+    { id: "westpac", name: "Westpac", short: "Westpac", color: "#a1141c", region: "apac" },
+    { id: "anz", name: "ANZ", short: "ANZ", color: "#0b3f7a", region: "apac", aliases: ["australia and new zealand banking"] },
+    { id: "nab", name: "National Australia Bank", short: "NAB", color: "#3a3f46", region: "apac" },
+    { id: "macquarie", name: "Macquarie", short: "Macquarie", color: "#2b3a4a", region: "apac" },
+    { id: "asb", name: "ASB Bank", short: "ASB", color: "#6b5a12", region: "apac" },
+    { id: "bnz", name: "Bank of New Zealand", short: "BNZ", color: "#0b3a7a", region: "apac" },
+    { id: "kiwibank", name: "Kiwibank", short: "Kiwibank", color: "#2a6b2e", region: "apac" },
+    { id: "hbl", name: "Habib Bank", short: "HBL", color: "#0b5a42", region: "apac" },
+    { id: "mcb", name: "MCB Bank", short: "MCB", color: "#2a5a2a", region: "apac" },
+    { id: "meezan", name: "Meezan Bank", short: "Meezan", color: "#5a1d4b", region: "apac" },
+    { id: "combank", name: "Commercial Bank of Ceylon", short: "ComBank", color: "#0b3a7a", region: "apac" },
+    { id: "brac", name: "BRAC Bank", short: "BRAC", color: "#0b3a6b", region: "apac" },
+    { id: "dbbl", name: "Dutch-Bangla Bank", short: "DBBL", color: "#0b5a33", region: "apac" },
+    { id: "nabil", name: "Nabil Bank", short: "Nabil", color: "#0b3a6b", region: "apac" },
+
+    // Middle East
+    { id: "enbd", name: "Emirates NBD", short: "Emirates NBD", color: "#0b3f6b", region: "me", aliases: ["enbd"] },
+    { id: "fab", name: "First Abu Dhabi Bank", short: "FAB", color: "#0b3a6b", region: "me" },
+    { id: "adcb", name: "Abu Dhabi Commercial Bank", short: "ADCB", color: "#a1141c", region: "me" },
+    { id: "mashreq", name: "Mashreq", short: "Mashreq", color: "#a14a0f", region: "me" },
+    { id: "dib", name: "Dubai Islamic Bank", short: "DIB", color: "#0b5a3c", region: "me" },
+    { id: "qnb", name: "Qatar National Bank", short: "QNB", color: "#5a1d4b", region: "me" },
+    { id: "alrajhi", name: "Al Rajhi Bank", short: "Al Rajhi", color: "#0b3a7a", region: "me", aliases: ["alrajhi"] },
+    { id: "snb", name: "Saudi National Bank", short: "SNB", color: "#0b5a3c", region: "me", aliases: ["alahli", "ncb"] },
+    { id: "riyad", name: "Riyad Bank", short: "Riyad Bank", color: "#0b4a6b", region: "me" },
+    { id: "kfh", name: "Kuwait Finance House", short: "KFH", color: "#0b5a3c", region: "me" },
+    { id: "nbk", name: "National Bank of Kuwait", short: "NBK", color: "#0b3a6b", region: "me" },
+    { id: "hapoalim", name: "Bank Hapoalim", short: "Hapoalim", color: "#a1141c", region: "me" },
+    { id: "leumi", name: "Bank Leumi", short: "Leumi", color: "#0b3f7a", region: "me" },
+
+    // Africa
+    { id: "standardbank", name: "Standard Bank", short: "Standard Bank", color: "#0b2f6b", region: "af" },
+    { id: "fnb", name: "First National Bank", short: "FNB", color: "#0b5a5a", region: "af", aliases: ["firstrand"] },
+    { id: "absa", name: "Absa", short: "Absa", color: "#a1141c", region: "af" },
+    { id: "nedbank", name: "Nedbank", short: "Nedbank", color: "#0b5a33", region: "af" },
+    { id: "capitec", name: "Capitec", short: "Capitec", color: "#0b3a6b", region: "af" },
+    { id: "ecobank", name: "Ecobank", short: "Ecobank", color: "#0b4a6b", region: "af" },
+    { id: "access", name: "Access Bank", short: "Access", color: "#a14a0f", region: "af" },
+    { id: "zenith", name: "Zenith Bank", short: "Zenith", color: "#a1141c", region: "af" },
+    { id: "gtbank", name: "Guaranty Trust Bank", short: "GTBank", color: "#a14a0f", region: "af", aliases: ["gtco", "gt bank"] },
+    { id: "equity", name: "Equity Bank", short: "Equity", color: "#8a2a1c", region: "af" },
+    { id: "attijari", name: "Attijariwafa Bank", short: "Attijariwafa", color: "#a14a0f", region: "af" },
+    { id: "cib", name: "Commercial International Bank", short: "CIB", color: "#0b3a6b", region: "af" },
+    { id: "banquemisr", name: "Banque Misr", short: "Banque Misr", color: "#8a1c1c", region: "af" },
+
+    // Latin America
+    { id: "itau", name: "Itaú Unibanco", short: "Itaú", color: "#b04a0d", region: "latam" },
+    { id: "bradesco", name: "Bradesco", short: "Bradesco", color: "#a1141c", region: "latam" },
+    { id: "bb", name: "Banco do Brasil", short: "Banco do Brasil", color: "#0b3a7a", region: "latam" },
+    { id: "caixa", name: "Caixa Econômica Federal", short: "Caixa", color: "#0b4f8c", region: "latam" },
+    { id: "banorte", name: "Banorte", short: "Banorte", color: "#a1141c", region: "latam" },
+    { id: "banamex", name: "Banamex", short: "Banamex", color: "#0b3a7a", region: "latam", aliases: ["citibanamex"] },
+    { id: "bancolombia", name: "Bancolombia", short: "Bancolombia", color: "#6b5a12", region: "latam" },
+    { id: "bancochile", name: "Banco de Chile", short: "Banco de Chile", color: "#0b3a6b", region: "latam" },
+    { id: "bcp", name: "Banco de Crédito del Perú", short: "BCP", color: "#0b3a7a", region: "latam" },
+    { id: "galicia", name: "Banco Galicia", short: "Galicia", color: "#a14a0f", region: "latam" },
+
+    // Digital banks
+    { id: "revolut", name: "Revolut", short: "Revolut", color: "#2b2f36", region: "digital", also: ["gb", "eu"] },
+    { id: "wise", name: "Wise", short: "Wise", color: "#2a6b2e", region: "digital", also: ["gb", "eu"], aliases: ["transferwise"] },
+    { id: "monzo", name: "Monzo", short: "Monzo", color: "#a1312a", region: "digital", also: ["gb"] },
+    { id: "starling", name: "Starling Bank", short: "Starling", color: "#4a2a6b", region: "digital", also: ["gb"] },
+    { id: "n26", name: "N26", short: "N26", color: "#2b3a4a", region: "digital", also: ["eu"] },
+    { id: "bunq", name: "bunq", short: "bunq", color: "#2a6b2e", region: "digital", also: ["eu"] },
+    { id: "chime", name: "Chime", short: "Chime", color: "#0b5a3c", region: "digital", also: ["us"] },
+    { id: "sofi", name: "SoFi", short: "SoFi", color: "#0b4a7a", region: "digital", also: ["us"] },
+    { id: "varo", name: "Varo Bank", short: "Varo", color: "#2a3a6b", region: "digital", also: ["us"] },
+    { id: "cashapp", name: "Cash App", short: "Cash App", color: "#1c5a2a", region: "digital", also: ["us"], aliases: ["square"] },
+    { id: "paypal", name: "PayPal", short: "PayPal", color: "#0b3a7a", region: "digital", also: ["us"] },
+    { id: "nubank", name: "Nubank", short: "Nu", mark: "Nu", color: "#5a1d7a", region: "digital", also: ["latam"], aliases: ["nu"] },
+    { id: "inter", name: "Banco Inter", short: "Inter", color: "#a14a0f", region: "digital", also: ["latam"] },
+    { id: "mercadopago", name: "Mercado Pago", short: "Mercado Pago", color: "#0b5a8c", region: "digital", also: ["latam"] },
+
+    // added after the first world list
+    { id: "jpmorgan", name: "J.P. Morgan", short: "J.P. Morgan", color: "#4f4236", region: "us", aliases: ["jp morgan", "jpmorgan", "jpm", "j p morgan", "jpmorgan private bank"] },
 ];
 
 /** Tile colours for banks that aren't in the list, in the same depth as the listed ones. */
@@ -123,6 +318,16 @@ export function cardFace(known, name) {
     return i < 0 ? BLANK_FACE : CARD_FACES[i];
 }
 
+/** The listed banks someone has cards with, most cards first, for the bank picker's tiles. */
+export function banksOf(cards = []) {
+    const count = new Map();
+    for (const c of cards) {
+        const id = parseBankName(c.bankName).known?.id;
+        if (id) count.set(id, (count.get(id) || 0) + 1);
+    }
+    return [...count.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => id);
+}
+
 /** Faces for a row of cards (by _id): each bank's own, moved on one where it would repeat its neighbour's. */
 export function rowFaces(cards) {
     const faces = new Map();
@@ -138,7 +343,14 @@ export function rowFaces(cards) {
     return faces;
 }
 
-const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9&]+/g, " ").trim();
+// lower case, accents folded (Société → societe), anything else between words a single space
+const norm = (s) =>
+    String(s || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9&]+/g, " ")
+        .trim();
 
 /** The listed bank a name refers to, by its full name, short name or an alias. */
 export function findBank(name) {
@@ -147,22 +359,84 @@ export function findBank(name) {
     return BANKS.find((b) => norm(b.name) === n || norm(b.short) === n || (b.aliases || []).some((a) => norm(a) === n)) || null;
 }
 
-/** Banks matching a search, best first: a short-name or word-start match beats one in the middle. */
-export function searchBanks(query) {
+const SMALL_WORDS = new Set(["of", "the", "and", "&", "de", "do", "da", "del"]);
+
+/** A name's initials, with and without its small words: "Bank of America" → boa and ba. */
+function initialsOf(name) {
+    const words = norm(name).split(" ").filter(Boolean);
+    const all = words.map((w) => w[0]).join("");
+    const big = words.filter((w) => !SMALL_WORDS.has(w)).map((w) => w[0]).join("");
+    return [...new Set([all, big])].filter((x) => x.length > 1);
+}
+
+/** True when a and b are one typo apart: a letter added, dropped, changed or two swapped. */
+function oneTypo(a, b) {
+    if (a === b || Math.abs(a.length - b.length) > 1) return a === b;
+    let i = 0;
+    while (i < a.length && a[i] === b[i]) i++;
+    if (a.length === b.length) {
+        if (a.slice(i + 1) === b.slice(i + 1)) return true;
+        return a[i] === b[i + 1] && a[i + 1] === b[i] && a.slice(i + 2) === b.slice(i + 2);
+    }
+    const [long, short] = a.length > b.length ? [a, b] : [b, a];
+    return long.slice(i + 1) === short.slice(i);
+}
+
+/**
+ * Banks matching a search, best first: a whole-name match, then a name or a word starting with
+ * it, then its initials ("boa", "rbc"), then anywhere in a name, then one typo away ("barlcays").
+ * Within a rank, banks in `prefer` (a region id) come first, then the list's own order.
+ */
+export function searchBanks(query, prefer) {
     const q = norm(query);
     if (!q) return [];
     const score = (b) => {
-        const names = [b.short, b.name, ...(b.aliases || [])].map(norm);
+        const names = [b.short, b.name, b.mark, ...(b.aliases || [])].filter(Boolean).map(norm);
         if (names.some((n) => n === q)) return 0;
         if (names.some((n) => n.startsWith(q))) return 1;
         if (names.some((n) => n.split(" ").some((w) => w.startsWith(q)))) return 2;
+        if (q.length > 1 && !q.includes(" ") && initialsOf(b.name).includes(q)) return 2.5;
         if (names.some((n) => n.includes(q))) return 3;
+        if (q.length >= 4 && names.some((n) => n.split(" ").some((w) => w.length >= 4 && oneTypo(w, q)))) return 4;
         return -1;
     };
-    return BANKS.map((b) => [b, score(b)])
-        .filter(([, s]) => s >= 0)
-        .sort((a, b) => a[1] - b[1])
+    const local = (b) => (prefer && regionsOf(b).includes(prefer) ? 0 : 1);
+    const hits = BANKS.map((b, i) => [b, score(b), i]).filter(([, s]) => s >= 0);
+    // a typo is only a guess: offer one only when nothing matched properly
+    const sure = hits.some(([, s]) => s < 4);
+    return hits
+        .filter(([, s]) => !sure || s < 4)
+        .sort((a, b) => a[1] - b[1] || local(a[0]) - local(b[0]) || a[2] - b[2])
         .map(([b]) => b);
+}
+
+// time zones that point to a region; anything else falls back on the browser's language
+const ZONE_REGIONS = [
+    [/^Asia\/(Kolkata|Calcutta)$/, "in"],
+    [/^America\/(Toronto|Vancouver|Montreal|Edmonton|Winnipeg|Halifax|St_Johns|Regina)/, "ca"],
+    [/^America\/(New_York|Chicago|Denver|Los_Angeles|Phoenix|Anchorage|Detroit|Boise|Indiana|Kentucky)|^Pacific\/Honolulu/, "us"],
+    [/^America\//, "latam"],
+    [/^Europe\/(London|Belfast)$/, "gb"],
+    [/^Europe\//, "eu"],
+    [/^Asia\/(Dubai|Riyadh|Qatar|Kuwait|Bahrain|Muscat|Jerusalem|Tel_Aviv|Amman|Beirut|Baghdad|Tehran)$/, "me"],
+    [/^Africa\//, "af"],
+    [/^(Asia|Australia|Pacific)\//, "apac"],
+];
+
+/** Where the person adding a card most likely banks, from their time zone. */
+export function guessRegion() {
+    try {
+        const zone = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+        const hit = ZONE_REGIONS.find(([re]) => re.test(zone));
+        if (hit) return hit[1];
+        const lang = (typeof navigator !== "undefined" && navigator.language) || "";
+        if (/-IN$/i.test(lang)) return "in";
+        if (/-US$/i.test(lang)) return "us";
+        if (/-GB$/i.test(lang)) return "gb";
+    } catch {
+        /* no Intl: fall through */
+    }
+    return "in";
 }
 
 export const CARD_TYPES = ["Credit", "Debit", "Prepaid"];

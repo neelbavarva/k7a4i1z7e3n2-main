@@ -8,6 +8,9 @@ import {
     groupNumber,
     luhnValid,
     parseBankName,
+    REGIONS,
+    banksOf,
+    regionsOf,
     rowFaces,
     searchBanks,
 } from "@/lib/cards";
@@ -101,5 +104,52 @@ describe("rowFaces", () => {
         const faces = cards.map((c) => rowFaces(cards).get(c._id));
         for (let i = 1; i < faces.length; i++) expect(faces[i]).not.toBe(faces[i - 1]);
         faces.forEach((f) => expect(CARD_FACES).toContain(f));
+    });
+});
+
+describe("banks around the world", () => {
+    it("lists the Indian banks first, so existing cards keep their faces", () => {
+        const firstWorld = BANKS.findIndex((b) => b.region);
+        expect(firstWorld).toBeGreaterThan(0);
+        expect(BANKS.slice(firstWorld).every((b) => b.region)).toBe(true);
+        expect(BANKS.slice(0, firstWorld).map((b) => b.id).slice(0, 4)).toEqual(["hdfc", "sbi", "iob", "axis"]);
+    });
+    it("has unique ids, and every region has banks", () => {
+        const ids = BANKS.map((b) => b.id);
+        expect(new Set(ids).size).toBe(ids.length);
+        for (const r of REGIONS) expect(BANKS.some((b) => regionsOf(b).includes(r.id))).toBe(true);
+    });
+    it("lists India's foreign banks in their home regions too", () => {
+        expect(regionsOf(findBank("HSBC"))).toEqual(["in", "gb"]);
+        expect(regionsOf(findBank("Citibank"))).toContain("us");
+    });
+});
+
+describe("smart bank search", () => {
+    const top = (q, region) => searchBanks(q, region)[0]?.id;
+    it("knows initials, with and without small words", () => {
+        expect(top("boa")).toBe("bofa");
+        expect(top("rbc")).toBe("rbc");
+        expect(top("cba")).toBe("commbank");
+    });
+    it("ignores accents and forgives one typo", () => {
+        expect(top("societe generale")).toBe("socgen");
+        expect(top("barlcays")).toBe("barclays");
+    });
+    it("only guesses at typos when nothing matched properly", () => {
+        expect(searchBanks("hdfc").map((b) => b.id)).toEqual(["hdfc"]);
+    });
+    it("puts banks from your region first among equal matches", () => {
+        expect(top("national", "ca")).toBe("nbc");
+        expect(top("national", "apac")).toBe("nab");
+        expect(top("national", "me")).toBe("nbk");
+    });
+});
+
+describe("banksOf", () => {
+    it("lists the banks someone has cards with, most cards first", () => {
+        const cards = ["Axis Bank · Credit", "HDFC Bank · Debit", "HDFC Bank · Credit", "My Credit Union"].map((bankName, i) => ({ _id: String(i), bankName }));
+        expect(banksOf(cards)).toEqual(["hdfc", "axis"]);
+        expect(banksOf([])).toEqual([]);
     });
 });

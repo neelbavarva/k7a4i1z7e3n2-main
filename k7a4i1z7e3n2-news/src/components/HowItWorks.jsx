@@ -79,12 +79,14 @@ const jump = (e, id) => {
   requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
 };
 
+/** The contents as a line index: a dash per section, darker once read, longer for the one in view. */
 function Contents({ active }) {
+  const at = SECTIONS.findIndex(([id]) => id === active);
   return (
     <ol className="toc-list">
-      {SECTIONS.map(([id, title]) => (
+      {SECTIONS.map(([id, title], i) => (
         <li key={id}>
-          <a href={`#${id}`} onClick={(e) => jump(e, id)} aria-current={active === id ? 'true' : undefined}>
+          <a href={`#${id}`} onClick={(e) => jump(e, id)} aria-current={active === id ? 'true' : undefined} data-read={i < at || undefined}>
             {title}
           </a>
         </li>

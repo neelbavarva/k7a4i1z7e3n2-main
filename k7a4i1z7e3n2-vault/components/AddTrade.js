@@ -216,7 +216,7 @@ function TradeForm({ strategy, secondaryStrategy, onSaving, onDone }) {
                 </div>
 
                 {counterTrade ? (
-                    <p className="note fade-in">Counter trade: the checklist is skipped and the trade is saved without a grade.</p>
+                    <p className="note is-info fade-in">Counter trade: the checklist is skipped and the trade is saved without a grade.</p>
                 ) : (
                     <div className="fade-in checklist-block">
                         <div className="grade-panel">

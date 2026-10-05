@@ -13,6 +13,8 @@
     "dependencies": {
         "@base-ui/react": "^1.0.0",
         "@fontsource-variable/instrument-sans": "^5.3.0",
+        "@fontsource-variable/montserrat": "^5.3.0",
+        "@fontsource/share-tech-mono": "^5.3.0",
         "@fontsource/young-serif": "^5.3.0",
         "@radix-ui/react-alert-dialog": "^1.1.15",
         "@radix-ui/react-dialog": "^1.1.15",

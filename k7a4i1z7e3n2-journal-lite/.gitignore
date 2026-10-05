@@ -1,0 +1,14 @@
+/node_modules
+/.next/
+/out/
+*.tsbuildinfo
+next-env.d.ts
+.DS_Store
+*.log
+
+# Local environment variables (the API key lives here)
+.env
+.env*.local
+!.env.example
+
+.vercel

@@ -7,10 +7,11 @@ import { PASSWORD_CATEGORIES } from "@/lib/categories";
 import { http } from "@/lib/http";
 import { fmtAgo, fmtDate } from "@/lib/format";
 import { bankColor, cardFace, detectNetwork, parseBankName, rowFaces } from "@/lib/cards";
+import { LOGOS } from "@/lib/logos";
 import BreachCheck from "./BreachCheck";
 import Modal from "./k7/Modal";
-import BankLogo, { BankMark } from "./k7/BankLogo";
-import NetworkMark, { markRatio } from "./k7/NetworkMark";
+import BankLogo, { BankMark, initialOf } from "./k7/BankLogo";
+import NetworkMark, { markSize } from "./k7/NetworkMark";
 import Seg from "./k7/Seg";
 import SecretInput from "./k7/SecretInput";
 import ServiceIcon, { CATEGORY_ICON } from "./k7/ServiceIcon";
@@ -89,7 +90,7 @@ function CopyButton({ value, label = "Copy", what }) {
     );
 }
 
-export default function Passwords({ refreshKey = 0, onManage }) {
+export default function Passwords({ refreshKey = 0, onManage, onCards }) {
     const [cards, setCards] = useState([]);
     const [passwords, setPasswords] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -149,6 +150,8 @@ export default function Passwords({ refreshKey = 0, onManage }) {
     }, [passwords, categoryFilter, searchQuery, sortDirection]);
 
     // each card's colours, so the strip and the dialog agree and neighbours never match
+    // the dialog that adds cards puts the banks you already use first
+    useEffect(() => onCards?.(cards), [cards, onCards]);
     const faces = useMemo(() => rowFaces(cards), [cards]);
 
     const groups = useMemo(() => {
@@ -476,14 +479,6 @@ const dotted = (text) =>
 const groupsOf = (s, network) =>
     network?.id === "amex" ? [s.slice(0, 4), s.slice(4, 10), s.slice(10, 15)].filter(Boolean) : s.match(/.{1,4}/g) || [];
 
-/** Sizes a mark of this shape (width / height) to about `area` cqw², so wide and tall ones weigh the same. */
-function fitArea(ratio, area, { minH, maxH, maxW }) {
-    let h = Math.min(maxH, Math.max(minH, Math.sqrt(area / ratio)));
-    const w = Math.min(maxW, h * ratio);
-    h = w / ratio;
-    return { width: `${w}cqw`, height: `${h}cqw` };
-}
-
 const startsWith = (text, prefix) => !!prefix && text.toLowerCase().startsWith(prefix.toLowerCase());
 
 /**
@@ -506,25 +501,72 @@ function cardWords(info, cardName) {
     };
 }
 
-/** Top right of a card: the bank's logo, in its colours with dark lettering turned white. */
+/** The height (cqw) every logo's lettering is set to: a touch over the card name's capitals. */
+const LOGO_LETTERS = 3.9;
+/** The ink box (cqw²) a logo gets when sized by its ink alone. */
+const LOGO_INK = 90;
+
+/**
+ * Width and height (cqw) for a logo, from its measured shape (see lib/logos.js), so that every
+ * bank's logo reads as the same size. Two measures, blended: its lettering set to one height
+ * (so "HDFC BANK" and "Indian Overseas Bank" read alike, whatever symbol sits beside them),
+ * and its ink box shrunk with its density (a dense SBI needs less room than a thin wordmark),
+ * which keeps short heavy marks and long light ones in balance. A symbol with no lettering
+ * goes by its ink alone. Tall stacked logos stop at 10.5cqw and long wordmarks at 46cqw, so
+ * the card's name keeps its room. `s` is the hand-set correction for what the measures miss.
+ */
+export function logoSize({ r, d, t, s = 1 }) {
+    const byInk = Math.sqrt(LOGO_INK / d ** 0.75 / r);
+    const byLetters = t ? LOGO_LETTERS / t : byInk;
+    let h = byLetters ** 0.35 * byInk ** 0.65 * s;
+    h = Math.min(11, Math.max(4.5, h));
+    const w = Math.min(44, h * r);
+    h = w / r;
+    return { w: +w.toFixed(2), h: +h.toFixed(2) };
+}
+
+/** How a bank's name is printed when it has no logo file: its own way, or its name if it fits two lines. */
+const printedName = (bank, typed) => (bank ? bank.mark || (bank.name.length <= 24 ? bank.name : bank.short) : typed);
+
+/**
+ * Top right of a card: the bank's logo printed in white, the way banks print on their own
+ * cards, so it reads on any face. Its middle lines up with the middle of the card name's first
+ * line; a tall one stops rising at the card's top margin, so the corner keeps its room. A bank
+ * without a logo file (or one typed in) gets a lockup of the same weight: its initial cut out
+ * of a white tile, and its name set beside it in two lines at most.
+ */
 function CardLogo({ info }) {
     const bank = info.known;
-    if (!bank) return null;
-    const [ratio, symbol] = bank.logo || [0, false];
-    if (ratio > 0) return <BankLogo id={bank.id} className="bc-logo is-lift" style={fitArea(ratio, 190, { minH: 4.8, maxH: 10, maxW: 36 })} />;
-    // a symbol without a wordmark, or no logo at all: the name set in type
+    const name = printedName(bank, info.bank);
+    if (!name) return null;
+    const meta = bank && LOGOS[bank.id];
+    if (meta) {
+        const { w, h } = logoSize(meta);
+        const lift = +(h / 2 - (meta.y || 0) * h).toFixed(2);
+        return (
+            <BankLogo
+                id={bank.id}
+                mono={!meta.color}
+                className="bc-logo"
+                style={{ width: `${w}cqw`, height: `${h}cqw`, marginTop: `max(calc(var(--title-line) / 2 - ${lift}cqw), -0.6cqw)` }}
+            />
+        );
+    }
     return (
         <span className="bc-wordmark">
-            {symbol && <BankLogo id={bank.id} symbol className="bc-sym is-lift" />}
-            <span>{bank.name}</span>
+            <span className="bc-monogram" aria-hidden="true">
+                {initialOf(bank, info.bank)}
+            </span>
+            <span className="bc-wordmark-name">{name}</span>
         </span>
     );
 }
 
 /**
  * A card in the manner of a card app: what it is in bold capitals top left, the bank's logo
- * top right, the number and a spaced line under it bottom left, the network's mark bottom
- * right. The face is a quiet colour pair with faint contour lines. Everything is sized in
+ * top right, the chip and contactless mark between, the number and a spaced line under it
+ * bottom left, the network's mark bottom right. The face is a quiet colour pair with faint
+ * contour lines, a soft light from the top left and a hairline edge in its own colour. Everything is sized in
  * container units, so the strip's card and the dialog's bigger one are one design at two
  * scales. `info` overrides what's read from the card (the add-card preview).
  */
@@ -542,6 +584,7 @@ export function BankCard({ card, data, info: given, face, big, onClick, style })
         : "••/••";
     const shown = String(data?.number || "").replace(/\s/g, "") || "•".repeat(amex ? 11 : 12) + (card.lastOfNumber || "••••");
     const [c1, c2] = face || info.face;
+    const ownNetwork = !!info.known && info.network?.id === info.known.id;
     return (
         <Tag
             {...(big
@@ -568,6 +611,15 @@ export function BankCard({ card, data, info: given, face, big, onClick, style })
                 </span>
                 <CardLogo info={info} />
             </span>
+            <span className="bc-mid" aria-hidden="true">
+                <span className="bc-chip" />
+                <svg className="bc-wave" viewBox="0 0 24 24">
+                    <path d="M6 8.32a7.43 7.43 0 0 1 0 7.36" />
+                    <path d="M9.46 6.21a11.76 11.76 0 0 1 0 11.58" />
+                    <path d="M12.91 4.1a15.91 15.91 0 0 1 .01 15.8" />
+                    <path d="M16.37 2a20.16 20.16 0 0 1 0 20" />
+                </svg>
+            </span>
             <span className="bc-bottom">
                 <span className="bc-lines">
                     <span className={`bc-number${data?.number ? " reveal" : ""}`} aria-label="Card number">
@@ -591,8 +643,8 @@ export function BankCard({ card, data, info: given, face, big, onClick, style })
                         words.line && <span className="bc-line">{words.line}</span>
                     )}
                 </span>
-                {info.network && (
-                    <NetworkMark network={info.network} light className="bc-net" style={fitArea(markRatio(info.network), 85, { minH: 4.2, maxH: 8.6, maxW: 19 })} />
+                {info.network && !ownNetwork && (
+                    <NetworkMark network={info.network} light className="bc-net" style={markSize(info.network)} />
                 )}
             </span>
         </Tag>

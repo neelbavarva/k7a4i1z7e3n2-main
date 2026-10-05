@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Lock, Plus, Vault } from "lucide-react";
 import Passwords from "./Passwords";
 import Trades from "./Trades";
@@ -10,6 +10,7 @@ import Mark from "./k7/Mark";
 import Seg from "./k7/Seg";
 import { useKey, useScrolled } from "./k7/hooks";
 import { fmtTime } from "@/lib/format";
+import { banksOf } from "@/lib/cards";
 
 const TABS = [
     { value: "passwords", label: "Vault", title: "Passwords and cards (1)" },
@@ -25,6 +26,8 @@ export default function Main({ unlockedAt, onLogout }) {
     const [vaultKey, setVaultKey] = useState(0);
     const [tradesKey, setTradesKey] = useState(0);
     const [manage, setManage] = useState(null); // null | "password" | "card" | "changeKey"
+    const [myBanks, setMyBanks] = useState([]); // banks you already have cards with, most used first
+    const onCards = useCallback((cards) => setMyBanks(banksOf(cards)), []);
     const [newTradeOpen, setNewTradeOpen] = useState(false);
     const scrolled = useScrolled();
 
@@ -72,7 +75,7 @@ export default function Main({ unlockedAt, onLogout }) {
             <div className="page">
                 <div key={activeTab} className="fade-in">
                     {isVault ? (
-                        <Passwords refreshKey={vaultKey} onManage={setManage} />
+                        <Passwords refreshKey={vaultKey} onManage={setManage} onCards={onCards} />
                     ) : (
                         <Trades refreshKey={tradesKey} onNew={() => setNewTradeOpen(true)} />
                     )}
@@ -108,6 +111,7 @@ export default function Main({ unlockedAt, onLogout }) {
                 onMode={setManage}
                 onClose={() => setManage(null)}
                 onSaved={() => setVaultKey((k) => k + 1)}
+                myBanks={myBanks}
             />
             <AddTrade
                 open={newTradeOpen}

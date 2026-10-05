@@ -1962,10 +1962,11 @@ td {
   align-self: start;
   max-height: calc(100vh - 40px);
   overflow-y: auto;
-  padding-right: 4px;
+  padding: 0 4px 4px 0;
 }
 .toc-title {
   margin: 0 0 10px;
+  padding-left: 11px;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -1973,29 +1974,61 @@ td {
   color: var(--muted);
 }
 .toc-list {
+  display: grid;
+  gap: 2px;
   list-style: none;
   margin: 0;
   padding: 0;
-  border-left: 1px solid var(--line);
 }
+/* a line index: each section is a short dash and its title; read sections darken,
+   the one in view gets a longer blue dash inside a raised, fully bordered pill */
 .toc-list a {
-  display: block;
-  margin-left: -1px;
-  padding: 4px 0 4px 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 5px 10px;
   font-size: 13px;
   line-height: 1.35;
   color: var(--muted);
   text-decoration: none;
-  border-left: 2px solid transparent;
-  transition: color 0.15s, border-color 0.15s;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  transition: color 0.15s, background-color 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+.toc-list a::before {
+  content: '';
+  flex: none;
+  width: 8px;
+  height: 2px;
+  margin-top: 8px; /* centred on the first line, so long titles wrap under their text */
+  border-radius: 2px;
+  background: var(--axis);
+  transition: width 0.25s var(--ease), background-color 0.2s;
+}
+.toc-list a[data-read] {
+  color: var(--ink2);
+}
+.toc-list a[data-read]::before {
+  background: var(--muted);
 }
 .toc-list a:hover {
   color: var(--ink);
+  background: var(--surface);
+}
+.toc-list a:hover::before {
+  width: 12px;
+  background: var(--ink2);
 }
 .toc-list a[aria-current='true'] {
   color: var(--ink);
   font-weight: 500;
-  border-left-color: var(--ink);
+  background: var(--raised);
+  border-color: var(--line);
+  box-shadow: 0 1px 2px rgba(16, 24, 32, 0.06);
+}
+.toc-list a[aria-current='true']::before {
+  width: 16px;
+  background: var(--bull);
 }
 .toc-mobile {
   display: none;
@@ -2052,17 +2085,30 @@ td {
 }
 .formula {
   margin: 14px 0;
-  padding: 14px 18px;
+  padding: 12px 18px 14px;
   font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   font-size: 13px;
   line-height: 1.85;
   color: var(--ink);
   background: var(--surface);
   border: 1px solid var(--line);
-  border-left: 3px solid var(--ink);
-  border-radius: 8px;
+  border-radius: 10px;
   overflow-x: auto;
 }
+/* a small label instead of a coloured edge */
+.formula::before {
+  content: 'Formula';
+  display: block;
+  margin-bottom: 4px;
+  font-family: var(--font);
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.6;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
 .doc-scroll {
   margin: 14px 0;
   overflow-x: auto;
@@ -2158,10 +2204,14 @@ td {
     list-style-position: inside;
   }
   .toc-mobile .toc-list {
-    margin: 0 16px 14px;
+    display: block;
+    margin: 0 6px 10px;
     columns: 2;
     column-gap: 20px;
+  }  .toc-mobile .toc-list li {
+    break-inside: avoid;
   }
+
   .zb-meta {
     display: none;
   }

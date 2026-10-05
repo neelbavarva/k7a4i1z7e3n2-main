@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Landmark } from "lucide-react";
+import { LOGOS } from "@/lib/logos";
 
 // Bank logos live in public/logos/<id>.json, cleaned so one markup draws every version:
 // in the bank's own colours; "is-lift", the same with dark lettering turned white for a card;
@@ -52,16 +53,17 @@ export default function BankLogo({ id, symbol, mono, className = "", style }) {
     const part = logo && (symbol ? logo.sym : logo.vb ? logo : null);
     const cls = `logo${mono ? " is-mono" : ""} ${className}`;
     if (!part) return <span className={`${cls} is-pending`} style={style} aria-hidden="true" />;
+    // cleaned at build time to plain shapes with numeric geometry and colour variables
+    const html = { __html: part.svg ?? logo.svg };
+    if (!symbol || part.svg)
+        return <svg className={cls} style={style} viewBox={part.vb} aria-hidden="true" focusable="false" dangerouslySetInnerHTML={html} />;
+    // a symbol cropped from the full logo: an inner viewport clips the rest (a wide symbol in a
+    // square tile would otherwise show the lettering beside or under it)
+    const [x, y, w, h] = part.vb.split(" ");
     return (
-        <svg
-            className={cls}
-            style={style}
-            viewBox={part.vb}
-            aria-hidden="true"
-            focusable="false"
-            // cleaned at build time to plain shapes with numeric geometry and colour variables
-            dangerouslySetInnerHTML={{ __html: part.svg ?? logo.svg }}
-        />
+        <svg className={cls} style={style} viewBox={part.vb} aria-hidden="true" focusable="false">
+            <svg x={x} y={y} width={w} height={h} viewBox={part.vb} dangerouslySetInnerHTML={html} />
+        </svg>
     );
 }
 
@@ -77,7 +79,7 @@ export function BankMark({ bank, name, color, size = 28 }) {
     const letter = initialOf(bank, name);
     return (
         <span className="bank-mark" style={{ "--s": `${size}px`, "--tint": color }} aria-hidden="true">
-            {bank?.logo?.[1] ? (
+            {LOGOS[bank?.id]?.sym ? (
                 <BankLogo id={bank.id} symbol className="bank-mark-sym" />
             ) : letter ? (
                 <span className="bank-mark-letter">{letter}</span>

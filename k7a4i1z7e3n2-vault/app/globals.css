@@ -922,9 +922,10 @@ code {
 }
 /*
  * A card the way card apps draw it: what it is in bold capitals at the top left, the bank's
- * logo at the top right, the number and a widely spaced line under it at the bottom left,
- * the network's mark at the bottom right, and nothing in between. The face is a quiet colour
- * pair with faint contour lines. Sizes inside are container units (cqw), so the strip's card
+ * logo at the top right, the chip and contactless mark between, the number and a widely
+ * spaced line under it at the bottom left, the network's mark at the bottom right. The face
+ * is a quiet colour pair with faint contour lines, lit from the top left, with a fine grain
+ * and a hairline edge in a lighter shade of its own colour. Sizes inside are container units (cqw), so the strip's card
  * and the dialog's are one design at two scales.
  */
 .bank-card {
@@ -936,18 +937,35 @@ code {
   aspect-ratio: 1.586;
   padding: 7.6% 7.4% 7.8% 7%;
   font: inherit;
+  /* Cards are the one place that leaves the site's type: like a printed card, a geometric
+     sans for the name and labels, and squared, embossed-style digits for the number. */
+  --card-sans: 'Montserrat Variable', 'Montserrat', 'Helvetica Neue', Arial, sans-serif;
+  --card-digits: 'Share Tech Mono', 'OCR B', 'OCR-B', ui-monospace, monospace;
+  /* the card name's size and first line; the logo centres itself on that line */
+  --title-size: clamp(12.5px, 4.6cqw, 22px);
+  --title-line: calc(var(--title-size) * 1.24);
+  font-family: var(--card-sans);
   color: #fff;
   text-align: left;
   background-color: var(--c2);
   background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    linear-gradient(112deg, transparent 28%, rgb(255 255 255 / 0.06) 42%, rgb(255 255 255 / 0.018) 53%, transparent 64%),
+    radial-gradient(120% 95% at 0% 0%, rgb(255 255 255 / 0.15), transparent 58%),
+    linear-gradient(to top, rgb(0 0 0 / 0.17), transparent 48%),
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 504' preserveAspectRatio='none'%3E%3Cg fill='none' stroke='%23fff' stroke-opacity='0.085' stroke-width='1.5'%3E%3Cpath d='M118 150c0-27 27-46 62-44 41 2 66 22 64 47-2 26-30 42-64 41-36-1-62-17-62-44z'/%3E%3Cpath d='M62 150c0-58 58-96 126-91 76 5 136 44 135 103-1 54-60 88-128 83-75-6-133-40-133-95z'/%3E%3Cpath d='M8 158c-4-90 92-156 196-150 118 7 213 76 208 166-5 88-104 146-206 140-110-6-194-66-198-156z'/%3E%3Cpath d='M-46 166C-56 36 84-64 210-52 368-38 482 72 470 186 458 304 330 390 196 380 50 368-38 290-46 166z'/%3E%3Cpath d='M632 364c0-25 25-42 58-40 35 2 58 20 56 42-2 24-28 38-58 37-33-1-56-14-56-39z'/%3E%3Cpath d='M562 366c0-60 60-92 130-87 70 5 120 45 115 95-5 50-60 80-125 75-70-5-120-35-120-83z'/%3E%3Cpath d='M500 370c-5-95 90-150 190-145 110 5 180 70 175 155-5 85-95 140-195 135-100-5-165-60-170-145z'/%3E%3Cpath d='M440 374c-10-130 120-210 250-205 150 5 240 105 235 215-5 110-125 190-260 185-125-5-215-75-225-195z'/%3E%3Cpath d='M-20 430c140-40 280 50 420 10 120-35 160-130 300-180 60-22 100-20 130-10'/%3E%3Cpath d='M-20 480c160-40 300 50 440 10 140-40 180-130 300-180 50-20 90-18 110-10'/%3E%3C/g%3E%3C/svg%3E"),
-    linear-gradient(135deg, var(--c1), var(--c2));
-  background-size: 100% 100%, auto;
+    linear-gradient(135deg, var(--c1), color-mix(in srgb, var(--c2), #000 10%));
+  background-size: 160px 160px, auto, auto, auto, 100% 100%, auto;
+  background-repeat: repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat;
   border: 0;
-  border-radius: 3.8% / 6%;
+  border-radius: 10px;
+  /* a hairline edge in a lighter shade of the card's own colour, a lit top edge,
+     and a shadow tinted with the card's colour */
+  --edge: inset 0 0 0 1px color-mix(in srgb, var(--c1), #fff 26%), inset 0 1px 0 rgb(255 255 255 / 0.14);
   box-shadow:
-    0 1px 2px rgb(22 26 22 / 0.12),
-    0 10px 24px -14px rgb(22 26 22 / 0.38);
+    var(--edge),
+    0 1px 2px rgb(22 26 22 / 0.14),
+    0 12px 24px -14px color-mix(in srgb, var(--c2) 80%, #000);
   scroll-snap-align: start;
   cursor: pointer;
   /* clip, not hidden: the card can still grow past its ratio if text needs room */
@@ -973,8 +991,9 @@ code {
 .bank-card:not(.is-big):hover {
   transform: translateY(-3px);
   box-shadow:
+    var(--edge),
     0 2px 3px rgb(22 26 22 / 0.1),
-    0 18px 30px -14px rgb(22 26 22 / 0.42);
+    0 20px 32px -14px color-mix(in srgb, var(--c2) 85%, #000);
 }
 .bank-card:not(.is-big):hover::after {
   transform: translateX(120%);
@@ -982,7 +1001,7 @@ code {
 }
 .bank-card:focus-visible {
   outline-offset: 3px;
-  border-radius: 3.8% / 6%;
+  border-radius: 10px;
 }
 /* locked: the face goes grey under a veil */
 .bank-card.is-locked::before {
@@ -1016,40 +1035,65 @@ code {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
-  font-size: clamp(13px, 4.6cqw, 22px);
-  font-weight: 650;
+  /* the product name as written ("Kotak 811", "Regalia"), the way cards print it */
+  font-size: var(--title-size);
+  font-weight: 600;
   line-height: 1.24;
-  letter-spacing: 0.01em;
-  text-transform: uppercase;
-  color: rgb(255 255 255 / 0.95);
+  letter-spacing: 0.005em;
+  color: rgb(255 255 255 / 0.96);
 }
+/* the bank's logo, printed in white like the rest of the card */
 .bc-logo {
   flex: none;
-  margin-top: 0.3cqw;
+  opacity: 0.95;
 }
-/* no full logo: the bank's name set in type, after its symbol if it has one */
+/* a logo's cut-outs (HDFC's square, Kotak's circle) sit on top of white shapes, so painting
+   them "transparent" would leave a solid blob: paint them in the card's own face instead */
+.bank-card .logo.is-mono {
+  --lk: color-mix(in srgb, var(--c1), var(--c2));
+}
+/* no logo file: a lockup of the same weight, the initial cut out of a white tile and the
+   name beside it, set like a printed brand in bold tracked capitals, two lines at most */
 .bc-wordmark {
   display: flex;
   align-items: center;
-  gap: 2cqw;
+  gap: 2.2cqw;
   flex: none;
-  max-width: 40%;
-  font-size: clamp(11px, 3.3cqw, 16px);
-  font-weight: 600;
-  line-height: 1.2;
-  text-align: right;
-  color: rgb(255 255 255 / 0.9);
+  max-width: 46%;
+  min-height: var(--title-line);
+  margin-top: calc(var(--title-line) / 2 - 3.4cqw);
 }
-.bc-sym {
+.bc-monogram {
   flex: none;
-  width: 7cqw;
-  height: 7cqw;
+  display: grid;
+  place-items: center;
+  width: 6.8cqw;
+  height: 6.8cqw;
+  border-radius: 1.5cqw;
+  font-size: 4.3cqw;
+  font-weight: 800;
+  line-height: 1;
+  color: color-mix(in srgb, var(--c1), var(--c2));
+  background: rgb(255 255 255 / 0.95);
+}
+.bc-wordmark-name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font-size: clamp(9px, 3.05cqw, 15px);
+  font-weight: 750;
+  line-height: 1.12;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgb(255 255 255 / 0.95);
 }
 .bc-locked {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   padding: 2px 9px 2px 7px;
+  font-family: var(--font); /* an app badge on the card, not print */
   font-size: 11px;
   font-weight: 600;
   color: var(--bear-ink);
@@ -1073,18 +1117,37 @@ code {
 }
 .bc-number {
   display: flex;
-  gap: 0.5em;
-  font-size: clamp(14px, 4.7cqw, 22px);
-  font-weight: 650;
-  letter-spacing: 0.07em;
-  font-variant-numeric: tabular-nums;
+  gap: 0.55em;
+  font-family: var(--card-digits);
+  font-size: clamp(15px, 5.5cqw, 27px);
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: 0.09em;
   white-space: nowrap;
+  /* silver tipping, raised off the face like embossed digits */
+  color: #eceff2;
+  background: linear-gradient(180deg, #ffffff 0%, #eef0f3 40%, #b9bec6 58%, #e6e9ec 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  /* the face is a single weight; a hairline stroke gives the digits the body of embossing */
+  -webkit-text-stroke: 0.022em rgb(232 235 238 / 0.85);
+  filter: drop-shadow(0 1px 0 rgb(0 0 0 / 0.4)) drop-shadow(0 -0.5px 0 rgb(255 255 255 / 0.22));
+}
+.bc-number .dots {
+  gap: 0.24em;
+}
+.bc-number .dots i {
+  width: max(0.24em, 3.5px);
+  height: max(0.24em, 3.5px);
+  background: #e8ebee;
+  opacity: 1;
 }
 /* the spaced line under the number, where a printed card has its holder's name */
 .bc-line {
-  font-size: clamp(8.5px, 2.75cqw, 13px);
+  font-size: clamp(8px, 2.6cqw, 12.5px);
   font-weight: 600;
-  letter-spacing: 0.3em;
+  letter-spacing: 0.26em;
   text-transform: uppercase;
   color: rgb(255 255 255 / 0.86);
   white-space: nowrap;
@@ -1093,19 +1156,35 @@ code {
 }
 .bc-facts {
   display: flex;
+  align-items: center;
   gap: 5cqw;
   letter-spacing: 0.22em;
   overflow: visible;
 }
+.bc-facts > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7em;
+}
+/* the tiny label beside each value; "VALID THRU" stacks on two lines as cards print it */
 .bc-facts i {
+  display: inline-block;
+  max-width: 4.6em;
+  font-size: max(0.7em, 7px);
   font-style: normal;
-  font-weight: 500;
-  color: rgb(255 255 255 / 0.58);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: 0.12em;
+  white-space: normal;
+  color: rgb(255 255 255 / 0.62);
 }
 .bc-facts b {
-  font-weight: 650;
-  letter-spacing: 0.08em;
-  font-variant-numeric: tabular-nums;
+  font-family: var(--card-digits);
+  font-size: 1.32em;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  color: #eceff2;
+  text-shadow: 0 1px 0 rgb(0 0 0 / 0.35);
 }
 .bc-facts .dots {
   gap: 0.2em;
@@ -1133,7 +1212,40 @@ code {
   animation: pop 0.28s var(--ease) both;
 }
 .bank-card.is-big {
+  border-radius: 14px;
   cursor: default;
+}
+
+/* the EMV chip and the contactless mark, between the name and the number */
+.bc-mid {
+  display: flex;
+  align-items: center;
+  gap: 3cqw;
+  margin: 1cqw 0;
+}
+.bc-chip {
+  position: relative;
+  flex: none;
+  width: 11.5cqw;
+  height: 8.6cqw;
+  border-radius: 1.6cqw;
+  background:
+    linear-gradient(90deg, transparent 31%, rgb(92 70 24 / 0.38) 31% 33%, transparent 33% 67%, rgb(92 70 24 / 0.38) 67% 69%, transparent 69%),
+    linear-gradient(0deg, transparent 32%, rgb(92 70 24 / 0.34) 32% 35%, transparent 35% 65%, rgb(92 70 24 / 0.34) 65% 68%, transparent 68%),
+    linear-gradient(135deg, #f4e6bc 0%, #d6b56a 45%, #b8913f 70%, #ead49a 100%);
+  box-shadow:
+    inset 0 0 0 1px rgb(110 82 28 / 0.4),
+    inset 0 1px 0 rgb(255 255 255 / 0.5),
+    0 1px 1.5px rgb(0 0 0 / 0.28);
+}
+.bc-wave {
+  flex: none;
+  width: 6.4cqw;
+  height: 6.4cqw;
+  fill: none;
+  stroke: rgb(255 255 255 / 0.72);
+  stroke-width: 2;
+  stroke-linecap: round;
 }
 /* logos: one markup, three ways (see components/k7/BankLogo.js) */
 .logo {
@@ -1162,7 +1274,7 @@ code {
   color: var(--ink2);
   background: transparent;
   border: 1.5px dashed var(--axis);
-  border-radius: 3.8% / 6%;
+  border-radius: 10px;
   scroll-snap-align: start;
   cursor: pointer;
   transition: border-color 0.15s, color 0.15s, background-color 0.15s;
@@ -1261,8 +1373,36 @@ code {
   height: 14px;
   color: var(--bear);
 }
+.note.is-danger,
+.note.is-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
 .note.is-danger {
-  border-left-color: var(--bear);
+  color: var(--bear-ink);
+  background: color-mix(in srgb, var(--bear) 5%, var(--raised));
+  border-color: color-mix(in srgb, var(--bear) 30%, transparent);
+}
+.note.is-info::before {
+  content: '';
+  flex: none;
+  width: 15px;
+  height: 15px;
+  margin-top: 2px;
+  background: var(--muted);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 16v-4'/%3E%3Cpath d='M12 8h.01'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 16v-4'/%3E%3Cpath d='M12 8h.01'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.note.is-danger::before {
+  content: '';
+  flex: none;
+  width: 15px;
+  height: 15px;
+  margin-top: 2px;
+  background: var(--bear);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4' y='11' width='16' height='10' rx='2'/%3E%3Cpath d='M8 11V7a4 4 0 0 1 8 0v4'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4' y='11' width='16' height='10' rx='2'/%3E%3Cpath d='M8 11V7a4 4 0 0 1 8 0v4'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
 /* dialog header with an icon beside the title */
@@ -2139,9 +2279,9 @@ code {
   padding: 10px 14px;
   font-size: 13.5px;
   color: var(--ink2);
-  border-left: 2px solid var(--axis);
   background: var(--surface);
-  border-radius: 0 8px 8px 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
   white-space: pre-wrap;
 }
 
@@ -2770,8 +2910,55 @@ input[type='date'].input::-webkit-calendar-picker-indicator {
 .bank-search input::placeholder {
   color: var(--muted);
 }
+/* regions to browse; the person's own is marked */
+.bank-regions {
+  display: flex;
+  gap: 4px;
+  padding: 7px 10px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+.bank-regions::-webkit-scrollbar {
+  display: none;
+}
+.bank-regions button {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink2);
+  white-space: nowrap;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 99px;
+  cursor: pointer;
+  transition: color 0.15s, background-color 0.15s, border-color 0.15s;
+}
+.bank-regions button:hover {
+  color: var(--ink);
+  background: var(--raised);
+}
+.bank-regions button[aria-pressed='true'] {
+  color: var(--ink);
+  background: var(--raised);
+  border-color: var(--line);
+  box-shadow: 0 1px 2px rgba(16, 24, 32, 0.08);
+}
+.bank-region-you {
+  font-size: 9.5px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bull-ink);
+}
 .bank-list {
-  max-height: 268px;
+  max-height: 292px;
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 0 6px 6px;
@@ -2985,7 +3172,9 @@ input[type='date'].input::-webkit-calendar-picker-indicator {
   color: var(--muted);
 }
 .card-preview .bank-card {
-  box-shadow: 0 8px 20px -12px rgb(22 26 22 / 0.4);
+  box-shadow:
+    var(--edge),
+    0 8px 20px -12px color-mix(in srgb, var(--c2) 80%, #000);
 }
 
 /* change key: three steps that tick off as you go */

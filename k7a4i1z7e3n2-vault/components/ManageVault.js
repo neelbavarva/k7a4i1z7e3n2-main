@@ -98,7 +98,7 @@ function Submit({ loading, ready, idle, busy }) {
     );
 }
 
-export default function ManageVault({ mode, onMode, onClose, onSaved }) {
+export default function ManageVault({ mode, onMode, onClose, onSaved, myBanks = [] }) {
     const open = !!mode;
     // while something saves (or re-encrypts), the dialog stays open and the tabs stay put
     const [busy, setBusy] = useState(false);
@@ -110,7 +110,7 @@ export default function ManageVault({ mode, onMode, onClose, onSaved }) {
                 </fieldset>
                 <div key={mode} className="fade-in">
                     {mode === "card" ? (
-                        <CardForm onDone={onSaved} onClose={onClose} onBusy={setBusy} />
+                        <CardForm onDone={onSaved} onClose={onClose} onBusy={setBusy} myBanks={myBanks} />
                     ) : mode === "changeKey" ? (
                         <ChangeKeyForm onDone={onSaved} onBusy={setBusy} />
                     ) : (
@@ -222,7 +222,7 @@ function PasswordForm({ onDone, onClose, onBusy }) {
     );
 }
 
-function CardForm({ onDone, onClose, onBusy }) {
+function CardForm({ onDone, onClose, onBusy, myBanks }) {
     const [pick, setPick] = useState(null); // { id } of a listed bank, or { name } typed in
     const [type, setType] = useState("");
     const [cardName, setCardName] = useState("");
@@ -297,7 +297,7 @@ function CardForm({ onDone, onClose, onBusy }) {
 
             <div className="field">
                 <span className="field-label">Bank</span>
-                <BankPicker value={pick} onChange={setPick} />
+                <BankPicker value={pick} onChange={setPick} mine={myBanks} />
             </div>
 
             <div className="form-grid">

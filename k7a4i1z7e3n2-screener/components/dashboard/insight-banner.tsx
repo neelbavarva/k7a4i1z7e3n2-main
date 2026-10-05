@@ -5,7 +5,7 @@ interface InsightBannerProps {
   aiLatestYear?: number | null;
 }
 
-/** The "how to read this" note under the chart (FX's left-ruled note). */
+/** The "how to read this" note under the chart, led by an info mark. */
 export function InsightBanner({ selectedModes, aiSourceName, aiSourceUrl, aiLatestYear }: InsightBannerProps) {
   if (selectedModes.has('buffett')) {
     return (

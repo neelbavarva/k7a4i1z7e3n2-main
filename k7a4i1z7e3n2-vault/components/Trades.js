@@ -489,7 +489,7 @@ function TradeDetail({ trade, onClose, onUpdated }) {
                 {t.totalPercentage ? (
                     <Checks responses={t.responses} score={t.totalPercentage} />
                 ) : (
-                    <p className="note">A counter trade, so it wasn’t scored against the checklist.</p>
+                    <p className="note is-info">A counter trade, so it wasn’t scored against the checklist.</p>
                 )}
 
                 {t.description && !live ? (

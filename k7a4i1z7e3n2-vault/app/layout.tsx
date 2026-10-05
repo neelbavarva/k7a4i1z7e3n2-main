@@ -1,6 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import "@fontsource-variable/instrument-sans";
 import "@fontsource/young-serif/400.css";
+// bank cards set their own type, like printed cards: see .bank-card in globals.css
+import "@fontsource-variable/montserrat";
+import "@fontsource/share-tech-mono/400.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
