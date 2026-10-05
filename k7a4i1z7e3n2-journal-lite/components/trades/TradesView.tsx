@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from 'react';
 import { Rabbit, Search, Snail, X } from 'lucide-react';
-import { byWeek, fmtPct, fmtR, fmtRate, isOpen, parseDay, sideOf, statsOf } from '@/lib/journal';
+import { byWeek, fmtPct, fmtR, fmtRate, isOpen, sideOf, statsOf } from '@/lib/journal';
 import { isDemo } from '@/lib/api';
 import { ON_PACE, PACE_LABEL, paceKey, paceOf, type Pace } from '@/lib/pace';
 import type { Trade, TradeStatus, TradeType } from '@/lib/types';
@@ -24,27 +24,14 @@ export default function TradesView() {
   const [query, setQuery] = useState('');
   const [type, setType] = useState<TypeFilter>('all');
   const [outcome, setOutcome] = useState<OutcomeFilter>('all');
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
   const [pace, setPace] = useState<PaceFilter>('all');
   const searchRef = useRef<HTMLInputElement>(null);
 
   useKey('/', () => searchRef.current?.focus());
 
   const q = query.trim().toUpperCase().replace(/[\s/]/g, '');
-  const inRange = (t: Trade) => {
-    const at = new Date(t.createdAt);
-    if (from && at < parseDay(from)) return false;
-    if (to && at >= new Date(parseDay(to).getTime() + 86400000)) return false;
-    return true;
-  };
-
-  // pair search and dates narrow everything; type, outcome and pace then split it
-  const base = useMemo(
-    () => j.trades.filter((t) => (!q || t.pair.toUpperCase().replace('/', '').includes(q)) && inRange(t)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [j.trades, q, from, to],
-  );
+  // pair search narrows everything; type, outcome and pace then split it
+  const base = useMemo(() => j.trades.filter((t) => !q || t.pair.toUpperCase().replace('/', '').includes(q)), [j.trades, q]);
   const byType = (t: Trade) => type === 'all' || t.tradeType === type;
   const byOutcome = (t: Trade) => outcome === 'all' || t.status === outcome;
   const byPace = (t: Trade) => pace === 'all' || paceKind(t) === pace;
@@ -86,14 +73,12 @@ export default function TradesView() {
 
   const open = filtered.filter(isOpen);
   const weeks = useMemo(() => byWeek(filtered.filter((t) => !isOpen(t))), [filtered]);
-  const filtering = !!(q || from || to || type !== 'all' || outcome !== 'all' || pace !== 'all');
+  const filtering = !!(q || type !== 'all' || outcome !== 'all' || pace !== 'all');
   const clear = () => {
     setQuery('');
     setType('all');
     setOutcome('all');
     setPace('all');
-    setFrom('');
-    setTo('');
   };
 
   return (
@@ -148,8 +133,9 @@ export default function TradesView() {
         </ul>
       )}
 
-      <div className="toolbar">
+      <div className="filters">
         <Seg
+          wide
           label="Trade type"
           value={type}
           onChange={setType}
@@ -161,6 +147,7 @@ export default function TradesView() {
           ]}
         />
         <Seg
+          wide
           label="Outcome"
           value={outcome}
           onChange={setOutcome}
@@ -172,6 +159,7 @@ export default function TradesView() {
           ]}
         />
         <Seg
+          wide
           label="Pace"
           className="pace-seg"
           value={pace}
@@ -183,17 +171,6 @@ export default function TradesView() {
             { value: 'DRAGGING', label: PACE_LABEL.DRAGGING, icon: <Snail aria-hidden="true" />, count: paceCounts.DRAGGING, className: 'p-dragging' },
           ]}
         />
-        <div className="dates" role="group" aria-label="Date range">
-          <input type="date" className="input input-sm" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} aria-label="From" />
-          <span aria-hidden="true">–</span>
-          <input type="date" className="input input-sm" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} aria-label="To" />
-        </div>
-        {filtering && (
-          <button type="button" className="btn btn-ghost fade-in" onClick={clear}>
-            <X aria-hidden="true" />
-            Clear
-          </button>
-        )}
       </div>
 
       {j.state === 'loading' ? (
@@ -226,13 +203,13 @@ export default function TradesView() {
         </div>
       ) : (
         <>
-          <Summary trades={filtered} filtering={filtering} />
-          <PaceBreakdown trades={paceBase} value={pace} onPick={setPace} filtering={!!(q || from || to || type !== 'all' || outcome !== 'all')} />
+          <Summary trades={filtered} filtering={filtering} onClear={clear} />
+          <PaceBreakdown trades={paceBase} value={pace} onPick={setPace} filtering={!!(q || type !== 'all' || outcome !== 'all')} />
 
           {!filtered.length && (
             <div className="empty-card fade-in">
               <h2>No trades match</h2>
-              <p>Nothing in the journal fits this mix of pair, type, result and dates.</p>
+              <p>Nothing in the journal fits this mix of pair, type, result and pace.</p>
               <button type="button" className="btn" onClick={clear}>
                 Clear filters
               </button>
@@ -256,7 +233,7 @@ export default function TradesView() {
   );
 }
 
-function Summary({ trades, filtering }: { trades: Trade[]; filtering: boolean }) {
+function Summary({ trades, filtering, onClear }: { trades: Trade[]; filtering: boolean; onClear: () => void }) {
   const s = statsOf(trades);
   const r = useCountUp(s.r);
   const rate = useCountUp(s.winRate == null ? 0 : s.winRate * 100);
@@ -264,7 +241,14 @@ function Summary({ trades, filtering }: { trades: Trade[]; filtering: boolean })
     <section className="group" aria-labelledby="g-summary">
       <div className="group-head">
         <h2 id="g-summary">Summary</h2>
-        {filtering && <span className="group-note">Following your filters</span>}
+        {filtering && (
+          <span className="group-note fade-in">
+            Following your filters ·{' '}
+            <button type="button" className="linkish" onClick={onClear}>
+              Clear filters
+            </button>
+          </span>
+        )}
       </div>
       <dl className="brief five summary">
         <div className="brief-cell">
@@ -322,9 +306,6 @@ function PaceBreakdown({ trades, value, onPick, filtering }: { trades: Trade[]; 
         <span className="group-note">{filtering ? 'Following your filters' : 'Every trade: real, demo and missed'}</span>
       </div>
       <div className="pace-card">
-        <div className="pace-bar" aria-hidden="true">
-          {groups.map((g) => g.n > 0 && <span key={g.k} className={`p-${paceKey(g.k === 'NONE' ? null : g.k)}`} style={{ flexGrow: g.n }} />)}
-        </div>
         <div className="pace-cells">
           {groups.map((g, i) => {
             const on = value === g.k;

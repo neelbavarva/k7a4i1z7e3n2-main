@@ -2,8 +2,8 @@
 // server proxy runs them again before anything is sent with the write key.
 
 import { isPace } from './pace';
+import { isPair } from './pairs';
 
-export const PAIR_RE = /^[A-Za-z0-9/_-]{3,20}$/;
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 export const TEXT_MAX = 5000;
@@ -14,9 +14,10 @@ export const IMAGES_PER_UPLOAD = 5;
 const STATUSES = ['OPEN', 'PROFIT', 'LOSS'];
 const TYPES = ['NORMAL', 'DEMO', 'MISSED'];
 
+/** New trades take a pair from the list in lib/pairs.ts. */
 export function pairError(v: unknown): string | null {
-  if (typeof v !== 'string' || !v.trim()) return 'Enter a pair, like EURUSD.';
-  if (!PAIR_RE.test(v.trim())) return 'Use 3–20 letters, numbers, / _ or -.';
+  if (typeof v !== 'string' || !v.trim()) return 'Pick a pair.';
+  if (!isPair(v)) return 'Pick a pair from the list.';
   return null;
 }
 

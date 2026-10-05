@@ -42,6 +42,8 @@ const pad = (n: number) => String(n).padStart(2, '0');
 
 /** "Tue 6 Oct" */
 export const fmtDay = (d: Date) => `${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`;
+/** "14:05" */
+export const fmtTime = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 /** "6 Oct 2026, 14:05" */
 export function fmtDateTime(iso: string | null) {
   if (!iso) return '—';
@@ -74,6 +76,8 @@ export function fmtSpan(ms: number) {
 
 export const dayKey = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 export const monthKey = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+/** A local moment as "YYYY-MM-DDTHH:mm" (the date-time picker's value; `new Date()` reads it back as local). */
+export const localStamp = (d: Date) => `${dayKey(d)}T${fmtTime(d)}`;
 export const parseDay = (key: string) => {
   const [y, m, d] = key.slice(0, 10).split('-').map(Number);
   return new Date(y, m - 1, d);

@@ -1,20 +1,23 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Lock } from 'lucide-react';
+import { ChevronDown, Clock, History, Lock } from 'lucide-react';
 import { createTrade, friendly, updateTrade } from '@/lib/api';
-import { forexDay } from '@/lib/journal';
+import { dayKey, fmtDay, fmtTime, forexDay, localStamp, parseDay } from '@/lib/journal';
 import { PACE_HINT, PACE_LABEL, pacePatch, type PaceOrNone } from '@/lib/pace';
-import { COMMON_PAIRS, normalizePair } from '@/lib/pairs';
+import { PAIRS } from '@/lib/pairs';
 import { uploadAll } from '@/lib/upload';
 import type { Pending } from '@/lib/images';
 import { pairError, riskError, textError, TEXT_MAX } from '@/lib/validate';
 import type { TradeType } from '@/lib/types';
 import { useJournal } from '../JournalContext';
+import { useNow } from '../hooks';
 import { useToast } from '../ui/Toast';
 import Modal from '../ui/Modal';
 import Seg from '../ui/Seg';
 import MarketIcon from '../ui/MarketIcon';
+import PairPicker from '../ui/PairPicker';
+import DateTimePicker from '../ui/DateTimePicker';
 import Dropzone from './Dropzone';
 import { PaceSeg } from './bits';
 
@@ -24,14 +27,13 @@ const TYPE_HINT: Record<TradeType, string> = {
   MISSED: 'A setup you saw but didn’t take. Saved as a profit at this R, for the record.',
 };
 
-const pad = (n: number) => String(n).padStart(2, '0');
-const localInput = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-
 export default function NewTrade({ open, onClose }: { open: boolean; onClose: () => void }) {
   const j = useJournal();
   const toast = useToast();
   const [type, setType] = useState<TradeType>('NORMAL');
   const [pair, setPair] = useState('');
+  // the pair picker, and the key typed on the pair button that opened it
+  const [picking, setPicking] = useState<string | null>(null);
   const [risk, setRisk] = useState('');
   const [notes, setNotes] = useState('');
   const [pace, setPace] = useState<PaceOrNone>(null);
@@ -47,11 +49,12 @@ export default function NewTrade({ open, onClose }: { open: boolean; onClose: ()
     if (!open) return;
     setType(j.blocked.NORMAL ? 'DEMO' : 'NORMAL');
     setPair('');
+    setPicking(null);
     setRisk('');
     setNotes('');
     setPace(null);
     setWhen('now');
-    setAt(localInput(new Date()));
+    setAt(localStamp(new Date()));
     setImages([]);
     setImageProblem(null);
     setTried(false);
@@ -59,7 +62,16 @@ export default function NewTrade({ open, onClose }: { open: boolean; onClose: ()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const pairs = useMemo(() => [...new Set([...j.trades.map((t) => t.pair), ...COMMON_PAIRS])], [j.trades]);
+  const clock = useNow(15000);
+  // trades per local day, for the dots on the date picker
+  const perDay = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const t of j.trades) {
+      const k = dayKey(new Date(t.createdAt));
+      m.set(k, (m.get(k) ?? 0) + 1);
+    }
+    return m;
+  }, [j.trades]);
 
   const when_ = when === 'earlier' && at ? new Date(at) : new Date();
   const dated = when === 'earlier' && at ? when_ : null;
@@ -68,7 +80,7 @@ export default function NewTrade({ open, onClose }: { open: boolean; onClose: ()
   const lock = forexDay(when_) === j.today?.day ? j.blocked[type] : undefined;
 
   const errors = {
-    pair: pairError(normalizePair(pair)),
+    pair: pairError(pair),
     risk: riskError(risk),
     notes: textError(notes),
     at: atError,
@@ -83,7 +95,7 @@ export default function NewTrade({ open, onClose }: { open: boolean; onClose: ()
     setBusy('Saving…');
     try {
       let trade = await createTrade({
-        pair: normalizePair(pair),
+        pair,
         riskRatio: Number(risk),
         tradeType: type,
         description: notes.trim() || null,
@@ -145,28 +157,31 @@ export default function NewTrade({ open, onClose }: { open: boolean; onClose: ()
 
           <div className="form-grid">
             <div className="field">
-              <label htmlFor="nt-pair">Pair</label>
-              <div className="input-icon">
-                {pair && !errors.pair && <MarketIcon symbol={normalizePair(pair)} size={18} />}
-                <input
-                  id="nt-pair"
-                  className="input"
-                  list="nt-pairs"
-                  value={pair}
-                  onChange={(e) => setPair(e.target.value.toUpperCase())}
-                  placeholder="EURUSD"
-                  autoComplete="off"
-                  spellCheck={false}
-                  data-autofocus
-                  aria-invalid={!!show('pair')}
-                  maxLength={20}
-                />
-              </div>
-              <datalist id="nt-pairs">
-                {pairs.map((p) => (
-                  <option key={p} value={p} />
-                ))}
-              </datalist>
+              <span className="field-label" id="nt-pair-label">
+                Pair
+              </span>
+              <button
+                type="button"
+                className="btn pair-btn pair-field"
+                onClick={() => setPicking('')}
+                onKeyDown={(e) => {
+                  // typing on the button opens the picker already searching for that key
+                  if (e.key.length === 1 && /[a-z0-9]/i.test(e.key) && !e.metaKey && !e.ctrlKey && !e.altKey) setPicking(e.key);
+                  else if (e.key === 'ArrowDown') setPicking('');
+                  else return;
+                  e.preventDefault();
+                }}
+                aria-haspopup="dialog"
+                aria-labelledby="nt-pair-label nt-pair-value"
+                aria-invalid={!!show('pair')}
+                data-autofocus
+              >
+                {pair && <MarketIcon symbol={pair} size={18} />}
+                <span id="nt-pair-value" className={`pair-field-text${pair ? '' : ' muted'}`}>
+                  {pair || 'Choose a pair'}
+                </span>
+                <ChevronDown className="chev" aria-hidden="true" />
+              </button>
               {show('pair') && <span className="form-error">{errors.pair}</span>}
             </div>
             <div className="field">
@@ -209,28 +224,24 @@ export default function NewTrade({ open, onClose }: { open: boolean; onClose: ()
 
           <div className="field">
             <span className="field-label">When</span>
-            <div className="when-row">
-              <Seg
-                label="When"
-                value={when}
-                onChange={setWhen}
-                options={[
-                  { value: 'now', label: 'Now' },
-                  { value: 'earlier', label: 'Earlier' },
-                ]}
-              />
-              {when === 'earlier' && (
-                <input
-                  type="datetime-local"
-                  className="input fade-in"
-                  value={at}
-                  max={localInput(new Date())}
-                  onChange={(e) => setAt(e.target.value)}
-                  aria-label="When it happened"
-                  aria-invalid={!!show('at')}
-                />
-              )}
-            </div>
+            <Seg
+              wide
+              className="when-seg"
+              label="When"
+              value={when}
+              onChange={setWhen}
+              options={[
+                { value: 'now', label: 'Now', icon: <Clock aria-hidden="true" /> },
+                { value: 'earlier', label: 'Earlier', icon: <History aria-hidden="true" /> },
+              ]}
+            />
+            {when === 'now' ? (
+              <span className="field-hint">
+                Stamped with the moment you save{clock && <>: {fmtDay(clock)}, {fmtTime(clock)} · forex day {fmtDay(parseDay(forexDay(clock)))}</>}.
+              </span>
+            ) : (
+              <DateTimePicker value={at} onChange={setAt} now={clock ?? new Date()} counts={perDay} invalid={!!show('at')} />
+            )}
             {show('at') && <span className="form-error">{errors.at}</span>}
           </div>
 
@@ -251,6 +262,8 @@ export default function NewTrade({ open, onClose }: { open: boolean; onClose: ()
           {busy || (type === 'MISSED' ? 'Log missed setup' : type === 'DEMO' ? 'Log demo trade' : 'Log trade')}
         </button>
       </form>
+
+      <PairPicker open={picking !== null} onClose={() => setPicking(null)} pairs={PAIRS} value={pair} onPick={setPair} seed={picking ?? ''} />
     </Modal>
   );
 }

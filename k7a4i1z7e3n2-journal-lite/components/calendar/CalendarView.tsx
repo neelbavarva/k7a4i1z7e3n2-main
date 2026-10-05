@@ -27,7 +27,7 @@ import Seg from '../ui/Seg';
 import Modal from '../ui/Modal';
 import MarketIcon from '../ui/MarketIcon';
 import { PaceTag, TradeRow } from '../trades/bits';
-import PairPicker from './PairPicker';
+import PairPicker from '../ui/PairPicker';
 import BlownWeekDialog from './BlownWeekDialog';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -241,7 +241,7 @@ export default function CalendarView() {
         </>
       )}
 
-      <PairPicker open={pickerOpen} onClose={() => setPickerOpen(false)} pairs={pairs} counts={counts} value={pair} onPick={setPair} />
+      <PairPicker open={pickerOpen} onClose={() => setPickerOpen(false)} pairs={pairs} counts={counts} withAll value={pair} onPick={setPair} />
 
       <Modal
         open={!!dayOpen}

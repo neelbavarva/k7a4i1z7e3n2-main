@@ -53,6 +53,16 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
+/* No scrollbars anywhere (page, dialogs, lists, notes): everything still scrolls by wheel, trackpad,
+   touch and keys, there's just no bar drawn. scrollbar-width for Firefox, Chrome and newer Safari;
+   the -webkit- rule for older Safari. */
+* {
+  scrollbar-width: none;
+}
+::-webkit-scrollbar {
+  display: none;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -347,10 +357,6 @@ code {
   border: 1px solid var(--line);
   border-radius: 9px;
   overflow-x: auto;
-  scrollbar-width: none;
-}
-.seg::-webkit-scrollbar {
-  display: none;
 }
 .seg button {
   flex: none;
@@ -929,6 +935,26 @@ a.brand {
   width: 13px;
   height: 13px;
   color: var(--muted);
+}
+/* the pair in the new-trade form: a button the size of the inputs beside it, opening the pair picker */
+.pair-field {
+  width: 100%;
+  height: 38px;
+  font-size: 14px;
+  justify-content: flex-start;
+}
+.pair-field-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+.pair-field-text.muted {
+  font-weight: 400;
+}
+.pair-field[aria-invalid='true'] {
+  border-color: color-mix(in srgb, var(--bear) 55%, transparent);
 }
 .pnl {
   font-weight: 600;
@@ -1633,29 +1659,143 @@ input[type='datetime-local'].input {
 .input-affix .input {
   padding-left: 36px;
 }
-.input-icon {
-  position: relative;
+/* now or earlier: icons in the switch, muted until picked */
+.when-seg button svg {
+  width: 14px;
+  height: 14px;
+  color: var(--muted);
 }
-.input-icon .mi {
-  position: absolute;
-  left: 11px;
-  top: 50%;
-  transform: translateY(-50%);
-  pointer-events: none;
-  z-index: 1;
+.when-seg button[aria-pressed='true'] svg {
+  color: var(--ink);
 }
-.input-icon:has(.mi) .input {
-  padding-left: 46px;
+
+/* the date and time picker for an earlier trade (components/ui/DateTimePicker.tsx) */
+.dtp {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
 }
-.when-row {
+.dtp.is-invalid {
+  border-color: color-mix(in srgb, var(--bear) 55%, transparent);
+}
+.dtp-head {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
+  gap: 2px;
+  padding-left: 4px;
 }
-.when-row .input {
-  flex: 1;
-  min-width: 200px;
+.dtp-month {
+  margin-right: auto;
+  font-family: var(--serif);
+  font-size: 17px;
+  line-height: 1.2;
+}
+.dtp-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+}
+.dtp-dow {
+  padding: 2px 0 4px;
+  font-size: 11px;
+  font-weight: 500;
+  text-align: center;
+  color: var(--muted);
+}
+.dtp-day {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 36px;
+  padding: 0;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  background: none;
+  border: 0;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s, box-shadow 0.15s;
+}
+.dtp-day:hover:not(:disabled) {
+  background: var(--grid);
+}
+.dtp-day.is-out {
+  color: var(--muted);
+}
+.dtp-day:disabled {
+  color: var(--axis);
+  cursor: default;
+}
+/* today wears the calendar's blue as a ring; the picked day fills with it */
+.dtp-day.is-today {
+  font-weight: 700;
+  color: var(--bull);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bull) 45%, transparent);
+}
+.dtp-day[aria-pressed='true'],
+.dtp-day[aria-pressed='true']:hover {
+  font-weight: 600;
+  color: #fff;
+  background: var(--bull);
+  box-shadow: 0 1px 2px rgba(16, 24, 32, 0.16);
+}
+.dtp-day:focus-visible {
+  outline-offset: 1px;
+  border-radius: 9px;
+}
+/* a day that already has trades */
+.dtp-day i {
+  position: absolute;
+  left: 50%;
+  bottom: 4px;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--axis);
+}
+.dtp-day[aria-pressed='true'] i {
+  background: rgba(255, 255, 255, 0.75);
+}
+.dtp-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 10px 0 0 4px;
+  border-top: 1px solid var(--grid);
+}
+.dtp-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink2);
+}
+.dtp-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.input.dtp-num {
+  width: 44px;
+  height: 34px;
+  padding: 0;
+  font-size: 15px;
+  font-weight: 600;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.dtp-fx {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--muted);
 }
 .notice {
   display: flex;
@@ -1889,12 +2029,20 @@ dialog.picker {
   color: var(--pace-ink);
   background: color-mix(in srgb, var(--pace) 16%, transparent);
 }
-/* a rushed or dragged trade carries its colour down the edge of its row */
-.rows > li[data-pace='rushing'] > .row-btn {
-  box-shadow: inset 3px 0 0 var(--rush);
+/* a rushed or dragged trade washes its whole row in its colour */
+.rows > li[data-pace='rushing'] {
+  --pace: var(--rush);
 }
+.rows > li[data-pace='dragging'] {
+  --pace: var(--drag);
+}
+.rows > li[data-pace='rushing'] > .row-btn,
 .rows > li[data-pace='dragging'] > .row-btn {
-  box-shadow: inset 3px 0 0 var(--drag);
+  background: color-mix(in srgb, var(--pace) 8%, var(--surface));
+}
+.rows > li[data-pace='rushing'] > .row-btn:hover,
+.rows > li[data-pace='dragging'] > .row-btn:hover {
+  background: color-mix(in srgb, var(--pace) 13%, var(--raised));
 }
 /* the switch: the chosen pace fills with its colour; the others keep a coloured icon as a hint */
 .pace-seg button svg {
@@ -1927,17 +2075,6 @@ dialog.picker {
   box-shadow: var(--shadow);
   overflow: hidden;
 }
-.pace-bar {
-  display: flex;
-  gap: 2px;
-  height: 5px;
-  background: var(--grid);
-}
-.pace-bar span {
-  min-width: 4px;
-  background: var(--pace);
-  transition: flex-grow 0.5s var(--ease);
-}
 .pace-cells {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1962,13 +2099,33 @@ dialog.picker {
 .pace-cell:hover {
   background: var(--raised);
 }
+/* rushing and dragging sit on a wash of their colour; on pace stays plain */
+.pace-cell.p-rushing,
+.pace-cell.p-dragging {
+  background: color-mix(in srgb, var(--pace) 7%, var(--surface));
+}
+.pace-cell.p-rushing:hover,
+.pace-cell.p-dragging:hover {
+  background: color-mix(in srgb, var(--pace) 12%, var(--raised));
+}
+/* the picked one deepens and gets a full ring, rounded where it meets the card's corners */
 .pace-cell[aria-pressed='true'] {
-  background: color-mix(in srgb, var(--pace) 7%, var(--raised));
-  box-shadow: inset 0 -2px 0 var(--pace);
+  background: color-mix(in srgb, var(--pace) 15%, var(--raised));
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--pace) 60%, transparent);
+}
+.pace-cell:first-child {
+  border-radius: calc(var(--radius) - 1px) 0 0 calc(var(--radius) - 1px);
+}
+.pace-cell:last-child {
+  border-radius: 0 calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0;
+}
+/* the ring replaces the dividers on either side of it */
+.pace-cell[aria-pressed='true'],
+.pace-cell[aria-pressed='true'] + .pace-cell {
+  border-left-color: transparent;
 }
 .pace-cell:focus-visible {
   outline-offset: -2px;
-  border-radius: 0;
 }
 .pace-name {
   display: flex;
@@ -2085,14 +2242,34 @@ dialog.picker {
 .match .pnl {
   flex: none;
 }
-.dates {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--muted);
+/* the trade filters: type, outcome and pace under the search, as wide as it. Each starts at the
+   width its labels need and grows to fill the line; one that no longer fits wraps to a line of its own */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
 }
-.dates .input {
-  width: 138px;
+.filters .seg {
+  flex: 1 1 auto;
+  width: auto;
+}
+@media (max-width: 560px) {
+  .filters {
+    gap: 8px;
+  }
+  /* the pace card just below has the counts */
+  .filters .pace-seg .seg-count {
+    display: none;
+  }
+  .filters .pace-seg button {
+    gap: 4px;
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+}
+.group-note .linkish {
+  font-size: inherit;
 }
 
 /* summary: five facts in a row */
@@ -2804,16 +2981,16 @@ dialog.viewer::backdrop {
 .cal-trade.is-demo .cal-res {
   font-weight: 500;
 }
-/* rushed and dragged trades: a tint and an edge in their colour */
+/* rushed and dragged trades: a tint and a full hairline border in their colour */
 .cal-trade.p-rushing,
 .cal-trade.p-dragging {
   background: color-mix(in srgb, var(--pace) 10%, transparent);
-  box-shadow: inset 2px 0 0 var(--pace);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pace) 30%, transparent);
 }
 .cal-trade.p-rushing:hover,
 .cal-trade.p-dragging:hover {
   background: color-mix(in srgb, var(--pace) 15%, var(--raised));
-  box-shadow: inset 2px 0 0 var(--pace), 0 0 0 1px var(--line);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pace) 45%, transparent);
 }
 .cal-more {
   align-self: flex-start;
@@ -3220,14 +3397,6 @@ dialog.viewer::backdrop {
     flex: 1;
     justify-content: center;
   }
-  .dates {
-    flex: 1;
-  }
-  .dates .input {
-    flex: 1;
-    width: auto;
-    min-width: 0;
-  }
   .outcome {
     grid-template-columns: 1fr;
   }
@@ -3363,7 +3532,8 @@ dialog.viewer::backdrop {
   }
   .textarea,
   .picker-search input,
-  .searchbar input {
+  .searchbar input,
+  .input.dtp-num {
     font-size: 16px;
   }
 }

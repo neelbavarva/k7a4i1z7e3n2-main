@@ -2,24 +2,33 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Layers, Search } from 'lucide-react';
-import Modal from '../ui/Modal';
-import MarketIcon from '../ui/MarketIcon';
+import { findPairs } from '@/lib/pairs';
+import Modal from './Modal';
+import MarketIcon from './MarketIcon';
 
-/** Command-palette pair picker, as in the vault journal: type to filter, arrows and Enter to pick. */
+/**
+ * Command-palette pair picker, as in the vault journal: type to filter (gold, silver, bitcoin and
+ * ethereum work too), arrows and Enter to pick. `withAll` puts an "All pairs" row on top, picked
+ * as ''; `counts` shows a number beside each pair; `seed` is what the search starts with.
+ */
 export default function PairPicker({
   open,
   onClose,
   pairs,
-  counts,
   value,
   onPick,
+  counts,
+  withAll = false,
+  seed = '',
 }: {
   open: boolean;
   onClose: () => void;
-  pairs: string[];
-  counts: Record<string, number>;
+  pairs: readonly string[];
   value: string;
   onPick: (pair: string) => void;
+  counts?: Record<string, number>;
+  withAll?: boolean;
+  seed?: string;
 }) {
   const [q, setQ] = useState('');
   const [active, setActive] = useState(0);
@@ -27,16 +36,16 @@ export default function PairPicker({
 
   useEffect(() => {
     if (open) {
-      setQ('');
+      setQ(seed);
       setActive(0);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const options = useMemo(() => {
-    const needle = q.trim().toUpperCase().replace(/[\s/]/g, '');
-    const hits = pairs.filter((p) => p.replace('/', '').includes(needle));
-    return needle ? hits : ['', ...hits];
-  }, [pairs, q]);
+    const hits = findPairs(pairs, q);
+    return withAll && !q.trim() ? ['', ...hits] : hits;
+  }, [pairs, q, withAll]);
 
   useEffect(() => {
     list.current?.querySelector<HTMLElement>('[data-active="true"]')?.scrollIntoView({ block: 'nearest' });
@@ -65,12 +74,12 @@ export default function PairPicker({
             else return;
             e.preventDefault();
           }}
-          placeholder="Find a pair"
+          placeholder="Find a pair: EURUSD, gbp, gold…"
           aria-label="Find a pair"
           role="combobox"
           aria-expanded="true"
           aria-controls="pair-list"
-          aria-activedescendant={`pair-opt-${active}`}
+          aria-activedescendant={options.length ? `pair-opt-${active}` : undefined}
           autoComplete="off"
           spellCheck={false}
         />
@@ -98,12 +107,12 @@ export default function PairPicker({
               {p || 'All pairs'}
             </span>
             <span className="picker-right">
-              {p ? counts[p] || 0 : counts[''] || 0}
+              {counts && (counts[p] || 0)}
               {p === value && <Check aria-hidden="true" />}
             </span>
           </li>
         ))}
-        {!options.length && <li className="picker-empty muted">No pair matches “{q}”.</li>}
+        {!options.length && <li className="picker-empty muted">No pair matches “{q.trim()}”.</li>}
       </ul>
       <div className="picker-foot" aria-hidden="true">
         <span>
