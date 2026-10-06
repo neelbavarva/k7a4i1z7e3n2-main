@@ -123,9 +123,10 @@ export default function HowItWorks({ meta }) {
             <DataFlow checks={health.checks} />
             <ol className="steps">
               <li>
-                <b>Sources.</b> ForexFactory publishes the week's economic calendar as a JSON feed. Gemini, with Google
-                Search, looks up the released value of each release that counts once it's out. Twelve Data supplies hourly
-                prices. Each needs nothing from you; the two keys live in GitHub Secrets.
+                <b>Sources.</b> ForexFactory publishes the week's economic calendar as a JSON feed, with forecasts but no
+                released values. Those come from Financial Modeling Prep's calendar API, matched to each release by currency,
+                time and name; Gemini, with Google Search, looks up whatever FMP doesn't have. Twelve Data supplies hourly
+                prices. Each needs nothing from you; the keys live in GitHub Secrets.
               </li>
               <li>
                 <b>The hourly job.</b> GitHub Actions runs <code>pipeline/run.js</code> every hour at :07 UTC, and right away
@@ -172,7 +173,7 @@ export default function HowItWorks({ meta }) {
               </li>
               <li>
                 <b>Released values.</b> Fill in the actual numbers for releases that have come out: from the calendar feed
-                itself, from an AI web lookup, or from a hand-edited file.
+                itself, from Financial Modeling Prep's calendar, from an AI web lookup, or from a hand-edited file.
               </li>
               <li>
                 <b>Prices.</b> Download hourly prices for {Object.keys(PRICE_LEGS).length} dollar pairs and{' '}
@@ -225,6 +226,24 @@ export default function HowItWorks({ meta }) {
                       <span className="muted small">This week is required; next week is optional (it appears late in the week).</span>
                     </td>
                     <td data-label="Limits">One week at a time, and no actual values, which is why step 2 exists.</td>
+                  </tr>
+                  <tr>
+                    <td data-label="Service">
+                      <b>Financial Modeling Prep</b>
+                      <div className="muted small">
+                        <code>FMP_API_KEY</code>
+                      </div>
+                    </td>
+                    <td data-label="Used for">The actual released value of each release, from a structured calendar.</td>
+                    <td data-label="How it's called">
+                      <code className="block">financialmodelingprep.com/stable/economic-calendar</code>
+                      <span className="muted small">
+                        One request a run, covering every release still waiting; matched by currency, time and name.
+                      </span>
+                    </td>
+                    <td data-label="Limits">
+                      Free plan: 250 requests a day. A listing whose name or scale doesn't clearly fit is left for Gemini.
+                    </td>
                   </tr>
                   <tr>
                     <td data-label="Service">
@@ -315,7 +334,7 @@ export default function HowItWorks({ meta }) {
           {/* ------------------------------------------------------------------ */}
           <section id="actuals">
             <h2>2. Released values</h2>
-            <p>The calendar feed never contains actual values, so three sources fill them in, tried in this order each run:</p>
+            <p>The calendar feed never contains actual values, so four sources fill them in, tried in this order each run:</p>
             <ol className="steps">
               <li>
                 <b>The feed's own “previous” figure.</b> When an indicator's next release appears on the calendar, its
@@ -324,7 +343,14 @@ export default function HowItWorks({ meta }) {
                 lookup.
               </li>
               <li>
-                <b>AI web lookup (Gemini).</b> For releases that matter and still have no value: High and Medium impact
+                <b>Financial Modeling Prep.</b> Its economic calendar lists released values for the major economies. Each
+                release still waiting is matched to FMP's listing for the same currency within half a day, by name (so “CPI
+                y/y” never takes a m/m figure, and “German” releases take Germany's), and the value is written in the feed's
+                own unit and decimals. Values in thousands or billions are scaled against the previous figure both
+                calendars carry; a listing that doesn't clearly fit is skipped rather than guessed.
+              </li>
+              <li>
+                <b>AI web lookup (Gemini).</b> The backup, for releases that matter and still have no value: High and Medium impact
                 releases, plus anything a commodity or index counts on its own (weekly US crude inventories, China's PMIs).
                 Tried from {ACTUALS.minutesAfterRelease} minutes after the release until {ACTUALS.lookbackDays} days after
                 it, High impact and newest first.
@@ -335,7 +361,7 @@ export default function HowItWorks({ meta }) {
                 corrected by hand.
               </li>
             </ol>
-            <p>Every AI answer must pass a plausibility check before it's accepted:</p>
+            <p>Every FMP value and AI answer must pass a plausibility check before it's accepted:</p>
             <F>
               same unit as the forecast (%, K, M, B…)
               <br />

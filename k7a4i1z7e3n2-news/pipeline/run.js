@@ -6,12 +6,13 @@
 //   node pipeline/run.js --skip-prices   don't call Twelve Data
 //   node pipeline/run.js --skip-ai       don't call Gemini
 //
-// Environment: TWELVE_DATA_KEY, GEMINI_API_KEY, GEMINI_MODEL (all optional; steps
+// Environment: TWELVE_DATA_KEY, FMP_API_KEY, GEMINI_API_KEY, GEMINI_MODEL (all optional; steps
 // without a key are skipped and the site still updates).
 
 import { join } from 'node:path';
 import { fetchCalendar, normalise, mergeCalendar } from './sources/calendar.js';
 import { fillFromFeedPrevious, applyOverrides, fillFromGemini } from './sources/actuals.js';
+import { fillFromFmp } from './sources/fmp.js';
 import { syncPrices, loadLegs, makePriceSource } from './sources/prices.js';
 import { writeOutputs } from './lib/output.js';
 import { effectOf } from './lib/score.js';
@@ -29,7 +30,7 @@ async function main() {
   const report = {
     trigger: process.env.GITHUB_EVENT_NAME || 'local',
     calendar: { files: [], added: 0, updated: 0, removed: 0, error: null },
-    actuals: { feed: 0, gemini: null, overrides: 0 },
+    actuals: { feed: 0, fmp: null, gemini: null, overrides: 0 },
     prices: null,
   };
 
@@ -46,13 +47,30 @@ async function main() {
     log(`calendar: ${err.message}; continuing with ${Object.keys(events).length} stored events`);
   }
 
-  // 2. Actual values: feed "previous" -> Gemini -> manual CSV (manual always wins)
+  // 2. Actual values: feed "previous" -> FMP -> Gemini -> manual CSV (manual always wins)
   report.actuals.feed = fillFromFeedPrevious(events, nowMs);
   log(`actuals: ${report.actuals.feed} filled from the feed`);
+  // releases that only matter to a commodity or index (e.g. crude inventories) still get looked up
+  const isDriver = (e) => INSTRUMENTS.some((p) => effectOf(p, e)?.override);
+
+  // FMP's calendar first: a structured source, so the AI lookup only gets what it doesn't have
+  const fmpKey = process.env.FMP_API_KEY;
+  if (fmpKey) {
+    try {
+      report.actuals.fmp = await fillFromFmp(events, nowMs, { apiKey: fmpKey, isDriver });
+      log(`actuals: FMP filled ${report.actuals.fmp.filled}/${report.actuals.fmp.tried} (${report.actuals.fmp.rows} released listings)`);
+      sources.actuals.push('fmp');
+    } catch (err) {
+      report.actuals.fmp = { error: err.message };
+      log(`actuals: ${err.message}`);
+    }
+  } else {
+    log('actuals: FMP skipped (no FMP_API_KEY)');
+    report.actuals.fmp = { skipped: 'no FMP_API_KEY' };
+  }
+
   const geminiKey = process.env.GEMINI_API_KEY;
   if (geminiKey && !args.has('--skip-ai')) {
-    // releases that only matter to a commodity or index (e.g. crude inventories) still get looked up
-    const isDriver = (e) => INSTRUMENTS.some((p) => effectOf(p, e)?.override);
     const r = await fillFromGemini(events, nowMs, { apiKey: geminiKey, model: process.env.GEMINI_MODEL || undefined, isDriver });
     log(`actuals: Gemini filled ${r.filled}/${r.tried}`);
     report.actuals.gemini = r;

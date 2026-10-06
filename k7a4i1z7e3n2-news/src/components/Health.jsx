@@ -82,7 +82,7 @@ async function runChecks() {
   }
 
   // the job's sources, from its own report
-  if (!r) Object.assign(checks, { feed: noReport, actuals: noReport, prices: noReport });
+  if (!r) Object.assign(checks, { feed: noReport, fmp: noReport, actuals: noReport, prices: noReport });
   else {
     const c = r.calendar;
     const week = c.files[0];
@@ -94,17 +94,29 @@ async function runChecks() {
           detail: `${plural(week?.items ?? 0, 'release')} this week${next ? (next.error ? '; next week not published yet' : `, ${next.items} next week`) : ''} · ${c.added} new, ${c.updated} updated`,
         };
 
-    const g = r.actuals.gemini;
     const values = m.counts ? `${m.counts.withActual} of ${m.counts.released} released have a value` : '';
+    const f = r.actuals.fmp;
+    checks.fmp = !f
+      ? noReport
+      : f.skipped
+        ? { state: LOCAL ? 'off' : 'warn', detail: `Skipped: no FMP_API_KEY${LOCAL ? ' on this machine' : ''}. Gemini looks everything up instead.` }
+        : f.error
+          ? { state: 'fail', detail: `${f.error}. Gemini looks everything up instead.` }
+          : {
+              state: f.tried && !f.filled ? 'warn' : 'ok',
+              detail: `${f.tried ? `Filled ${f.filled} of ${f.tried} waiting` : 'Nothing waiting'} from ${plural(f.rows, 'released listing')} · ${values}`,
+            };
+
+    const g = r.actuals.gemini;
     checks.actuals = !g
       ? noReport
       : g.skipped
-        ? { state: LOCAL ? 'off' : 'warn', detail: `Skipped: no GEMINI_API_KEY${LOCAL ? ' on this machine' : ''}. Only values the feed reveals are filled · ${values}` }
+        ? { state: LOCAL ? 'off' : 'warn', detail: `Skipped: no GEMINI_API_KEY${LOCAL ? ' on this machine' : ''}, so there's no backup for what FMP misses.` }
         : g.error && !g.filled
           ? { state: 'fail', detail: `Gemini (${g.model}) failed: ${g.error}` }
           : {
               state: g.tried && !g.filled ? 'warn' : 'ok',
-              detail: `${g.tried ? `Looked up ${g.tried}, filled ${g.filled}` : 'Nothing waiting to look up'} with ${g.model} · ${values}`,
+              detail: `${g.tried ? `Looked up ${g.tried}, filled ${g.filled}` : `Nothing left to look up${f && !f.skipped && !f.error ? ' after FMP' : ''}`} with ${g.model}`,
             };
 
     const p = r.prices;
@@ -128,7 +140,8 @@ const TRIGGER = { schedule: 'the hourly schedule', workflow_dispatch: 'Refresh',
 // the checks, in the order the data flows
 const CHECKS = [
   { id: 'feed', title: 'Calendar feed', what: `ForexFactory, fetched by the last ${LOCAL ? 'local run of the job' : 'hourly job'}` },
-  { id: 'actuals', title: 'Released values', what: `Gemini web lookup, in the last ${LOCAL ? 'local run of the job' : 'hourly job'}` },
+  { id: 'fmp', title: 'Released values', what: `Financial Modeling Prep's calendar, in the last ${LOCAL ? 'local run of the job' : 'hourly job'}` },
+  { id: 'actuals', title: 'Released values, backup', what: `Gemini web lookup for whatever FMP missed, in the last ${LOCAL ? 'local run of the job' : 'hourly job'}` },
   { id: 'prices', title: 'Prices', what: `Twelve Data, in the last ${LOCAL ? 'local run of the job' : 'hourly job'}` },
   { id: 'job', title: 'Hourly job', what: 'GitHub Actions, asked through /api/refresh' },
   { id: 'files', title: 'Published scores', what: LOCAL ? 'data/meta.json, your local copy' : 'data/meta.json on Vercel' },
@@ -139,6 +152,7 @@ const CHECKS = [
 // which checks light up each box in the diagram
 const NODE_CHECKS = {
   ff: ['feed', 'live'],
+  fmp: ['fmp'],
   gemini: ['actuals'],
   twelve: ['prices'],
   actions: ['job'],
@@ -206,11 +220,12 @@ export function DataFlow({ checks }) {
     </div>
   );
   return (
-    <div className="flow" role="img" aria-label="Sources feed the hourly GitHub job, which publishes JSON to Vercel, which your browser reads">
+    <div className="flow" role="img" aria-label="Four sources feed the hourly GitHub job, which publishes JSON to Vercel, which your browser reads">
       <div className="fl-col">
         <span className="fl-label">1 · Sources</span>
         <Node id="ff" name="ForexFactory" sub="Weekly calendar feed" />
-        <Node id="gemini" name="Gemini" sub="Released values, by web lookup" />
+        <Node id="fmp" name="FMP" sub="Released values, from its calendar API" />
+        <Node id="gemini" name="Gemini" sub="Backup: web lookup for what FMP misses" />
         <Node id="twelve" name="Twelve Data" sub="Hourly prices" />
       </div>
       <Arrow />
