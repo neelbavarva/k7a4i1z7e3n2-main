@@ -96,23 +96,48 @@ export async function fillFromApify(store, nowMs, { token }) {
     }
   }
 
-  const items = [];
-  for (const [day, currencies] of [...days].slice(0, APIFY.maxRunsPerJob)) {
+  const runOnce = async (day, currencies) => {
     const res = await call(
       `/acts/${APIFY.actor}/run-sync-get-dataset-items?timeout=${APIFY.timeoutS}&memory=${APIFY.memoryMb}&maxTotalChargeUsd=${APIFY.maxChargePerRunUsd}`,
       token,
       {
         method: 'POST',
-        body: JSON.stringify({ dateRange: 'day', day, currencies: [...currencies], minImpact: 'medium', upcomingOnly: false, maxItems: APIFY.maxItems }),
+        body: JSON.stringify({
+          dateRange: 'day',
+          day,
+          currencies: [...currencies],
+          minImpact: 'medium',
+          upcomingOnly: false,
+          maxItems: APIFY.maxItems,
+          // ForexFactory turns away datacenter addresses; a home (residential) address gets the page
+          proxyConfiguration: { useApifyProxy: true, apifyProxyGroups: ['RESIDENTIAL'], apifyProxyCountry: APIFY.proxyCountry },
+        }),
       },
     );
     out.runs++;
     if (!res.ok) throw new Error(`Apify HTTP ${res.status}: ${await why(res)}`);
     const got = await res.json();
     if (!Array.isArray(got)) throw new Error('Apify answered without a list of events');
-    items.push(...got);
+    return got;
+  };
+  // the scraper reports a page it couldn't read as an item with "_error" (http_403: ForexFactory
+  // turned it away); a second run comes from another address
+  const blocked = (got) => got.length > 0 && got.every((it) => it._error);
+
+  const items = [];
+  const errors = [];
+  for (const [day, currencies] of [...days].slice(0, APIFY.maxRunsPerJob)) {
+    let got = await runOnce(day, currencies);
+    if (blocked(got)) got = await runOnce(day, currencies);
+    if (blocked(got)) errors.push(...new Set(got.map((it) => it._error)));
+    else items.push(...got.filter((it) => !it._error));
   }
   out.results = items.length;
+  if (errors.length && !items.length) {
+    for (const e of todo) e.apifyTries = (e.apifyTries ?? 0) + 1;
+    const what = [...new Set(errors)].join(', ');
+    throw new Error(`ForexFactory turned the scraper away (${what}${/403/.test(what) ? ': its bot protection blocked the request' : ''})`);
+  }
 
   // "dateline" is ForexFactory's own Unix time; "datetimeISO" may be local time without a zone
   const msOf = (it) => (Number(it.dateline) > 0 ? Number(it.dateline) * 1000 : Date.parse(it.datetimeISO ?? ''));

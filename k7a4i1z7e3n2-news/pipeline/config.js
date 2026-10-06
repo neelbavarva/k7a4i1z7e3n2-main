@@ -183,6 +183,7 @@ export const APIFY = {
   maxRunsPerJob: 2, // days asked for in one hourly run
   maxItems: 60, // events a run may return (each one costs)
   memoryMb: 1024, // the start fee is charged per GB
+  proxyCountry: 'US', // residential proxy country for reading ForexFactory
   timeoutS: 120,
   maxChargePerRunUsd: 0.15,
   reserveUsd: 0.3, // stop asking when this little of the month's credit is left

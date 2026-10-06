@@ -462,3 +462,22 @@ test('Apify pauses when the month\'s credit is nearly used', async () => {
     globalThis.fetch = real;
   }
 });
+
+test('Apify: a page ForexFactory blocks is tried once more, then reported, and the try counts', async () => {
+  const [e] = normalise([{ title: 'Ivey PMI', country: 'CAD', date: '2026-10-06T10:00:00-04:00', impact: 'Medium', forecast: '65.2', previous: '64.3' }]);
+  let runs = 0;
+  const real = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    if (String(url).endsWith('/users/me/limits')) return { ok: true, json: async () => ({ data: { limits: { maxMonthlyUsageUsd: 5 }, current: { monthlyUsageUsd: 0.1 } } }) };
+    runs++;
+    assert.deepEqual(JSON.parse(init.body).proxyConfiguration.apifyProxyGroups, ['RESIDENTIAL']);
+    return { ok: true, json: async () => [{ _input: 'day=oct6.2026', _error: 'http_403' }] };
+  };
+  try {
+    await assert.rejects(fillFromApify({ [e.id]: e }, Date.parse('2026-10-06T20:00:00Z'), { token: 't' }), /bot protection/);
+    assert.equal(runs, 2);
+    assert.equal(e.apifyTries, 1);
+  } finally {
+    globalThis.fetch = real;
+  }
+});
