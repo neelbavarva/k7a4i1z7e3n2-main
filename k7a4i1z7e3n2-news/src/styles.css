@@ -4806,6 +4806,43 @@ code.block {
   border: 1px solid var(--grid);
   border-radius: 6px;
 }
+/* running: a turning ring in the "now" blue, a pulsing dot in the pill, a ping on the diagram */
+.hc.is-run {
+  --tone: var(--now);
+}
+.hc-icon.is-run {
+  background: color-mix(in srgb, var(--now) 7%, var(--raised));
+  border: 2px solid color-mix(in srgb, var(--now) 22%, var(--raised));
+  border-top-color: var(--now);
+  animation: hc-spin 1.1s linear infinite;
+}
+.hc-pill.is-run {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--now-ink);
+  background: color-mix(in srgb, var(--now) 10%, var(--raised));
+}
+.hc-pill.is-run::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--now);
+  animation: hc-pulse 1.2s ease-in-out infinite;
+}
+.fl-dot.is-run {
+  background: var(--now);
+  animation: hc-ping 1.6s ease-out infinite;
+}
+@keyframes hc-ping {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--now) 45%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 7px color-mix(in srgb, var(--now) 0%, transparent);
+  }
+}
 @keyframes hc-spin {
   to {
     transform: rotate(360deg);
@@ -4842,7 +4879,10 @@ code.block {
 }
 @media (prefers-reduced-motion: reduce) {
   .hc-icon.is-wait,
-  .fl-dot.is-wait {
+  .fl-dot.is-wait,
+  .hc-icon.is-run,
+  .hc-pill.is-run::before,
+  .fl-dot.is-run {
     animation: none;
   }
 }

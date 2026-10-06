@@ -75,7 +75,7 @@ async function runChecks() {
     const j = job.body;
     checks.job =
       j.state === 'running'
-        ? { state: 'warn', detail: `Running now, started ${fmtRelative(j.startedAt)}.`, ms: job.ms }
+        ? { state: 'run', detail: `Running now, started ${fmtRelative(j.startedAt)}. This panel checks again by itself until it's done.`, ms: job.ms }
         : j.state === 'done'
           ? { state: j.ok ? 'ok' : 'fail', detail: `Last run ${j.ok ? 'succeeded' : 'failed'}, ${fmtRelative(j.finishedAt)}${r ? ` · started by ${TRIGGER[r.trigger] ?? r.trigger}` : ''}.`, ms: job.ms }
           : { state: 'off', detail: 'No runs yet.', ms: job.ms };
@@ -155,7 +155,17 @@ const NODE_CHECKS = {
 };
 
 const worst = (states) =>
-  states.includes('fail') ? 'fail' : states.includes('warn') ? 'warn' : states.some((s) => s === 'ok') ? 'ok' : states.length ? 'off' : null;
+  states.includes('fail')
+    ? 'fail'
+    : states.includes('warn')
+      ? 'warn'
+      : states.includes('run')
+        ? 'run'
+        : states.some((s) => s === 'ok')
+          ? 'ok'
+          : states.length
+            ? 'off'
+            : null;
 
 export function useHealth() {
   const [checks, setChecks] = useState(null);
@@ -176,13 +186,22 @@ export function useHealth() {
   useEffect(() => {
     run();
   }, [run]);
+  // while the job is running, look again every 20 seconds, so the panel shows how it ended
+  const running = checks && Object.values(checks).some((c) => c.state === 'run');
+  useEffect(() => {
+    if (!running || busy) return;
+    const t = setTimeout(run, 20 * 1000);
+    return () => clearTimeout(t);
+  }, [running, busy, run]);
   return { checks, at, busy, run };
 }
 
-const STATE_LABEL = { ok: 'Working', warn: 'Needs attention', fail: 'Failing', off: 'Not available' };
+const STATE_LABEL = { ok: 'Working', run: 'Running', warn: 'Needs attention', fail: 'Failing', off: 'Not available' };
 
 function StateIcon({ state }) {
   if (!state) return <span className="hc-icon is-wait" aria-label="Checking" />;
+  // running: a ring that turns, no symbol inside
+  if (state === 'run') return <span className="hc-icon is-run" aria-label={STATE_LABEL.run} />;
   return (
     <span className={`hc-icon is-${state}`} aria-label={STATE_LABEL[state]}>
       <svg viewBox="0 0 16 16" aria-hidden="true">
@@ -250,7 +269,8 @@ export function LiveStatus({ health }) {
   const failing = states.filter((s) => s === 'fail').length;
   const warning = states.filter((s) => s === 'warn').length;
   const off = states.filter((s) => s === 'off').length;
-  const overall = !checks ? null : failing ? 'fail' : warning ? 'warn' : 'ok';
+  const running = states.includes('run');
+  const overall = !checks ? null : failing ? 'fail' : warning ? 'warn' : running ? 'run' : 'ok';
   return (
     <div className={`hc${overall ? ` is-${overall}` : ''}`}>
       <div className="hc-head">
@@ -263,7 +283,9 @@ export function LiveStatus({ health }) {
                 ? `${plural(failing, 'step')} failing`
                 : warning
                   ? `${plural(warning, 'step')} need${warning === 1 ? 's' : ''} attention`
-                  : off
+                  : running
+                    ? 'The hourly job is running now'
+                    : off
                     ? `Everything that can run here is working (${CHECKS.length - off} of ${CHECKS.length})`
                     : 'Everything is working'}
           </b>

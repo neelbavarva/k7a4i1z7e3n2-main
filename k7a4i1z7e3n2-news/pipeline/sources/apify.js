@@ -114,10 +114,13 @@ export async function fillFromApify(store, nowMs, { token }) {
   }
   out.results = items.length;
 
+  // "dateline" is ForexFactory's own Unix time; "datetimeISO" may be local time without a zone
+  const msOf = (it) => (Number(it.dateline) > 0 ? Number(it.dateline) * 1000 : Date.parse(it.datetimeISO ?? ''));
   const released = items
     .filter((it) => it.actual != null && String(it.actual).trim() !== '')
-    .map((it) => ({ ...it, ms: Date.parse(it.datetimeISO ?? '') || Number(it.dateline) * 1000, key: norm(it.title) }));
+    .map((it) => ({ ...it, ms: msOf(it), key: norm(it.title) }));
 
+  const missed = [];
   for (const e of todo) {
     e.apifyTries = (e.apifyTries ?? 0) + 1;
     const t = Date.parse(e.time);
@@ -135,7 +138,15 @@ export async function fillFromApify(store, nowMs, { token }) {
       log(`actuals: ${e.currency} ${e.title} = ${raw} (ForexFactory, via Apify)`);
     } else if (hit) {
       log(`actuals: Apify gave "${raw}" for ${e.currency} ${e.title}, which doesn't fit its forecast "${e.forecastRaw}"; left waiting`);
-    }
+    } else missed.push(e);
+  }
+  // say what came back, so a release that never matches can be put right
+  if (missed.length) {
+    const seen = items
+      .slice(0, 12)
+      .map((it) => `${it.currency} "${it.title}" @ ${it.dateline ? new Date(Number(it.dateline) * 1000).toISOString() : it.datetimeISO} actual=${JSON.stringify(it.actual)}`)
+      .join('; ');
+    log(`actuals: Apify had no match for ${missed.map((e) => `${e.currency} "${e.title}" @ ${e.time}`).join(', ')}. It returned: ${seen || 'nothing'}`);
   }
   return out;
 }
