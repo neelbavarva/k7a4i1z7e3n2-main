@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import PairPicker from './components/PairPicker.jsx';
 import Meter from './components/Meter.jsx';
 import { UpcomingTable, SurprisesTable } from './components/EventTables.jsx';
-import { POLL_MINUTES, REFRESH_COOLDOWN_S } from './constants.js';
+import { COLLECT_TIMEOUT_MINUTES, POLL_MINUTES, REFRESH_COOLDOWN_S } from './constants.js';
 const HowItWorks = lazy(() => import('./components/HowItWorks.jsx'));
 const Calendar = lazy(() => import('./components/Calendar.jsx'));
 const CalendarGuide = lazy(() => import('./components/CalendarGuide.jsx'));
@@ -50,6 +50,10 @@ function useRoute() {
   }, []);
   return route;
 }
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+class RefreshError extends Error {}
+const COLLECTING = 'Collecting the latest news data. This takes about 2 to 3 minutes; the scores update here by themselves.';
 
 async function getJson(path, version) {
   const res = await fetch(`${BASE}data/${path}${version ? `?v=${encodeURIComponent(version)}` : ''}`);
@@ -143,11 +147,13 @@ export default function App() {
 
   const retry = () => setAttempt((n) => n + 1);
 
-  // Refresh: locally, re-run the data job first (see vite.config.js); then fetch the latest
+  // Refresh collects new data, then loads it. Locally it re-runs the data job on this machine
+  // (vite.config.js). On the deployed site it starts the hourly job right away through
+  // /api/refresh (or joins the run already going), waits for it to publish, then loads the new
   // meta.json. A new generatedAt clears the per-pair cache, so the open page reloads too.
   const [refreshing, setRefreshing] = useState(false);
   const [refreshMsg, setRefreshMsg] = useState(null);
-  // after each refresh the button rests for a minute (the data only changes hourly)
+  // after each refresh the button rests for a minute
   const [cooldownUntil, setCooldownUntil] = useState(0);
   const metaRef = useRef(meta);
   metaRef.current = meta;
@@ -160,6 +166,37 @@ export default function App() {
     }
     return { m, changed };
   };
+  // a finished run has redeployed; give the new files a few tries to come through
+  const loadNew = async () => {
+    for (let i = 0; i < 6; i++) {
+      const r = await loadLatest();
+      if (r.changed) return r;
+      await sleep(5000);
+    }
+    return loadLatest();
+  };
+  // the deployed site: start (or join) the data job and wait for it. null: not set up here
+  const collect = async () => {
+    const res = await fetch(`${BASE}api/refresh`, { method: 'POST' }).catch(() => null);
+    if (!res || res.status === 404 || res.status === 501) return null;
+    const run = await res.json().catch(() => ({}));
+    if (!res.ok) throw new RefreshError("Couldn't start collecting new data. Try again in a minute.");
+    if (run.fresh) return { fresh: run.finishedAt };
+    setRefreshMsg(COLLECTING);
+    const since = Date.parse(run.startedAt) - 30 * 1000;
+    const deadline = Date.now() + COLLECT_TIMEOUT_MINUTES * 60 * 1000;
+    while (Date.now() < deadline) {
+      await sleep(10 * 1000);
+      const s = await fetch(`${BASE}api/refresh`)
+        .then((x) => x.json())
+        .catch(() => null);
+      if (s?.state === 'done' && Date.parse(s.startedAt) >= since) {
+        if (!s.ok) throw new RefreshError(`The data job didn't finish, so these are still the scores from ${fmtRelative(metaRef.current.generatedAt)}. Try again in a few minutes.`);
+        return { done: true };
+      }
+    }
+    throw new RefreshError('Collecting is taking longer than usual. The scores will update here once it finishes.');
+  };
   const refresh = async () => {
     if (refreshing || Date.now() < cooldownUntil) return;
     setRefreshing(true);
@@ -167,14 +204,21 @@ export default function App() {
     try {
       if (import.meta.env.DEV) {
         const r = await fetch('/__refresh', { method: 'POST' }).then((x) => x.json());
-        if (!r.ok) throw new Error("The local data job failed. The terminal running npm run dev shows why.");
-      }
-      const { m, changed } = await loadLatest();
-      if (!changed) {
-        setRefreshMsg(`No newer scores yet. The site updates every hour; the last update was ${fmtRelative(m.generatedAt)}.`);
+        if (!r.ok) throw new RefreshError('The local data job failed. The terminal running npm run dev shows why.');
+        await loadLatest();
+      } else {
+        const got = await collect();
+        const { m, changed } = got?.done ? await loadNew() : await loadLatest();
+        setRefreshMsg(
+          changed
+            ? null
+            : got?.fresh
+              ? `The data was collected ${fmtRelative(got.fresh)}, so these are the latest scores.`
+              : `No newer scores yet. The last update was ${fmtRelative(m.generatedAt)}.`,
+        );
       }
     } catch (e) {
-      setRefreshMsg(e.message?.startsWith('The local') ? e.message : "Couldn't reach the latest scores. Check your connection and try again.");
+      setRefreshMsg(e instanceof RefreshError ? e.message : "Couldn't reach the latest scores. Check your connection and try again.");
     } finally {
       setRefreshing(false);
       setCooldownUntil(Date.now() + REFRESH_COOLDOWN_S * 1000);
@@ -237,12 +281,12 @@ export default function App() {
 
   return (
     <div className="page">
-      <SiteNav section={notFound ? null : section} />
       {meta && !notFound && section === 'news' && (
         <StatusBar
           generatedAt={meta.generatedAt}
           onRefresh={refresh}
           refreshing={refreshing}
+          busyLabel={refreshMsg === COLLECTING ? 'Collecting…' : undefined}
           message={refreshMsg}
           cooldownUntil={cooldownUntil}
         />
@@ -275,33 +319,6 @@ export default function App() {
 }
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
-
-/** The two halves of the site. Each one's "How it works" is linked from the footer. */
-function SiteNav({ section }) {
-  return (
-    <header className="site-nav">
-      <a className="brand" href={href('all')}>
-        FX Fundamental Bias
-      </a>
-      <nav className="sections" aria-label="Sections">
-        <a href={href('all')} aria-current={section === 'news' ? 'page' : undefined}>
-          <svg viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M2 12.5 6 8l3 2.5L14 4.5" />
-          </svg>
-          News
-        </a>
-        <a href={href('calendar')} aria-current={section === 'calendar' ? 'page' : undefined}>
-          <svg viewBox="0 0 16 16" aria-hidden="true">
-            <rect x="2" y="3" width="12" height="11" rx="2" />
-            <path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3" />
-          </svg>
-          <span className="nav-long">Economic calendar</span>
-          <span className="nav-short">Calendar</span>
-        </a>
-      </nav>
-    </header>
-  );
-}
 
 function Dashboard({ data, meta, onPick }) {
   const { pair, summary } = data;

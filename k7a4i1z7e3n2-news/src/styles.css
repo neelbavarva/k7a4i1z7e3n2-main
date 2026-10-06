@@ -24,6 +24,9 @@
   --medium: #eda100;
   --rate: #8e1f2a;
   --focus: #2a78d6;
+  /* where we are in time: the now line and its tag, on the chart, the calendar and the days */
+  --now: #2a78d6;
+  --now-ink: #1c5cab;
   --shadow: 0 1px 2px rgba(22, 26, 22, 0.04), 0 6px 20px rgba(22, 26, 22, 0.05);
   --shadow-pop: 0 24px 64px rgba(22, 26, 22, 0.18);
   --radius: 12px;
@@ -109,7 +112,7 @@ h3 {
 .page {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0 32px 32px;
+  padding: 6px 32px 32px;
 }
 
 .muted {
@@ -1413,13 +1416,13 @@ kbd {
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--ink);
+  color: var(--now-ink);
 }
 .day-now i {
   grid-column: 2 / -1;
   position: relative;
   height: 1px;
-  background: var(--ink);
+  background: color-mix(in srgb, var(--now) 45%, transparent);
 }
 .day-now i::before {
   content: '';
@@ -1429,7 +1432,7 @@ kbd {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: var(--ink);
+  background: var(--now);
 }
 .done-tag {
   margin-left: auto;
@@ -1763,7 +1766,16 @@ tr.is-done > td.c-when {
   height: 212px;
   width: 1.5px;
   margin-left: -0.75px;
-  background: var(--ink);
+}
+/* the line starts under the tag, so the tag's dot sits right on top of it */
+.nl-now::before {
+  content: '';
+  position: absolute;
+  top: 19px;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: var(--now);
 }
 .nl-now::after {
   content: '';
@@ -1773,29 +1785,20 @@ tr.is-done > td.c-when {
   width: 6.5px;
   height: 6.5px;
   border-radius: 50%;
-  background: var(--ink);
+  background: var(--now);
   box-shadow: 0 0 0 2px var(--surface);
 }
+/* the tag runs right from the line; near the end of the week, left */
 .nl-now-tag {
   position: absolute;
   top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 1px 7px;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 16px;
-  color: var(--raised);
-  background: var(--ink);
-  border-radius: 6px;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-.nl-now-tag.at-start {
-  transform: translateX(-2px);
+  left: -10.25px;
 }
 .nl-now-tag.at-end {
-  transform: translateX(calc(-100% + 2px));
+  left: auto;
+  right: -10.25px;
+  flex-direction: row-reverse;
+  padding: 0 7px 0 8px;
 }
 .nl-day.is-past {
   opacity: 0.45;
@@ -1819,11 +1822,11 @@ tr.is-done > td.c-when {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--ink);
+  background: var(--now);
 }
 .nl-status-now {
   font-weight: 600;
-  color: var(--ink);
+  color: var(--now-ink);
   font-variant-numeric: tabular-nums;
 }
 .nl-status-text b {
@@ -2859,7 +2862,7 @@ code.block {
 
 @media (max-width: 600px) {
   .page {
-    padding: 0 16px 28px;
+    padding: 6px 16px 28px;
   }
   .outlook,
   .chart-block,
@@ -3169,19 +3172,13 @@ code.block {
    The two halves: News (the bias scores) and the Economic calendar
    ========================================================================== */
 
-.site-nav {
+/* the page title, with the News / Economic calendar switch on its right */
+.page-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding-top: 16px;
-}
-.brand {
-  font-family: var(--serif);
-  font-size: 16px;
-  color: var(--ink);
-  text-decoration: none;
-  white-space: nowrap;
+  flex-wrap: wrap;
+  gap: 10px 16px;
 }
 .sections {
   display: inline-flex;
@@ -3534,7 +3531,7 @@ code.block {
   bottom: -4px;
   width: 1.5px;
   margin-left: -0.75px;
-  background: var(--ink);
+  background: var(--now);
 }
 .ws-counts {
   display: flex;
@@ -3948,28 +3945,40 @@ code.block {
 .cal-now-in {
   display: flex;
   align-items: center;
-  gap: 8px;
-  height: 24px;
+  height: 26px;
   padding: 0 12px;
-}
-.cal-now-in b {
-  padding: 1px 6px;
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--raised);
-  background: var(--ink);
-  border-radius: 5px;
-}
-.cal-now-in span {
-  font-size: 11.5px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
 }
 .cal-now-in i {
   flex: 1;
-  height: 1.5px;
-  background: var(--ink);
+  height: 1px;
+  background: color-mix(in srgb, var(--now) 45%, transparent);
+}
+/* the tag: a soft blue pill with a dot, the time beside "Now" */
+.now-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 19px;
+  padding: 0 8px 0 7px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--now-ink);
+  white-space: nowrap;
+  background: color-mix(in srgb, var(--now) 9%, var(--raised));
+  border: 1px solid color-mix(in srgb, var(--now) 30%, var(--raised));
+  border-radius: 99px;
+}
+.now-tag::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--now);
+}
+.now-tag time {
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 .cal-now + .cal-row > td {
   border-top: 0;
@@ -4085,12 +4094,6 @@ code.block {
 }
 
 @media (max-width: 640px) {
-  .site-nav {
-    gap: 10px;
-  }
-  .brand {
-    font-size: 15px;
-  }
   /* the countdown goes under the release, its tiles across the card */
   .nx {
     flex-direction: column;

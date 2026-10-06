@@ -263,7 +263,9 @@ function NowLine({ start, end, clock }) {
     <div className="nl-now-layer" aria-hidden="true">
       <div className="nl-past" style={{ width: `${x}%` }} />
       <div className="nl-now" style={{ left: `${x}%` }}>
-        <span className={`nl-now-tag${x < 6 ? ' at-start' : x > 94 ? ' at-end' : ''}`}>Now {fmtTime(clock)}</span>
+        <span className={`now-tag nl-now-tag${x > 85 ? ' at-end' : ''}`}>
+          Now <time>{fmtTime(clock)}</time>
+        </span>
       </div>
     </div>
   );

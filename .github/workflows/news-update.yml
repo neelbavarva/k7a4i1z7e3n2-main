@@ -1,0 +1,81 @@
+# FX Fundamental Bias (k7a4i1z7e3n2-news): every hour, fetch and score the data, save the
+# pipeline's state back to the repo, then build and deploy the site to Vercel with the new JSON.
+# GitHub only runs workflows from the repository root, so this lives here, not in the app folder.
+name: News - update data and deploy
+
+on:
+  schedule:
+    - cron: '7 * * * *' # every hour at :07 (UTC)
+  workflow_dispatch: # "Run workflow" button, and the site's Refresh (api/refresh.js)
+  push:
+    branches: [main]
+    paths:
+      - 'k7a4i1z7e3n2-news/**'
+      - '.github/workflows/news-update.yml'
+
+permissions:
+  contents: write # commit the updated data/ folder
+
+concurrency:
+  group: news-update
+  cancel-in-progress: false
+
+defaults:
+  run:
+    working-directory: k7a4i1z7e3n2-news
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_NEWS_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: k7a4i1z7e3n2-news/package-lock.json
+
+      - run: npm ci
+
+      # code changes are tested; the hourly and Refresh runs only move data, so they skip it
+      - if: github.event_name == 'push'
+        run: npm test
+
+      - name: Run the data pipeline
+        env:
+          TWELVE_DATA_KEY: ${{ secrets.TWELVE_DATA_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+        run: npm run pipeline
+
+      - name: Save pipeline state (data/) back to the repo
+        run: |
+          git config user.name "fx-bias-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data
+          if git diff --cached --quiet; then
+            echo "No data changes"
+          else
+            git commit -m "news data: hourly update"
+            # someone may have pushed code while this job ran: replay the data commit on top
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
+            git push
+          fi
+
+      # build here, where public/data/ was just written, and upload the result as-is
+      # (the build also writes dist/404.html, and api/calendar.js goes up as a function)
+      - name: Build and deploy to Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "::warning::VERCEL_TOKEN isn't set, so the new data wasn't deployed."
+            exit 0
+          fi
+          npx --yes vercel@latest pull --yes --environment=production --token="$VERCEL_TOKEN"
+          npx --yes vercel@latest build --prod --token="$VERCEL_TOKEN"
+          npx --yes vercel@latest deploy --prebuilt --prod --token="$VERCEL_TOKEN"

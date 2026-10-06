@@ -163,7 +163,7 @@ function useTick(ms) {
  * Top-of-page status: when the scores were last updated (amber if that is more than
  * a few hours ago), any refresh result, and the Refresh button with its 1-minute cooldown.
  */
-export function StatusBar({ generatedAt, onRefresh, refreshing, message, cooldownUntil }) {
+export function StatusBar({ generatedAt, onRefresh, refreshing, busyLabel, message, cooldownUntil }) {
   useTick(30 * 1000);
   const hours = (Date.now() - Date.parse(generatedAt)) / 3.6e6;
   const stale = hours > STALE_HOURS;
@@ -180,12 +180,12 @@ export function StatusBar({ generatedAt, onRefresh, refreshing, message, cooldow
               </>
             ))}
       </p>
-      <RefreshButton onRefresh={onRefresh} refreshing={refreshing} cooldownUntil={cooldownUntil} />
+      <RefreshButton onRefresh={onRefresh} refreshing={refreshing} busyLabel={busyLabel} cooldownUntil={cooldownUntil} />
     </div>
   );
 }
 
-export function RefreshButton({ onRefresh, refreshing, cooldownUntil = 0, what = 'scores' }) {
+export function RefreshButton({ onRefresh, refreshing, busyLabel = 'Refreshing…', cooldownUntil = 0, what = 'scores' }) {
   const left = useCountdown(cooldownUntil);
   const waiting = !refreshing && left > 0;
   const total = REFRESH_COOLDOWN_S;
@@ -195,7 +195,7 @@ export function RefreshButton({ onRefresh, refreshing, cooldownUntil = 0, what =
       className={`btn refresh${waiting ? ' is-waiting' : ''}`}
       onClick={onRefresh}
       disabled={refreshing || waiting}
-      title={waiting ? `You can refresh again in ${left} s` : `Fetch the latest ${what}`}
+      title={waiting ? `You can refresh again in ${left} s` : `Collect the latest ${what}`}
     >
       {waiting ? (
         <svg viewBox="0 0 24 24" aria-hidden="true" className="refresh-timer">
@@ -208,7 +208,7 @@ export function RefreshButton({ onRefresh, refreshing, cooldownUntil = 0, what =
           <path d="M20 4v5h-5" />
         </svg>
       )}
-      {refreshing ? 'Refreshing…' : waiting ? `Refresh in 0:${String(left).padStart(2, '0')}` : 'Refresh'}
+      {refreshing ? busyLabel : waiting ? `Refresh in 0:${String(left).padStart(2, '0')}` : 'Refresh'}
     </button>
   );
 }

@@ -2,12 +2,12 @@
 
 A free, read-only website that scores the fundamental bias of 35 markets: all 28 pairs between the major currencies (EUR, GBP, AUD, NZD, USD, CAD, CHF, JPY), gold, silver, copper, WTI crude, and the S&P 500, Nasdaq 100 and Dow Jones from −100 (fundamentals favour the quote currency) to +100 (they favour the base currency). It is built from economic-calendar surprises and shows upcoming news as a widening risk range. Traders use it as a second opinion on their technical bias.
 
-The site has two halves, switched from the bar at the top of every page: **News** (the bias scores, `#/all` and each market's page) and the **Economic calendar** (`#/calendar`), a live list of every scheduled release. Each half has its own "How it works" page.
+The site has two halves, switched from the News / Economic calendar switch beside each half's title: **News** (the bias scores, `#/all` and each market's page) and the **Economic calendar** (`#/calendar`), a live list of every scheduled release. Each half has its own "How it works" page.
 
-No database, no logins. An hourly GitHub Action fetches the data, scores it, saves its state in this repo, and deploys a static React site to GitHub Pages. All API keys stay in GitHub Secrets and never reach the browser. The one piece of server code is `api/calendar.js`, a small function that passes the live calendar feed to the Calendar page (browsers can't read the feed directly); hosts without functions fall back on the hourly job's saved copy.
+No database, no logins. An hourly GitHub Action fetches the data, scores it, saves its state in this repo, and deploys a static React site to Vercel. All API keys stay in GitHub Secrets and never reach the browser. Two small functions run on the server: `api/calendar.js` passes the live calendar feed to the Calendar page (browsers can't read the feed directly; hosts without functions fall back on the hourly job's saved copy), and `api/refresh.js` lets the Refresh button start the data job right away.
 
 ```
-GitHub Actions (hourly)                         GitHub Pages
+GitHub Actions (hourly)                         Vercel      
 ┌──────────────────────────────────────┐        ┌───────────────────────┐
 │ pipeline/run.js                      │        │ React + Vite site     │
 │  1. ForexFactory calendar ──┐        │  build │ reads public/data/*.  │
@@ -48,17 +48,20 @@ TWELVE_DATA_KEY=xxx GEMINI_API_KEY=yyy npm run pipeline
 
 Both keys are optional. Without them, prices and AI lookups are skipped and everything else still works.
 
-## Deploy for free (GitHub Pages)
+## Deploy (Vercel, updated hourly by GitHub Actions)
 
-1. Create a GitHub repo (public repos get unlimited free Actions minutes) and push this folder to `main`.
-2. **Settings → Pages → Build and deployment → Source: GitHub Actions.**
-3. **Settings → Secrets and variables → Actions → New repository secret:**
-   - `TWELVE_DATA_KEY`: free key from twelvedata.com (prices for the lower chart). 14 series are downloaded an hour (336 credits a day, inside the free 800): the 7 USD pairs, from which every FX cross is calculated (EUR/GBP = EUR/USD ÷ GBP/USD), plus one symbol per instrument. Indices use their tracking funds (SPY, QQQ, DIA). Silver, copper and oil try spot first (XAG/USD, XCU/USD, WTI/USD) and fall back to SLV, CPER and USO if your plan doesn't include spot; `data/prices/sources.json` records which one is used.
-   - `GEMINI_API_KEY`: free key from Google AI Studio (looks up released values)
+The hourly job is `.github/workflows/news-update.yml` at the **root of the monorepo** (GitHub only runs workflows from there). Each run: `npm run pipeline`, commit `data/` back, then `vercel build --prod` and `vercel deploy --prebuilt --prod`, so every deploy carries freshly written `public/data/*.json` (which is never committed). A plain `vercel --prod` from your machine uploads whatever `public/data/` you have locally, usually the sample data, and it goes stale after 3 hours; the hourly job replaces it on its next run.
+
+1. Link the project once from this folder: `vercel link` (writes `.vercel/project.json` with `orgId` and `projectId`).
+2. **GitHub → Settings → Secrets and variables → Actions → New repository secret:**
+   - `VERCEL_TOKEN`: a token from vercel.com/account/tokens
+   - `VERCEL_ORG_ID`: `orgId` from `.vercel/project.json`
+   - `VERCEL_NEWS_PROJECT_ID`: `projectId` from `.vercel/project.json`
+   - `TWELVE_DATA_KEY` (optional): free key from twelvedata.com (prices for the lower chart). 14 series are downloaded an hour (336 credits a day, inside the free 800): the 7 USD pairs, from which every FX cross is calculated (EUR/GBP = EUR/USD ÷ GBP/USD), plus one symbol per instrument. Indices use their tracking funds (SPY, QQQ, DIA). Silver, copper and oil try spot first (XAG/USD, XCU/USD, WTI/USD) and fall back to SLV, CPER and USO if your plan doesn't include spot; `data/prices/sources.json` records which one is used.
+   - `GEMINI_API_KEY` (optional, recommended): free key from Google AI Studio (looks up released values; without it only the actuals the feed itself reveals are used)
    - Optional variable `GEMINI_MODEL` if you want a model other than `gemini-2.5-flash`
-4. **Actions → Update data and deploy → Run workflow** for the first run. After that it runs every hour at :07.
-
-The site is then live at `https://<your-username>.github.io/<repo-name>/`.
+3. **Make Refresh collect new data:** create a fine-grained GitHub token (github.com/settings/personal-access-tokens) for this repository only, with **Actions: Read and write**, and add it to the Vercel project as `GITHUB_DISPATCH_TOKEN` (from this folder: `vercel env add GITHUB_DISPATCH_TOKEN production`, then redeploy, or let the next hourly run do it). Optional overrides: `NEWS_REPO`, `NEWS_WORKFLOW`, `NEWS_REF`.
+4. **Actions → News - update data and deploy → Run workflow** for the first run. After that it runs every hour at :07, and on every push that touches this folder.
 
 **History builds up over time.** The calendar feed only covers the current week, so the 30-day chart fills in over about four weeks of hourly runs. Until then the left part of the chart is flat at zero.
 
@@ -89,7 +92,7 @@ The home page (`#/all`) groups every pair into bullish, balanced and bearish, wi
 - **How the score works (`#/how-it-works`):** the method in plain English.
 - **Economic calendar (`#/calendar`) and How the calendar works (`#/calendar/how-it-works`):** see below.
 - **What's already out:** everything is judged by the viewer's clock (`src/clock.js`, read every minute), not by when the data was made, so a page left open or data a few hours old still knows what has happened. Released items step back (a check instead of the arrow), finished days fold away, and a "now" line marks the present.
-- **Refresh:** a status bar at the top of every page shows when the scores were last updated (amber after 3 hours) and has the Refresh button, which rests for 60 seconds after each use with a countdown. Under `npm run dev` it re-runs the data job on your machine (the real pipeline once `data/events.json` exists, otherwise the sample data; see `vite.config.js`), then reloads the scores. On the deployed site it re-fetches the latest JSON and says plainly if nothing newer exists yet; open tabs also re-check every 10 minutes on their own.
+- **Refresh:** a status bar at the top of every page shows when the scores were last updated (amber after 3 hours) and has the Refresh button, which collects new data rather than just checking for it. Under `npm run dev` it re-runs the data job on your machine (the real pipeline once `data/events.json` exists, otherwise the sample data; see `vite.config.js`), then reloads the scores. On the deployed site it calls `POST /api/refresh` (`api/refresh.js`), which starts the hourly GitHub workflow right away (or joins the run already going, and won't start another within 5 minutes of one finishing); the page shows "Collecting the latest news data", polls `GET /api/refresh` until the run has published, then loads the new scores, about 2 to 3 minutes in all. Without `GITHUB_DISPATCH_TOKEN` set on Vercel it falls back to re-fetching the latest JSON. The button rests for 60 seconds after each use, and open tabs re-check every 10 minutes on their own.
 - **States:** skeleton screens while data loads, a friendly error with **Try again** if it fails, a notice when the data is more than 3 hours old (the hourly job has stalled), and a 404 page for unknown pairs or paths, with a list of the site's pages. Every build also writes the app as `dist/404.html` (`vite.config.js`), which Vercel and GitHub Pages serve for any path that doesn't exist, so those show the same page.
 - **Type:** Young Serif for headers and big numbers, Instrument Sans for text and data. Both are bundled through `@fontsource`, so there are no external font requests. The theme is a light off-white.
 - **Performance:** the chart library is loaded only on pair pages, so the home page ships about 58 KB gzipped of JavaScript.
@@ -169,7 +172,7 @@ data/                  pipeline state, committed by the Action (events.json, pri
 src/                   React app: App.jsx (routing, data loading, the News / Calendar bar), clock.js,
                        calendarData.js, components/ (Overview, Outlook, BiasChart, NewsLoad, EventTables,
                        Meter, PairPicker, States, HowItWorks, Calendar, CalendarGuide, Doc, Flag), styles.css
-.github/workflows/     update.yml: hourly pipeline + Pages deploy
+../.github/workflows/  news-update.yml (monorepo root): hourly pipeline + Vercel deploy
 ```
 
 ## Caveats

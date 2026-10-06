@@ -8,6 +8,7 @@ import { fmtRelative, fmtTime, zone } from '../format.js';
 import { Tick } from './EventTables.jsx';
 import { CurrencyFlag } from './Flag.jsx';
 import MarketIcon from './MarketIcon.jsx';
+import Sections from './Sections.jsx';
 import { ErrorState, RefreshButton, Skeleton } from './States.jsx';
 
 const BASE = import.meta.env.BASE_URL;
@@ -522,7 +523,10 @@ export default function Calendar() {
       <CalStatus cal={cal} error={error} checkedAt={checkedAt} refreshing={loading} onRefresh={refresh} cooldownUntil={cooldownUntil} />
 
       <header className="cal-head">
-        <h1 className="overview-title">Economic calendar</h1>
+        <div className="page-head">
+          <h1 className="overview-title">Economic calendar</h1>
+          <Sections section="calendar" />
+        </div>
         <p className="overview-lede">
           Every scheduled release for {weeks > 1 ? 'this week and next' : 'this week'}, in your time zone ({zone}). Open a
           release to see what the number means and which markets it moves. What's already out steps back.
@@ -708,8 +712,9 @@ export default function Calendar() {
                               <tr className="cal-now" aria-label={`Now, ${fmtTime(now)}`}>
                                 <td colSpan={9}>
                                   <span className="cal-now-in">
-                                    <b>Now</b>
-                                    <span>{fmtTime(now)}</span>
+                                    <span className="now-tag">
+                                      Now <time>{fmtTime(now)}</time>
+                                    </span>
                                     <i aria-hidden="true" />
                                   </span>
                                 </td>

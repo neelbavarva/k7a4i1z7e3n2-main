@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { fmtRelative, signed } from '../format.js';
 import { KINDS, matchesMarket, normalise, subName } from '../markets.js';
 import MarketIcon from './MarketIcon.jsx';
+import Sections from './Sections.jsx';
 
 const GROUPS = [
   { key: 'bull', title: 'Bullish', test: (s) => s >= 15, sort: (a, b) => b.score - a.score, empty: 'No pair leans bullish right now.' },
@@ -44,7 +45,10 @@ export default function Overview({ meta }) {
 
   return (
     <main className="overview fade-in">
-      <h1 className="overview-title">Where fundamentals lean</h1>
+      <div className="page-head">
+        <h1 className="overview-title">Where fundamentals lean</h1>
+        <Sections section="news" />
+      </div>
       <p className="overview-lede">
         {meta.pairs.length} markets scored from −100 to +100 on recent economic surprises, and where that score is
         heading in 7 days if upcoming releases match their forecasts. For forex, positive favours the first currency in

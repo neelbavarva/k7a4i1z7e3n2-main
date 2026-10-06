@@ -11,7 +11,7 @@ import {
   RETENTION,
 } from '../../pipeline/config.js';
 import { CATEGORIES, LOWER_IS_BETTER, NO_SIGNAL, RATE_DECISION } from '../../pipeline/rules.js';
-import { POLL_MINUTES, REFRESH_COOLDOWN_S, STALE_HOURS } from '../constants.js';
+import { COLLECT_REST_MINUTES, POLL_MINUTES, REFRESH_COOLDOWN_S, STALE_HOURS } from '../constants.js';
 import { Contents, useActiveSection } from './Doc.jsx';
 
 // Every number on this page is read from the pipeline's own settings (pipeline/config.js
@@ -832,8 +832,11 @@ export default function HowItWorks({ meta }) {
                 A page left open checks for new scores every {POLL_MINUTES} minutes, and again when you come back to the tab.
               </li>
               <li>
-                <b>Refresh</b>, at the top of every page, checks right away. After each use it rests for {REFRESH_COOLDOWN_S}{' '}
-                seconds, with a countdown, since the scores only change once an hour.
+                <b>Refresh</b>, at the top of every page, collects new data right away: it starts the same job that runs
+                every hour (or joins it if it's already running), which fetches the calendar and the released values,
+                scores every market and publishes the result. That takes about 2 to 3 minutes, and the page updates by
+                itself when it's done. If the job finished less than {COLLECT_REST_MINUTES} minutes ago, the scores
+                you see are already the latest. After each use the button rests for {REFRESH_COOLDOWN_S} seconds.
               </li>
               <li>
                 The bar at the top turns amber if the last update is more than {STALE_HOURS} hours old, which means the
