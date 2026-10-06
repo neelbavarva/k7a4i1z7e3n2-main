@@ -6,6 +6,7 @@ import {
   LineChart,
   ReferenceLine,
   ResponsiveContainer,
+  ReferenceArea,
   ReferenceDot,
   Tooltip,
   XAxis,
@@ -26,6 +27,9 @@ export default function BiasChart({ data, byId }) {
   const now = Math.floor(data.now / HOUR) * HOUR;
   const from = now - days * DAY;
   const to = data.series.at(-1).t;
+  // before the first week the data job collected there is nothing to plot
+  const since = data.since ?? -Infinity;
+  const gap = since > from ? Math.min(since, now) : null;
 
   const { rows, markers, priceRows, ticks } = useMemo(() => {
     const priceMap = new Map(data.prices.map((p) => [p.t, p.c]));
@@ -38,7 +42,7 @@ export default function BiasChart({ data, byId }) {
       evByHour.get(h).push(e);
     }
     const rows = data.series
-      .filter((p) => p.t >= from)
+      .filter((p) => p.t >= Math.max(from, since))
       .map((p) => ({
         t: p.t,
         s: p.s,
@@ -61,7 +65,7 @@ export default function BiasChart({ data, byId }) {
     const first = Math.ceil(from / DAY) * DAY;
     for (let t = first; t <= to; t += step * DAY) ticks.push(t);
     return { rows, markers, priceRows, ticks };
-  }, [data, from, to, now, days]);
+  }, [data, from, to, now, days, since]);
 
   const xProps = {
     dataKey: 't',
@@ -120,6 +124,19 @@ export default function BiasChart({ data, byId }) {
               axisLine={false}
               width={56}
             />
+            {gap && (
+              <ReferenceArea
+                x1={from}
+                x2={gap}
+                y1={-100}
+                y2={100}
+                fill={c.grid}
+                fillOpacity={0.55}
+                stroke="none"
+                ifOverflow="hidden"
+                label={{ value: `Not collected yet: data starts ${fmtDay(since)}`, position: 'insideTop', offset: 18, fill: c.muted, fontSize: 12 }}
+              />
+            )}
             <ReferenceLine y={0} stroke={c.axis} />
             <Area dataKey="band" stroke="none" fill={c.band} fillOpacity={1} isAnimationActive={false} connectNulls={false} />
             <Area dataKey="pos" type="linear" baseValue={0} stroke="none" fill={c.bull} fillOpacity={0.18} activeDot={false} isAnimationActive={false} />
@@ -130,7 +147,7 @@ export default function BiasChart({ data, byId }) {
             {markers.map((m) => (
               <ReferenceDot key={m.t} x={m.t} y={m.y} ifOverflow="hidden" shape={(p) => <Diamond {...p} high={m.high} c={c} />} />
             ))}
-            <ReferenceLine x={now} stroke={c.ink2} label={{ value: 'now', position: 'insideTopLeft', fill: c.ink2, fontSize: 12 }} />
+            <ReferenceLine x={now} stroke={c.now} strokeWidth={1.5} label={{ value: 'now', position: 'insideTopLeft', fill: c.now, fontSize: 12, fontWeight: 600 }} />
             <Tooltip content={<BiasTooltip byId={byId} pair={data.pair} />} cursor={{ stroke: c.axis }} />
           </ComposedChart>
         </ResponsiveContainer>
@@ -158,7 +175,7 @@ export default function BiasChart({ data, byId }) {
                 tickCount={3}
                 tickFormatter={fmtPrice}
               />
-              <ReferenceLine x={now} stroke={c.ink2} />
+              <ReferenceLine x={now} stroke={c.now} strokeWidth={1.5} />
               <Line dataKey="price" type="linear" stroke={c.ink2} strokeWidth={1.5} dot={false} isAnimationActive={false} />
               <Tooltip
                 cursor={{ stroke: c.axis }}
@@ -178,7 +195,7 @@ export default function BiasChart({ data, byId }) {
         <p className="muted empty-note">Prices aren't available for this market yet. They appear once the hourly update has a price source for it.</p>
       )}
 
-      <DailyTable series={data.series} now={now} />
+      <DailyTable series={data.series.filter((p) => p.t >= since)} now={now} />
     </section>
   );
 }

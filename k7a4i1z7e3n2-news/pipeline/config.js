@@ -168,7 +168,7 @@ export const RETENTION = {
 };
 
 export const ACTUALS = {
-  geminiModel: 'gemini-2.5-flash', // override with the GEMINI_MODEL environment variable
+  geminiModel: 'gemini-3.8-flash', // override with the GEMINI_MODEL environment variable
   minutesAfterRelease: 20,
   maxAttempts: 3,
   maxPerRun: 10,

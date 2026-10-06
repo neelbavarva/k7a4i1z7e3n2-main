@@ -59,7 +59,7 @@ The hourly job is `.github/workflows/news-update.yml` at the **root of the monor
    - `VERCEL_NEWS_PROJECT_ID`: `projectId` from `.vercel/project.json`
    - `TWELVE_DATA_KEY` (optional): free key from twelvedata.com (prices for the lower chart). 14 series are downloaded an hour (336 credits a day, inside the free 800): the 7 USD pairs, from which every FX cross is calculated (EUR/GBP = EUR/USD ÷ GBP/USD), plus one symbol per instrument. Indices use their tracking funds (SPY, QQQ, DIA). Silver, copper and oil try spot first (XAG/USD, XCU/USD, WTI/USD) and fall back to SLV, CPER and USO if your plan doesn't include spot; `data/prices/sources.json` records which one is used.
    - `GEMINI_API_KEY` (optional, recommended): free key from Google AI Studio (looks up released values; without it only the actuals the feed itself reveals are used)
-   - Optional variable `GEMINI_MODEL` if you want a model other than `gemini-2.5-flash`
+   - Optional variable `GEMINI_MODEL` if you want a model other than `gemini-3.8-flash` (if Google retires a model, the job switches to the replacement its error names)
 3. **Make Refresh collect new data:** create a fine-grained GitHub token (github.com/settings/personal-access-tokens) for this repository only, with **Actions: Read and write**, and add it to the Vercel project as `GITHUB_DISPATCH_TOKEN` (from this folder: `vercel env add GITHUB_DISPATCH_TOKEN production`, then redeploy, or let the next hourly run do it). Optional overrides: `NEWS_REPO`, `NEWS_WORKFLOW`, `NEWS_REF`.
 4. **Actions → News - update data and deploy → Run workflow** for the first run. After that it runs every hour at :07, and on every push that touches this folder.
 

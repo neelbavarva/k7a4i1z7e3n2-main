@@ -35,6 +35,7 @@ export async function syncPrices(nowMs, { apiKey, delayMs = PRICE_REQUEST_DELAY_
   const sources = await readJson(SOURCES, {});
   let ok = 0;
   let calls = 0;
+  let lastError = null;
   const wait = async () => {
     if (calls++ > 0) await sleep(delayMs);
   };
@@ -48,6 +49,7 @@ export async function syncPrices(nowMs, { apiKey, delayMs = PRICE_REQUEST_DELAY_
       ok++;
     } catch (err) {
       log(`prices: ${symbol} failed: ${err.message}`);
+      lastError = `${symbol}: ${err.message}`.slice(0, 160);
     }
   }
 
@@ -71,12 +73,15 @@ export async function syncPrices(nowMs, { apiKey, delayMs = PRICE_REQUEST_DELAY_
         break;
       } catch (err) {
         log(`prices: ${inst.id} via ${symbol} failed: ${err.message}`);
+        lastError = `${symbol}: ${err.message}`.slice(0, 160);
       }
     }
     if (!done) log(`prices: no price source worked for ${inst.id}`);
   }
   await writeJson(SOURCES, sources, { pretty: true });
-  log(`prices: updated ${ok}/${Object.keys(PRICE_LEGS).length + INSTRUMENTS.length} series`);
+  const total = Object.keys(PRICE_LEGS).length + INSTRUMENTS.length;
+  log(`prices: updated ${ok}/${total} series`);
+  return { updated: ok, total, error: ok < total ? lastError : null };
 }
 
 /** Reads everything stored: FX legs as quoted, instrument series and their symbols. */

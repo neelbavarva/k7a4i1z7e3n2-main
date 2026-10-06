@@ -127,11 +127,13 @@ export function plausible(e, raw) {
 export async function fillFromGemini(store, nowMs, { apiKey, model = ACTUALS.geminiModel, isDriver }) {
   const todo = needsLookup(store, nowMs, isDriver).slice(0, ACTUALS.maxPerRun);
   let filled = 0;
+  let error = null;
   for (const [i, e] of todo.entries()) {
     if (i > 0) await sleep(ACTUALS.delayMs);
-    e.attempts = (e.attempts ?? 0) + 1;
     try {
       const ans = await askGemini(e, { apiKey, model });
+      // only an answer counts as a try; an outage or a retired model shouldn't use them up
+      e.attempts = (e.attempts ?? 0) + 1;
       if (ans.found && ans.actual_raw && plausible(e, ans.actual_raw)) {
         setActual(e, ans.actual_raw, 'gemini', ans.source_url || null);
         filled++;
@@ -141,9 +143,38 @@ export async function fillFromGemini(store, nowMs, { apiKey, model = ACTUALS.gem
       }
     } catch (err) {
       log(`actuals: Gemini error for ${e.currency} ${e.title}: ${err.message}`);
+      error = err.message.split('\n')[0].slice(0, 160);
     }
   }
-  return { tried: todo.length, filled };
+  return { tried: todo.length, filled, error, model: modelInUse ?? model };
+}
+
+// Google retires model versions; when it does, its 404 names the replacement ("use
+// models/gemini-x-flash"), so follow that once and keep using it for the rest of the run.
+let modelInUse = null;
+async function callGemini(prompt, { apiKey, model }) {
+  for (let hop = 0; hop < 2; hop++) {
+    const m = modelInUse ?? model;
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        tools: [{ google_search: {} }],
+        generationConfig: { temperature: 0 },
+      }),
+    });
+    if (res.ok) return res;
+    const body = await res.text();
+    const next = res.status === 404 && body.match(/use models\/([\w.-]+)/)?.[1];
+    if (next && next !== m) {
+      log(`actuals: Gemini model ${m} is retired; using ${next}`);
+      modelInUse = next;
+      continue;
+    }
+    throw new Error(`HTTP ${res.status}: ${body.slice(0, 200)}`);
+  }
+  throw new Error('Gemini model lookup went round in circles');
 }
 
 async function askGemini(e, { apiKey, model }) {
@@ -154,17 +185,7 @@ async function askGemini(e, { apiKey, model }) {
     '{"found": true|false, "actual_raw": "value in the same format as the forecast, e.g. 0.3% or 150K", "source_url": "url"}',
     'If the value is not yet published or you are not sure, reply {"found": false}.',
   ].join(' ');
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      tools: [{ google_search: {} }],
-      generationConfig: { temperature: 0 },
-    }),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  const res = await callGemini(prompt, { apiKey, model });
   const data = await res.json();
   const cand = data.candidates?.[0];
   const text = (cand?.content?.parts ?? []).map((p) => p.text ?? '').join('');

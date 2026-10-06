@@ -7,24 +7,29 @@ import { log } from '../lib/store.js';
 const DAY = 86400 * 1000;
 
 /** Downloads this week's (and, when available, next week's) ForexFactory calendar. */
-export async function fetchCalendar({ fixtureDir } = {}) {
+export async function fetchCalendar({ fixtureDir, report = [] } = {}) {
   if (fixtureDir) {
     const raw = await readFile(join(fixtureDir, 'ff_calendar_thisweek.json'), 'utf8');
     log('calendar: using fixture');
-    return JSON.parse(raw);
+    const items = JSON.parse(raw);
+    report.push({ file: 'fixture', items: items.length });
+    return items;
   }
   const items = [];
   for (const [i, url] of CALENDAR_URLS.entries()) {
+    const file = url.split('/').pop();
     try {
       const res = await fetch(url, { headers: { 'User-Agent': 'fx-fundamental-bias (hourly, cached)' } });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      log(`calendar: ${data.length} items from ${url.split('/').pop()}`);
+      log(`calendar: ${data.length} items from ${file}`);
+      report.push({ file, items: data.length });
       items.push(...data);
     } catch (err) {
+      report.push({ file, error: err.message, optional: i > 0 });
       // This-week is required; next-week is optional (it may not exist).
       if (i === 0) throw new Error(`calendar fetch failed: ${err.message}`);
-      log(`calendar: optional ${url.split('/').pop()} unavailable (${err.message})`);
+      log(`calendar: optional ${file} unavailable (${err.message})`);
     }
   }
   return items;

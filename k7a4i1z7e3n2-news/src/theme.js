@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 // Chart colours are read from CSS custom properties so light/dark stay in one place
 // (styles.css). SVG presentation attributes can't use var(), so we resolve them here.
-const KEYS = ['bull', 'bear', 'band', 'ink', 'ink2', 'muted', 'grid', 'axis', 'surface', 'high', 'medium', 'rate'];
+const KEYS = ['bull', 'bear', 'band', 'ink', 'ink2', 'muted', 'grid', 'axis', 'surface', 'high', 'medium', 'rate', 'now'];
 
 function read() {
   const cs = getComputedStyle(document.documentElement);
