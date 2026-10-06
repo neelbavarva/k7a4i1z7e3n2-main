@@ -4,6 +4,8 @@ import Meter from './components/Meter.jsx';
 import { UpcomingTable, SurprisesTable } from './components/EventTables.jsx';
 import { POLL_MINUTES, REFRESH_COOLDOWN_S } from './constants.js';
 const HowItWorks = lazy(() => import('./components/HowItWorks.jsx'));
+const Calendar = lazy(() => import('./components/Calendar.jsx'));
+const CalendarGuide = lazy(() => import('./components/CalendarGuide.jsx'));
 import Overview from './components/Overview.jsx';
 import BiasCheck from './components/BiasCheck.jsx';
 import MarketIcon from './components/MarketIcon.jsx';
@@ -19,7 +21,10 @@ const NewsLoad = lazy(() => import('./components/NewsLoad.jsx'));
 const BASE = import.meta.env.BASE_URL;
 export const href = (route) => `${BASE}#/${route}`;
 
-/** Hash routes: #/all, #/how-it-works, #/EURUSD. Anything off the site's base path is a 404. */
+/**
+ * Hash routes. News: #/all, #/how-it-works, #/EURUSD. Economic calendar: #/calendar,
+ * #/calendar/how-it-works. Anything off the site's base path is a 404.
+ */
 function readRoute() {
   const path = window.location.pathname;
   const onBase = path === BASE || path === `${BASE}index.html` || `${path}/` === BASE;
@@ -27,6 +32,8 @@ function readRoute() {
   const raw = decodeURIComponent(window.location.hash.replace(/^#\/?/, '')).replace(/\/+$/, '');
   if (!raw || raw.toLowerCase() === 'all') return { kind: 'all' };
   if (raw.toLowerCase() === 'how-it-works') return { kind: 'how' };
+  if (raw.toLowerCase() === 'calendar') return { kind: 'calendar' };
+  if (raw.toLowerCase() === 'calendar/how-it-works') return { kind: 'calendar-how' };
   return { kind: 'pair', id: raw.toUpperCase().replace(/[^A-Z0-9]/g, ''), value: raw };
 }
 
@@ -113,13 +120,19 @@ export default function App() {
   }, [meta, pair?.id, attempt]);
 
   const notFound = route.kind === 'missing' || (route.kind === 'pair' && meta && !pair);
+  // the site has two halves: the news-based bias, and the economic calendar
+  const section = route.kind === 'calendar' || route.kind === 'calendar-how' ? 'calendar' : 'news';
 
   useEffect(() => {
     document.title = notFound
       ? 'Page not found · FX Fundamental Bias'
       : route.kind === 'how'
         ? 'How the score works · FX Fundamental Bias'
-        : pair
+        : route.kind === 'calendar'
+          ? 'Economic calendar · FX Fundamental Bias'
+          : route.kind === 'calendar-how'
+            ? 'How the calendar works · FX Fundamental Bias'
+            : pair
           ? `${subName(pair) ? `${pair.name} (${pair.symbol})` : pair.name ?? pair.symbol} fundamental bias · FX Fundamental Bias`
           : 'FX Fundamental Bias · Where fundamentals lean';
   }, [notFound, route.kind, pair?.id]);
@@ -194,6 +207,16 @@ export default function App() {
 
   let body;
   if (route.kind === 'missing') body = <NotFound kind="path" />;
+  else if (route.kind === 'calendar') body = (
+      <Suspense fallback={<Skeleton kind="calendar" />}>
+        <Calendar />
+      </Suspense>
+    );
+  else if (route.kind === 'calendar-how') body = (
+      <Suspense fallback={<Skeleton kind="overview" />}>
+        <CalendarGuide />
+      </Suspense>
+    );
   else if (route.kind === 'how') body = (
       <Suspense fallback={<Skeleton kind="overview" />}>
         <HowItWorks meta={meta} />
@@ -214,7 +237,8 @@ export default function App() {
 
   return (
     <div className="page">
-      {meta && !notFound && (
+      <SiteNav section={notFound ? null : section} />
+      {meta && !notFound && section === 'news' && (
         <StatusBar
           generatedAt={meta.generatedAt}
           onRefresh={refresh}
@@ -228,22 +252,56 @@ export default function App() {
       {picking && meta && <PairPicker pairs={meta.pairs} current={pair?.id} onClose={() => setPicking(false)} />}
 
       <footer className="footer">
-        <p className="muted">
-          {meta && (
-            <>
-              Data refreshed {fmtDayTime(meta.generatedAt)} ({fmtRelative(meta.generatedAt)}). Times shown in {zone}.
-              Calendar: {meta.sources.calendar}.{meta.sources.prices ? ` Prices: ${meta.sources.prices}.` : ''}
-              {' · '}
-            </>
-          )}
-          <a href={href('how-it-works')}>How the score works</a>
-        </p>
+        {section === 'calendar' ? (
+          <p className="muted">
+            Calendar: ForexFactory weekly feed, checked live. Times shown in {zone}.{' · '}
+            <a href={href('calendar/how-it-works')}>How the calendar works</a>
+          </p>
+        ) : (
+          <p className="muted">
+            {meta && (
+              <>
+                Data refreshed {fmtDayTime(meta.generatedAt)} ({fmtRelative(meta.generatedAt)}). Times shown in {zone}.
+                Calendar: {meta.sources.calendar}.{meta.sources.prices ? ` Prices: ${meta.sources.prices}.` : ''}
+                {' · '}
+              </>
+            )}
+            <a href={href('how-it-works')}>How the score works</a>
+          </p>
+        )}
       </footer>
     </div>
   );
 }
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
+
+/** The two halves of the site. Each one's "How it works" is linked from the footer. */
+function SiteNav({ section }) {
+  return (
+    <header className="site-nav">
+      <a className="brand" href={href('all')}>
+        FX Fundamental Bias
+      </a>
+      <nav className="sections" aria-label="Sections">
+        <a href={href('all')} aria-current={section === 'news' ? 'page' : undefined}>
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M2 12.5 6 8l3 2.5L14 4.5" />
+          </svg>
+          News
+        </a>
+        <a href={href('calendar')} aria-current={section === 'calendar' ? 'page' : undefined}>
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <rect x="2" y="3" width="12" height="11" rx="2" />
+            <path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3" />
+          </svg>
+          <span className="nav-long">Economic calendar</span>
+          <span className="nav-short">Calendar</span>
+        </a>
+      </nav>
+    </header>
+  );
+}
 
 function Dashboard({ data, meta, onPick }) {
   const { pair, summary } = data;

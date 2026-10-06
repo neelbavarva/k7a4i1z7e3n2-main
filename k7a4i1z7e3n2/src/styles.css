@@ -412,3 +412,112 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ---------- 404 ---------- */
+
+/* the viewer fills the window and doesn't scroll; a 404 is a normal page that can */
+.nf-page {
+  height: 100%;
+  overflow-y: auto;
+  padding: 0 32px 32px;
+}
+.state {
+  max-width: 640px;
+  padding: 13vh 0 8vh;
+}
+/* on the left of the same 1200px column the other Kaizen sites use */
+.nf-in {
+  margin-left: max(0px, calc((100% - 1136px) / 2));
+}
+.state-code {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 15px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.state-title {
+  margin: 10px 0 0;
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(30px, 4vw, 42px);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+.state-text {
+  margin: 14px 0 0;
+  font-size: 15px;
+  color: var(--ink2);
+}
+.nf-links {
+  display: flex;
+  flex-direction: column;
+  margin-top: 32px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.nf-title {
+  margin: 0;
+  padding: 10px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+.nf-links a {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 13px 16px;
+  color: inherit;
+  text-decoration: none;
+  transition: background-color 0.15s;
+}
+.nf-links a + a {
+  border-top: 1px solid var(--grid);
+}
+.nf-links a:hover {
+  background: var(--surface);
+}
+.nf-links span {
+  flex: 1;
+  min-width: 0;
+}
+.nf-links b {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.nf-links small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.nf-links svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.15s var(--ease), stroke 0.15s;
+}
+.nf-links a:hover svg {
+  stroke: var(--ink);
+  transform: translateX(2px);
+}
+@media (max-width: 640px) {
+  .nf-page {
+    padding: 0 16px 24px;
+  }
+}

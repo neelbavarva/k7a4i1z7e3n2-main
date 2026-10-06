@@ -2,7 +2,9 @@
 
 A free, read-only website that scores the fundamental bias of 35 markets: all 28 pairs between the major currencies (EUR, GBP, AUD, NZD, USD, CAD, CHF, JPY), gold, silver, copper, WTI crude, and the S&P 500, Nasdaq 100 and Dow Jones from −100 (fundamentals favour the quote currency) to +100 (they favour the base currency). It is built from economic-calendar surprises and shows upcoming news as a widening risk range. Traders use it as a second opinion on their technical bias.
 
-No backend, no database, no logins. An hourly GitHub Action fetches the data, scores it, saves its state in this repo, and deploys a static React site to GitHub Pages. All API keys stay in GitHub Secrets and never reach the browser.
+The site has two halves, switched from the bar at the top of every page: **News** (the bias scores, `#/all` and each market's page) and the **Economic calendar** (`#/calendar`), a live list of every scheduled release. Each half has its own "How it works" page.
+
+No database, no logins. An hourly GitHub Action fetches the data, scores it, saves its state in this repo, and deploys a static React site to GitHub Pages. All API keys stay in GitHub Secrets and never reach the browser. The one piece of server code is `api/calendar.js`, a small function that passes the live calendar feed to the Calendar page (browsers can't read the feed directly); hosts without functions fall back on the hourly job's saved copy.
 
 ```
 GitHub Actions (hourly)                         GitHub Pages
@@ -14,6 +16,9 @@ GitHub Actions (hourly)                         GitHub Pages
 │  3. Twelve Data prices ─────┘        │        └───────────────────────┘
 │  4. score → public/data/*.json       │
 └──────────────────────────────────────┘
+
+Calendar page ── GET /api/calendar ── ForexFactory feed (live, kept 10 min)
+              └─ data/calendar.json (the hourly job's copy: fallback, and actual values)
 ```
 
 ## Run it locally
@@ -82,8 +87,10 @@ The home page (`#/all`) groups every pair into bullish, balanced and bearish, wi
 - **Home (`#/all`):** every market grouped into bullish, balanced and bearish, with the score now, in 7 days and its 24-hour change. A full-width search understands codes and names (eur, gbpjpy, gold, oil, spx, nasdaq, dow; **/** focuses it, **Enter** opens the top match, **Esc** clears), and an asset-class filter (Forex · Metals · Energy · Indices) narrows the list.
 - **Market pages (`#/EURUSD`, `#/US500`, `#/USOIL`…, aliases like `#/spx` or `#/gold` work too):** the tug-of-war meter, a four-part brief (now, in 7 days, biggest push, next big risk), the 7-day Outlook, the chart, and the event tables. **⌘K / Ctrl+K** opens a market switcher from anywhere. FX pages show each currency's side of the tug-of-war; other markets show how hard each driver is pushing.
 - **How the score works (`#/how-it-works`):** the method in plain English.
+- **Economic calendar (`#/calendar`) and How the calendar works (`#/calendar/how-it-works`):** see below.
+- **What's already out:** everything is judged by the viewer's clock (`src/clock.js`, read every minute), not by when the data was made, so a page left open or data a few hours old still knows what has happened. Released items step back (a check instead of the arrow), finished days fold away, and a "now" line marks the present.
 - **Refresh:** a status bar at the top of every page shows when the scores were last updated (amber after 3 hours) and has the Refresh button, which rests for 60 seconds after each use with a countdown. Under `npm run dev` it re-runs the data job on your machine (the real pipeline once `data/events.json` exists, otherwise the sample data; see `vite.config.js`), then reloads the scores. On the deployed site it re-fetches the latest JSON and says plainly if nothing newer exists yet; open tabs also re-check every 10 minutes on their own.
-- **States:** skeleton screens while data loads, a friendly error with **Try again** if it fails, a notice when the data is more than 3 hours old (the hourly job has stalled), and a 404 page for unknown pairs or paths (GitHub Pages serves it via `404.html`, which the workflow copies from `index.html`).
+- **States:** skeleton screens while data loads, a friendly error with **Try again** if it fails, a notice when the data is more than 3 hours old (the hourly job has stalled), and a 404 page for unknown pairs or paths, with a list of the site's pages. Every build also writes the app as `dist/404.html` (`vite.config.js`), which Vercel and GitHub Pages serve for any path that doesn't exist, so those show the same page.
 - **Type:** Young Serif for headers and big numbers, Instrument Sans for text and data. Both are bundled through `@fontsource`, so there are no external font requests. The theme is a light off-white.
 - **Performance:** the chart library is loaded only on pair pages, so the home page ships about 58 KB gzipped of JavaScript.
 
@@ -91,12 +98,23 @@ The home page (`#/all`) groups every pair into bullish, balanced and bearish, wi
 
 The forward-looking summary a technical trader reads instead of gathering news. It is computed in the browser from the pair's JSON (`src/components/Outlook.jsx`) and assumes every scheduled release matches its forecast:
 
-- **Bias checker:** one fundamental bias for the coming week: `100 × tanh(avg R ÷ K)` over now and the next 7 days of the projection, split into its released-news part and its forecast part (each shown with its share of the weight), with a strength tier (none / weak / moderate / strong at 15 / 40 / 70) and checks: now, in 7 days, share of the week on that side, upcoming forecasts that agree, and surprise risk.
-- **News load:** spikes for each scheduled release in the next 7 days (height = risk weight: rate 4, High 3, Medium 1.5; stacked per hour), a soft "news pressure" curve (same Gaussian as the risk band), a per-day busyness strip (quiet / light < 4 / busy < 9 / very busy) and a week rating (quiet < 8 / moderate < 20 / busy < 40 / very busy).
+- **Bias checker:** one fundamental bias for the coming week: `100 × tanh(avg R ÷ K)` over now and the next 7 days of the projection, split into its released-news part and its forecast part (a weight bar level with the strength bar shows each part's share), with a strength tier (none / weak / moderate / strong at 15 / 40 / 70), check tiles (now, in 7 days, share of the week on that side, upcoming forecasts that agree) and a surprise-risk line.
+- **News load:** a moving time line at the current moment (the passed part washed back, released spikes faded) with a line above the chart saying what's on: a "news window" from 15 minutes before to 45 minutes after a release, or how long until the next one. Then a lollipop spike for each hour with scheduled releases in the next 7 days (height = summed risk weight: rate 4, High 3, Medium 1.5; coloured by the biggest, with a ×n count when several share the hour), a heat-shaded "news pressure" curve (same Gaussian as the risk band), a per-day strip that doubles as the date axis (quiet / light < 4 / busy < 9 / very busy) and a week rating (quiet < 8 / moderate < 20 / busy < 40 / very busy).
 - **Verdict:** the current lean and where it's heading, e.g. "Mildly bearish, fading to neutral". It names the score now and in 7 days, the two biggest expected moves, and the highest-risk day.
 - **Each side of the tug-of-war:** each currency's own score from its own data (`b` and `q` in the series), now and in 7 days. This shows *which* currency is driving the change.
-- **Day by day:** the score at the end of each day in the viewer's time zone, the change on the day, the risk (High if a High-impact release is scheduled that day), and the releases with their expected direction.
+- **Day by day:** the score at the end of each day in the viewer's time zone, the change on the day, the risk (High if a High-impact release is scheduled that day), and the releases with their expected direction. Releases already out show a check and step back, today's card has a "now" line, and days that are over are marked Done.
 - **What each release could do:** the score right after each release if it comes in line, one standard deviation above, or one below forecast. `sc` on each event is the pair effect of a 1σ beat, applied as `100 × tanh((r ± sc) / K)`.
+
+## The Economic calendar (`#/calendar`)
+
+Every release in ForexFactory's weekly feed (this week, and next week once it's published), for every currency in it, in the viewer's time zone. Built in `src/components/Calendar.jsx`; data from `src/calendarData.js`.
+
+- **Data:** `GET /api/calendar` (`api/calendar.js`, a Vercel function; the dev server answers the same path) fetches the feed, keeps every country, fills the actuals the feed itself reveals (a weekly release's next listing carries it as "previous"), and labels each release: kind (data, rate decision, speech, holiday, other), category, `dir`, and a verdict (`beat`: actual vs forecast for the currency; `lean`: forecast vs previous). Answers are cached for 10 minutes (CDN and warm instance). The page merges in actual values from `public/data/calendar.json`, which the hourly job writes (never from sample data), and falls back on that copy alone if the function can't be reached. Shared code: `pipeline/lib/calendar.js` (Node) and `pipeline/lib/values.js` (also loaded by the browser).
+- **Next big release:** the next high-impact release (medium when no high is left) with a countdown to the second.
+- **Days strip:** each day's releases on a 24-hour track (height and colour by impact), counts, closed banks, a marker for now on today. Clicking a day jumps to it.
+- **Filters:** search (`/` focuses, `Esc` clears), currencies, impact levels; currencies and impacts are remembered on the device.
+- **The list:** grouped by day with sticky day headers; time, time left (or "Out"), currency, impact bars, release, actual (blue better / red worse than forecast for the currency), forecast, previous. Past days fold into one line; today has a "now" line. Opening a release explains the number, how it counts in the bias score, and which markets on the News side it moves (and which way if it comes in above forecast), each linking to that market.
+- Re-checks every 10 minutes while visible; Refresh asks at once and rests for 60 seconds. Phones get a two-line row.
 
 ## How the score works
 
@@ -137,21 +155,26 @@ pipeline/
   config.js            pairs (28 crosses + gold), price legs, model constants, retention
   run.js               hourly job (calendar → actuals → prices → scores)
   demo.js              sample data for previewing the site
-  lib/parse.js         value parsing ("201K", "0.3%"), event classification
+  lib/parse.js         event classification (and ids)
+  lib/values.js        value parsing ("201K", "0.3%") and verdicts; the browser loads it too
   lib/score.js         the scoring model
+  lib/calendar.js      the Calendar page's data, live and saved
   lib/output.js        writes public/data/*.json
   sources/             calendar.js, actuals.js, prices.js
   fixtures/            one real calendar week, for tests and the demo
   test/                node:test unit tests
+api/
+  calendar.js          GET /api/calendar: the live calendar feed for the Calendar page
 data/                  pipeline state, committed by the Action (events.json, prices/, overrides CSV)
-src/                   React app: App.jsx (routing, data loading), components/ (Overview, Outlook,
-                       BiasChart, EventTables, Meter, PairPicker, States, HowItWorks), styles.css
+src/                   React app: App.jsx (routing, data loading, the News / Calendar bar), clock.js,
+                       calendarData.js, components/ (Overview, Outlook, BiasChart, NewsLoad, EventTables,
+                       Meter, PairPicker, States, HowItWorks, Calendar, CalendarGuide, Doc, Flag), styles.css
 .github/workflows/     update.yml: hourly pipeline + Pages deploy
 ```
 
 ## Caveats
 
 - **Not financial advice.** The "How it works" page says so, and the site never uses buy/sell wording.
-- **ForexFactory's feed is unofficial.** It's fetched at most twice an hour (this week + next week). If you ever monetise the site, switch to a licensed calendar API and check the terms first.
+- **ForexFactory's feed is unofficial.** The hourly job fetches it at most twice an hour (this week + next week), and the Calendar page's function at most every 10 minutes per server. If you ever monetise the site, switch to a licensed calendar API and check the terms first.
 - **Scheduled workflows pause** if a public repo has no activity for 60 days. The hourly data commits normally count as activity, but if the site stops updating, check the Actions tab and re-enable the workflow.
 - **Backtest before you promote it.** Check whether the score at time t lines up with the pair's move over the next 1–5 days, then tune `K`, the weights and the half-life in `pipeline/config.js`.

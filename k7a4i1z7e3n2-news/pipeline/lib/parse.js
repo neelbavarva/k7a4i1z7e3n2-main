@@ -2,29 +2,8 @@ import { createHash } from 'node:crypto';
 import { MODEL } from '../config.js';
 import { LOWER_IS_BETTER, NO_SIGNAL, RATE_DECISION } from '../rules.js';
 
-const MULT = { K: 1e3, M: 1e6, B: 1e9, T: 1e12 };
-const VALUE_RE = /^([+-]?(?:\d+\.?\d*|\.\d+))\s*([%KMBT])?$/i;
-
-/** "0.3%" -> 0.3, "201K" -> 201000, "-116.3B" -> -1.163e11, "5.16|3.6" -> 5.16, "" -> null */
-export function parseValue(raw) {
-  if (raw == null) return null;
-  const s = String(raw).split('|')[0].trim().replace(/,/g, '');
-  if (!s) return null;
-  const m = s.match(VALUE_RE);
-  if (!m) return null;
-  const n = parseFloat(m[1]);
-  if (!Number.isFinite(n)) return null;
-  const suffix = (m[2] || '').toUpperCase();
-  return MULT[suffix] ? n * MULT[suffix] : n;
-}
-
-/** The unit suffix of a raw value: '%', 'K', 'M', 'B', 'T' or '' */
-export function unitOf(raw) {
-  if (raw == null) return '';
-  const s = String(raw).split('|')[0].trim();
-  const m = s.match(VALUE_RE);
-  return m ? (m[2] || '').toUpperCase() : '';
-}
+// value parsing lives in values.js, which the website can load too (this file needs Node)
+export { parseValue, unitOf } from './values.js';
 
 export function eventId(title, currency, isoUtc) {
   return createHash('sha256').update(`${title}|${currency}|${isoUtc}`).digest('hex').slice(0, 16);

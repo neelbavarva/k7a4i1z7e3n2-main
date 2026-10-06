@@ -333,3 +333,73 @@ test('bias checker: combines released news and forecasts over the next 7 days', 
   assert.equal(biasCheck({ past: 0, up: 0, n: 0, scores: [] }), null);
   assert.deepEqual(['None', 'Weak', 'Moderate', 'Strong'], [5, -20, 55, -80].map(strengthTier));
 });
+
+// ---------------------------------------------------------------------------------------------
+// Economic calendar (api/calendar.js and public/data/calendar.json)
+
+import { compareValues, judge } from '../lib/values.js';
+import { kindOf, liveCalendar, savedCalendar } from '../lib/calendar.js';
+
+test('calendar values: compared only when they are the same kind of number', () => {
+  assert.equal(compareValues('0.4%', '0.3%'), 1);
+  assert.equal(compareValues('201K', '0.25M'), -1);
+  assert.equal(compareValues('54.8', '54.8'), 0);
+  assert.equal(compareValues('0.3%', '54.8'), null);
+  assert.equal(compareValues('', '0.3%'), null);
+});
+
+test('calendar verdicts: better or worse for the currency, lower is better for jobless data', () => {
+  // inflation above forecast: better than expected for the currency
+  assert.deepEqual(judge({ a: '0.4%', f: '0.3%', p: '0.2%', dir: 1 }), { vs: 1, beat: 1, trend: 1, lean: 1 });
+  // unemployment above forecast: worse; a forecast rise would weigh on it
+  assert.deepEqual(judge({ a: '4.4%', f: '4.3%', p: '4.2%', dir: -1 }), { vs: 1, beat: -1, trend: 1, lean: -1 });
+  // in line
+  assert.equal(judge({ a: '150K', f: '150K', dir: 1 }).beat, 0);
+  // risk-only releases get the comparison but no verdict
+  assert.deepEqual(judge({ a: '3.1M', f: '-1.2M', p: '0.5M', dir: 1, skip: true }), { vs: 1, beat: null, trend: -1, lean: null });
+});
+
+test('calendar kinds', () => {
+  const k = (title, impact) => kindOf({ title, impact, ...classify(title, impact) });
+  assert.equal(k('Bank Holiday', 'Holiday'), 'holiday');
+  assert.equal(k('Cash Rate', 'High'), 'rate');
+  assert.equal(k('ECB President Lagarde Speaks', 'Medium'), 'speech');
+  assert.equal(k('FOMC Meeting Minutes', 'High'), 'other');
+  assert.equal(k('CPI m/m', 'High'), 'data');
+});
+
+test('live calendar: every country, actuals from the next listing, ids shared with the hourly job', async () => {
+  const week1 = [
+    { title: 'Unemployment Claims', country: 'USD', date: '2026-10-01T08:30:00-04:00', impact: 'High', forecast: '220K', previous: '218K' },
+    { title: 'OPEC-JMMC Meetings', country: 'All', date: '2026-10-02T05:15:00-04:00', impact: 'Medium', forecast: '', previous: '' },
+  ];
+  const week2 = [
+    { title: 'Unemployment Claims', country: 'USD', date: '2026-10-08T08:30:00-04:00', impact: 'High', forecast: '225K', previous: '231K' },
+  ];
+  const real = globalThis.fetch;
+  globalThis.fetch = async (url) => ({ ok: true, json: async () => (String(url).includes('nextweek') ? week2 : week1) });
+  try {
+    const cal = await liveCalendar({ nowMs: Date.parse('2026-10-03T00:00:00Z') });
+    assert.equal(cal.live, true);
+    assert.equal(cal.events.length, 3);
+    const [claims, opec, next] = cal.events;
+    assert.equal(opec.ccy, 'All');
+    assert.equal(claims.a, '231K');
+    // 231K against a 220K forecast: more claims than expected is worse for the dollar
+    assert.equal(claims.beat, -1);
+    assert.equal(next.a, null);
+    // the same id the hourly job gives the release, so its saved actual values can be matched
+    const [stored] = normalise(week1);
+    assert.equal(claims.id, stored.id);
+  } finally {
+    globalThis.fetch = real;
+  }
+});
+
+test('saved calendar starts at the beginning of the current week', () => {
+  const ev = (time) => ({ ...normalise([{ title: 'CPI m/m', country: 'USD', date: time, impact: 'High', forecast: '0.3%', previous: '0.2%' }])[0], actualRaw: null });
+  const now = Date.parse('2026-10-07T12:00:00Z'); // a Wednesday
+  const cal = savedCalendar([ev('2026-09-30T08:30:00-04:00'), ev('2026-10-05T08:30:00-04:00'), ev('2026-10-12T08:30:00-04:00')], { nowMs: now, demo: false, source: 'test' });
+  assert.deepEqual(cal.events.map((e) => e.t.slice(0, 10)), ['2026-10-05', '2026-10-12']);
+  assert.equal(cal.live, false);
+});

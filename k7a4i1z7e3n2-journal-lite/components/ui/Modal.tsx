@@ -1,6 +1,6 @@
 'use client';
 
-import { useLayoutEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 
 type Props = {
@@ -50,6 +50,57 @@ function Dialog({ onClose, title, sub, icon, wide, busy, className = '', label, 
       setTimeout(() => {
         if (d && !d.isConnected && returnFocus.current?.isConnected) returnFocus.current.focus();
       });
+    };
+  }, []);
+
+  // Keep the page behind still. Switching the page's own scrolling off would repaint all of it on
+  // every open and close (a blink inside the split view), so instead a wheel or swipe that nothing
+  // in the dialog can scroll any further is stopped here, before it reaches the page.
+  useEffect(() => {
+    const d = ref.current;
+    if (!d) return;
+    const canScroll = (from: EventTarget | null, dy: number) => {
+      for (let el = from instanceof Element ? from : null; el; el = el.parentElement) {
+        const oy = getComputedStyle(el).overflowY;
+        if ((oy === 'auto' || oy === 'scroll') && el.scrollHeight > el.clientHeight + 1) {
+          if (dy < 0 ? el.scrollTop > 0 : el.scrollTop + el.clientHeight < el.scrollHeight - 1) return true;
+        }
+        if (el === d) break;
+      }
+      return false;
+    };
+    // over the dimmed backdrop the event comes from the dialog itself, but nothing there scrolls
+    const onBackdrop = (x: number, y: number) => {
+      const r = d.getBoundingClientRect();
+      return x < r.left || x > r.right || y < r.top || y > r.bottom;
+    };
+    const mine = (t: EventTarget | null) => t instanceof Node && d.contains(t);
+    const onWheel = (e: WheelEvent) => {
+      if (!mine(e.target)) return;
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return; // sideways: strips and switches scroll themselves
+      if ((e.target === d && onBackdrop(e.clientX, e.clientY)) || !canScroll(e.target, e.deltaY)) e.preventDefault();
+    };
+    let lastY = 0;
+    const onTouchStart = (e: TouchEvent) => {
+      lastY = e.touches[0]?.clientY ?? 0;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (!mine(e.target)) return;
+      const y = e.touches[0]?.clientY ?? lastY;
+      const dy = lastY - y;
+      lastY = y;
+      const t = e.touches[0];
+      if (dy && ((e.target === d && t && onBackdrop(t.clientX, t.clientY)) || !canScroll(e.target, dy))) e.preventDefault();
+    };
+    // on the window, not the dialog: the browser only lets a listener stop scrolling where it
+    // listens, and the backdrop lies outside the dialog's box
+    addEventListener('wheel', onWheel, { passive: false });
+    addEventListener('touchstart', onTouchStart, { passive: true });
+    addEventListener('touchmove', onTouchMove, { passive: false });
+    return () => {
+      removeEventListener('wheel', onWheel);
+      removeEventListener('touchstart', onTouchStart);
+      removeEventListener('touchmove', onTouchMove);
     };
   }, []);
 

@@ -336,7 +336,7 @@ function RightNow({ day, is24Hour }: { day: MarketDay; is24Hour: boolean }) {
         </div>
       </div>
 
-      <ul className="bc-checks">
+      <ul className="bc-checks rn-checks">
         {checks.map((k) => (
           <li key={k.label} className={k.kind}>
             <span className="bc-icon" aria-label={{ ok: 'Good', warn: 'Caution', no: 'None', info: 'Info' }[k.kind]}>

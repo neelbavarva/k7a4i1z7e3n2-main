@@ -2,7 +2,7 @@ import type { MarketDay, Scrub } from '../hooks';
 import { AMD_H, AMD_W, PHASE_LABEL, PHASE_NOTE, PHASE_NY, amdY, amdYAt, phaseAt } from '../marketModel';
 import type { Phase, PhaseSegment } from '../marketModel';
 import { HOUR_MS, clamp, formatClock } from '../marketTime';
-import { Axis, Plot, Tube } from './common';
+import { Axis, Plot } from './common';
 
 const PHASES: Phase[] = ['accumulation', 'manipulation', 'distribution'];
 
@@ -15,7 +15,7 @@ export default function AmdChart({ day, scrub, is24Hour }: { day: MarketDay; scr
   const clock = (h: number) => formatClock(dayStart + h * HOUR_MS, timezone, is24Hour);
   const hour = (scrub.percent / 100) * 24;
   const active = phaseAt(amd.segments, hour);
-  const pathY = (amdYAt(amd.segments, amd.shapes, hour) / AMD_H) * 100;
+  const pathY = (amdYAt(amd.shapes, hour) / AMD_H) * 100;
   const closedNow = day.weekend && scrub.scrubPercent === null;
 
   // the longest piece of each phase in the shown day, for the cards
@@ -51,20 +51,13 @@ export default function AmdChart({ day, scrub, is24Hour }: { day: MarketDay; scr
       </div>
 
       <div className="frame">
+        {/* a plain price scale: the path is a sketch of how price tends to move, not a price */}
         <div className="gutter" aria-hidden="true">
           <div className="y-area">
-            <Tube
-              className="tube-price"
-              y={pathY}
-              top={(amdY(1) / AMD_H) * 100}
-              bottom={(amdY(0) / AMD_H) * 100}
-              marker={`ph-${active ?? 'none'}`}
-              ticks={[
-                { y: (amdY(1) / AMD_H) * 100, label: 'Higher', end: true },
-                { y: (amdY(0) / AMD_H) * 100, label: 'Lower', end: true },
-              ]}
-              moving={scrub.scrubPercent !== null}
-            />
+            <div className="amd-scale" style={{ top: `${(amdY(1) / AMD_H) * 100}%`, bottom: `${100 - (amdY(0) / AMD_H) * 100}%` }}>
+              <span className="amd-scale-label is-top">Higher</span>
+              <span className="amd-scale-label is-bottom">Lower</span>
+            </div>
           </div>
         </div>
 
@@ -75,9 +68,9 @@ export default function AmdChart({ day, scrub, is24Hour }: { day: MarketDay; scr
               <rect
                 key={`bg-${s.phase}-${s.rawStart}`}
                 className={`amd-bg ph-${s.phase}`}
-                x={(s.start / 24) * AMD_W}
+                x={(s.start / 24) * AMD_W + 1}
                 y="0"
-                width={((s.end - s.start) / 24) * AMD_W}
+                width={Math.max(0, ((s.end - s.start) / 24) * AMD_W - 2)}
                 height={AMD_H}
               />
             ))}
@@ -88,21 +81,17 @@ export default function AmdChart({ day, scrub, is24Hour }: { day: MarketDay; scr
               <path key={`ph-${s.phase}-${i}`} className={`amd-line ph-${s.phase}`} d={s.d} vectorEffect="non-scaling-stroke" />
             ))}
           </svg>
-          {amd.segments.map((s, i) => (
+          {amd.segments.map((s) => (
             <span
               key={`lb-${s.phase}-${s.rawStart}`}
-              className={`amd-label ph-${s.phase}${i % 2 ? ' low' : ''}`}
+              className={`amd-label${s.end - s.start < 2.4 ? ' is-narrow' : ''}`}
               style={{ left: `${clamp(((s.start + s.end) / 2 / 24) * 100, 8, 92)}%` }}
               aria-hidden="true"
             >
+              <i className={`ph-swatch ph-${s.phase}`} />
               {PHASE_LABEL[s.phase]}
             </span>
           ))}
-          <span
-            className={`read-guide ph-${active ?? 'none'}${scrub.scrubPercent !== null ? ' is-moving' : ''}`}
-            style={{ top: `${pathY}%`, width: `${scrub.percent}%` }}
-            aria-hidden="true"
-          />
           <span className={`vol-dot amd-dot ph-${active ?? 'none'}`} style={{ left: `${scrub.percent}%`, top: `${pathY}%` }} aria-hidden="true" />
           </div>
         </Plot>
@@ -118,7 +107,10 @@ export default function AmdChart({ day, scrub, is24Hour }: { day: MarketDay; scr
           return (
             <li key={p} className={`day ph-card ph-${p}${isNow ? ' is-now' : ''}`}>
               <div className="day-head">
-                <span className="day-name">{PHASE_LABEL[p]}</span>
+                <span className="day-name">
+                  <i className={`ph-swatch ph-${p}`} aria-hidden="true" />
+                  {PHASE_LABEL[p]}
+                </span>
                 <span className="day-date">{PHASE_NY[p]} New York</span>
                 {isNow && (
                   <span className="risk-tag">

@@ -1,3 +1,6 @@
+Most flags are from country-flag-icons; AE, CZ, DK, HK, HU, MX, NO, PL, SE, SG, TH, TR and ZA were drawn for this site in the same
+style (square, cropped for a round frame).
+
 Flags from country-flag-icons (https://gitlab.com/catamphetamine/country-flag-icons), MIT License:
 
 (The MIT License)

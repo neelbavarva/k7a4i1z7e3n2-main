@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useRef, useState, useTransition } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { CalendarIcon, ChevronDown, RefreshIcon, SearchIcon } from '@/components/ui/icons';
+import { YearRangePicker, type Era } from './year-range';
 
 /* ─── Relative time, computed on the client only (no hydration mismatch) ─── */
 export function useRelative(iso: string | undefined) {
@@ -80,10 +81,8 @@ export function Timeframe({
   rangeStart,
   rangeEnd,
   allYears,
-  draft,
-  onDraftOpen,
-  onPickPart,
-  rangeIsValid,
+  eras,
+  onRange,
 }: {
   period: Period;
   periods: ReadonlyArray<number | 'MAX'>;
@@ -91,13 +90,22 @@ export function Timeframe({
   rangeStart: number;
   rangeEnd: number;
   allYears: number[];
-  draft: { start: string; end: string };
-  onDraftOpen: () => void;
-  onPickPart: (part: 'start' | 'end', value: string) => void;
-  rangeIsValid: boolean;
+  eras: Era[];
+  onRange: (start: number, end: number) => void;
 }) {
   const [open, setOpen] = useState(false);
   const anchor = useRef<HTMLDivElement>(null);
+  const pop = useRef<HTMLDivElement>(null);
+
+  // the range popover hangs from its button, shifted left if it would run off the screen
+  useLayoutEffect(() => {
+    const el = pop.current;
+    if (!open || !el || !anchor.current) return;
+    // from the button and the layout width: the opening animation scales the popover itself
+    const left = anchor.current.getBoundingClientRect().left;
+    const over = left + el.offsetWidth - (document.documentElement.clientWidth - 16);
+    el.style.left = over > 0 ? `${-Math.min(over, left - 16)}px` : '0px';
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -123,39 +131,19 @@ export function Timeframe({
       <div className="pop-anchor" ref={anchor}>
         <button
           type="button"
-          className="btn btn-sm"
+          className="btn btn-sm range-btn"
           aria-expanded={open}
           aria-haspopup="dialog"
           aria-pressed={period === 'CUSTOM'}
-          onClick={() => { if (!open) onDraftOpen(); setOpen(o => !o); }}
+          onClick={() => setOpen(o => !o)}
         >
           <CalendarIcon />
           {period === 'CUSTOM' ? `${rangeStart}–${rangeEnd}` : 'Custom range'}
           <ChevronDown className="chev" />
         </button>
-        {open && (
-          <div className="pop" role="dialog" aria-label="Custom range">
-            <div className="pop-title">
-              <span>Custom range</span>
-              <b>{rangeStart}–{rangeEnd}</b>
-            </div>
-            <div className="pop-fields">
-              <label>
-                From
-                <select className="select" value={draft.start || String(rangeStart)} onChange={e => onPickPart('start', e.target.value)}>
-                  {allYears.map(y => <option key={y} value={y}>{y}</option>)}
-                </select>
-              </label>
-              <span>–</span>
-              <label>
-                To
-                <select className="select" value={draft.end || String(rangeEnd)} onChange={e => onPickPart('end', e.target.value)}>
-                  {allYears.map(y => <option key={y} value={y}>{y}</option>)}
-                </select>
-              </label>
-            </div>
-            {!rangeIsValid && <p className="pop-error" role="alert">The end year has to be on or after the start year.</p>}
-            <p className="pop-foot muted">Data runs {allYears[0]}–{allYears.at(-1)}. The chart updates as you pick.</p>
+        {open && allYears.length > 0 && (
+          <div className="pop range-pop" role="dialog" aria-label="Custom range" ref={pop}>
+            <YearRangePicker years={allYears} start={rangeStart} end={rangeEnd} eras={eras} onPick={onRange} onDone={() => setOpen(false)} />
           </div>
         )}
       </div>

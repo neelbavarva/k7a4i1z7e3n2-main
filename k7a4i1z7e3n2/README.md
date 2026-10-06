@@ -14,6 +14,7 @@ npm run build    # static output in dist/
 - **Rearrange:** hover a pane, then drag the dotted handle at the left of its toolbar (bottom-right) and drop it between two other panes. Arrow keys move it when the handle is focused. Tabs follow the same order.
 - **Reset:** once the layout differs from the default, a reset button appears in each pane's toolbar; it restores the default order and equal widths.
 - Order and widths are remembered per browser (`localStorage`); they fall back to the default if the site list changes.
+- Any path other than the viewer itself shows a 404 that links to the split view and each site. Builds also write the app as `dist/404.html` (`vite.config.js`), which Vercel serves for unknown paths.
 - **Per pane:** hover a pane for reload / open-in-new-tab (bottom-right).
 - **Below 2500px wide:** one site at a time; switch with the tab bar (arrow keys work when a tab is focused). Reload / open-in-new-tab sit at the right of the bar. Each site loads the first time it's opened and stays loaded, and the last tab is remembered. The breakpoint is `WIDE_QUERY` in `src/App.jsx`.
 

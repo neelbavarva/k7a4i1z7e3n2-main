@@ -11,6 +11,8 @@ export interface DropdownOption {
   group?: string;
   /** on the right of the row: a price */
   aside?: ReactNode;
+  /** before the label: a flag */
+  icon?: ReactNode;
 }
 
 interface Props {
@@ -27,6 +29,10 @@ interface Props {
   /** to open it from outside (a keyboard shortcut) */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /** a taller field, with the name under the label */
+  tall?: boolean;
+  /** on the left of the closed field, instead of the chosen option's icon */
+  icon?: ReactNode;
 }
 
 const coarse = () => {
@@ -42,7 +48,7 @@ const coarse = () => {
  * at the top and the options under it. Type to narrow, arrows to move, Enter to choose, Esc or a
  * click outside to close. Opens upwards when there's no room below.
  */
-export default function Dropdown({ labelId, value, options, onChange, search, placeholder = 'Search…', aside, ...props }: Props) {
+export default function Dropdown({ labelId, value, options, onChange, search, placeholder = 'Search…', aside, tall, icon, ...props }: Props) {
   const [ownOpen, setOwnOpen] = useState(false);
   const open = props.open ?? ownOpen;
   const onOpenChange = useRef(props.onOpenChange);
@@ -150,7 +156,7 @@ export default function Dropdown({ labelId, value, options, onChange, search, pl
   };
 
   return (
-    <div className={`dd${open ? ' is-open' : ''}${up ? ' is-up' : ''}`} ref={root}>
+    <div className={`dd${open ? ' is-open' : ''}${up ? ' is-up' : ''}${tall ? ' is-tall' : ''}`} ref={root}>
       <button
         type="button"
         ref={trigger}
@@ -161,9 +167,15 @@ export default function Dropdown({ labelId, value, options, onChange, search, pl
         onClick={() => setOpen(!open)}
         onKeyDown={onTriggerKey}
       >
+        {(icon ?? selected?.icon) && <span className="dd-icon">{icon ?? selected?.icon}</span>}
         <span className="dd-value" id={`${id}-value`}>
           <b>{selected?.label ?? value}</b>
-          {selected?.sub && <span className="dd-sub"> – {selected.sub}</span>}
+          {selected?.sub && (
+            <span className="dd-sub">
+              <span className="dd-dash"> – </span>
+              {selected.sub}
+            </span>
+          )}
         </span>
         {aside && <span className="dd-aside">{aside}</span>}
         <span className="dd-chevron" aria-hidden="true" />
@@ -206,6 +218,7 @@ export default function Dropdown({ labelId, value, options, onChange, search, pl
                   onMouseMove={() => i !== active && setActive(i)}
                   onClick={() => choose(o)}
                 >
+                  {o.icon && <span className="dd-icon">{o.icon}</span>}
                   <span className="dd-option">
                     <b>{o.label}</b>
                     {o.sub && <span className="dd-sub"> – {o.sub}</span>}

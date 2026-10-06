@@ -1,15 +1,17 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useLayoutEffect, useMemo, useState } from 'react';
 import { ChevronDown, Clock, History, Lock } from 'lucide-react';
 import { createTrade, friendly, updateTrade } from '@/lib/api';
 import { dayKey, fmtDay, fmtTime, forexDay, localStamp, parseDay } from '@/lib/journal';
+import { FUND_HINT, fundPatch } from '@/lib/fundamentals';
 import { PACE_HINT, PACE_LABEL, pacePatch, type PaceOrNone } from '@/lib/pace';
 import { PAIRS } from '@/lib/pairs';
 import { uploadAll } from '@/lib/upload';
 import type { Pending } from '@/lib/images';
 import { pairError, riskError, textError, TEXT_MAX } from '@/lib/validate';
 import type { TradeType } from '@/lib/types';
+import { TYPE_LABEL } from '@/lib/journal';
 import { useJournal } from '../JournalContext';
 import { useNow } from '../hooks';
 import { useToast } from '../ui/Toast';
@@ -27,6 +29,8 @@ const TYPE_HINT: Record<TradeType, string> = {
   MISSED: 'A setup you saw but didn’t take. Saved as a profit at this R, for the record.',
 };
 
+const R_PRESETS = ['1.5', '2', '2.5', '3'];
+
 export default function NewTrade({ open, onClose }: { open: boolean; onClose: () => void }) {
   const j = useJournal();
   const toast = useToast();
@@ -37,6 +41,7 @@ export default function NewTrade({ open, onClose }: { open: boolean; onClose: ()
   const [risk, setRisk] = useState('');
   const [notes, setNotes] = useState('');
   const [pace, setPace] = useState<PaceOrNone>(null);
+  const [backed, setBacked] = useState(false);
   const [when, setWhen] = useState<'now' | 'earlier'>('now');
   const [at, setAt] = useState('');
   const [images, setImages] = useState<Pending[]>([]);
@@ -45,7 +50,8 @@ export default function NewTrade({ open, onClose }: { open: boolean; onClose: ()
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  // a fresh form on every open, before it paints, so the last trade never flashes up
+  useLayoutEffect(() => {
     if (!open) return;
     setType(j.blocked.NORMAL ? 'DEMO' : 'NORMAL');
     setPair('');
@@ -53,6 +59,7 @@ export default function NewTrade({ open, onClose }: { open: boolean; onClose: ()
     setRisk('');
     setNotes('');
     setPace(null);
+    setBacked(false);
     setWhen('now');
     setAt(localStamp(new Date()));
     setImages([]);
@@ -101,13 +108,11 @@ export default function NewTrade({ open, onClose }: { open: boolean; onClose: ()
         description: notes.trim() || null,
         ...(dated ? { createdAt: dated.toISOString() } : {}),
       });
-      // the API takes the pace only on an update, so it goes on straight after
-      if (pace) {
-        try {
-          trade = await updateTrade(trade.id, pacePatch(pace));
-        } catch {
-          toast('error', `Saved without the ${PACE_LABEL[pace].toLowerCase()} mark`, 'Open the trade to mark its pace again.');
-        }
+      // the API takes the pace and the fundamentals answer only on an update, so they go on straight after
+      try {
+        trade = await updateTrade(trade.id, { ...pacePatch(pace), ...fundPatch(backed) });
+      } catch {
+        toast('error', 'Saved without its pace and fundamentals', 'Open the trade to set them again.');
       }
       j.applyTrade(trade);
       if (images.length) {
@@ -127,39 +132,47 @@ export default function NewTrade({ open, onClose }: { open: boolean; onClose: ()
   const show = (k: keyof typeof errors) => (tried ? errors[k] : null);
 
   return (
-    <Modal open={open} onClose={onClose} busy={!!busy} title="New trade" sub="Log it now; close it as a profit or loss later.">
+    <Modal open={open} onClose={onClose} busy={!!busy} className="new-trade" title="New trade" sub="Log it now; close it as a profit or loss later.">
       <form className="modal-body" onSubmit={submit} noValidate>
-        <fieldset className="bare form" disabled={!!busy}>
-          <div className="field">
-            <span className="field-label" id="nt-type">
+        {/* an order ticket: a label column on the left, each line ruled off from the next */}
+        <fieldset className="bare ticket" disabled={!!busy}>
+          <div className="tk-row">
+            <span className="tk-label" id="nt-type">
               Type
             </span>
-            <Seg
-              wide
-              label="Trade type"
-              value={type}
-              onChange={setType}
-              options={(['NORMAL', 'DEMO', 'MISSED'] as const).map((t) => ({
-                value: t,
-                label: t === 'NORMAL' ? 'Real' : t === 'DEMO' ? 'Demo' : 'Missed',
-                icon: forexDay(when_) === j.today?.day && j.blocked[t] ? <Lock className="seg-lock" aria-hidden="true" /> : undefined,
-              }))}
-            />
-            <span className="field-hint">{TYPE_HINT[type]}</span>
+            <div className="tk-field">
+              <Seg
+                wide
+                label="Trade type"
+                className="type-seg"
+                value={type}
+                onChange={setType}
+                options={(['NORMAL', 'DEMO', 'MISSED'] as const).map((t) => ({
+                  value: t,
+                  label: TYPE_LABEL[t],
+                  icon:
+                    forexDay(when_) === j.today?.day && j.blocked[t] ? (
+                      <Lock className="seg-lock" aria-label="Locked today" />
+                    ) : (
+                      <i className={`type-key t-${t.toLowerCase()}`} aria-hidden="true" />
+                    ),
+                }))}
+              />
+              <span className="field-hint">{TYPE_HINT[type]}</span>
+              {lock && (
+                <div className="notice is-locked fade-in" role="alert">
+                  <Lock aria-hidden="true" />
+                  <p>{lock}</p>
+                </div>
+              )}
+            </div>
           </div>
 
-          {lock && (
-            <div className="notice is-locked fade-in" role="alert">
-              <Lock aria-hidden="true" />
-              <p>{lock}</p>
-            </div>
-          )}
-
-          <div className="form-grid">
-            <div className="field">
-              <span className="field-label" id="nt-pair-label">
-                Pair
-              </span>
+          <div className="tk-row">
+            <span className="tk-label" id="nt-pair-label">
+              Pair
+            </span>
+            <div className="tk-field">
               <button
                 type="button"
                 className="btn pair-btn pair-field"
@@ -184,71 +197,118 @@ export default function NewTrade({ open, onClose }: { open: boolean; onClose: ()
               </button>
               {show('pair') && <span className="form-error">{errors.pair}</span>}
             </div>
-            <div className="field">
-              <label htmlFor="nt-risk">Risk ratio (R)</label>
-              <div className="input-affix">
-                <span aria-hidden="true">1 :</span>
-                <input
-                  id="nt-risk"
-                  className="input num-tab"
-                  inputMode="decimal"
-                  value={risk}
-                  onChange={(e) => setRisk(e.target.value.replace(',', '.'))}
-                  placeholder="2.5"
-                  autoComplete="off"
-                  aria-invalid={!!show('risk')}
+          </div>
+
+          <div className="tk-row">
+            <label className="tk-label" htmlFor="nt-risk">
+              Risk ratio
+            </label>
+            <div className="tk-field">
+              <div className="tk-inline">
+                <div className="input-affix tk-risk">
+                  <span aria-hidden="true">1 :</span>
+                  <input
+                    id="nt-risk"
+                    className="input num-tab"
+                    inputMode="decimal"
+                    value={risk}
+                    onChange={(e) => setRisk(e.target.value.replace(',', '.'))}
+                    placeholder="2.5"
+                    autoComplete="off"
+                    aria-invalid={!!show('risk')}
+                  />
+                </div>
+                <Seg
+                  label="Common risk ratios"
+                  className="r-seg"
+                  value={(R_PRESETS.find((v) => Number(v) === Number(risk)) ?? '') as string}
+                  onChange={setRisk}
+                  options={R_PRESETS.map((v) => ({ value: v, label: `1:${v}` }))}
                 />
               </div>
               {show('risk') ? <span className="form-error">{errors.risk}</span> : <span className="field-hint">A win pays this many R; a loss costs 1R.</span>}
             </div>
           </div>
 
-          <div className="field">
-            <span className="field-label">Pace</span>
-            <PaceSeg wide value={pace} onChange={setPace} />
-            <span className="field-hint">{PACE_HINT[pace ?? 'NONE']} You can change it later.</span>
+          <div className="tk-row">
+            <span className="tk-label">Pace</span>
+            <div className="tk-field">
+              <PaceSeg wide value={pace} onChange={setPace} />
+              <span className="field-hint">{PACE_HINT[pace ?? 'NONE']}</span>
+            </div>
           </div>
 
-          <div className="field">
-            <label htmlFor="nt-notes">Notes</label>
-            <textarea
-              id="nt-notes"
-              className="textarea"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="The setup, why you took it, where the stop and target sit"
-              maxLength={TEXT_MAX}
-            />
-            {show('notes') && <span className="form-error">{errors.notes}</span>}
-          </div>
-
-          <div className="field">
-            <span className="field-label">When</span>
-            <Seg
-              wide
-              className="when-seg"
-              label="When"
-              value={when}
-              onChange={setWhen}
-              options={[
-                { value: 'now', label: 'Now', icon: <Clock aria-hidden="true" /> },
-                { value: 'earlier', label: 'Earlier', icon: <History aria-hidden="true" /> },
-              ]}
-            />
-            {when === 'now' ? (
-              <span className="field-hint">
-                Stamped with the moment you save{clock && <>: {fmtDay(clock)}, {fmtTime(clock)} · forex day {fmtDay(parseDay(forexDay(clock)))}</>}.
+          <div className="tk-row">
+            <span className="tk-label" id="nt-fund-label">
+              Fundamentals
+            </span>
+            <div className="tk-field tk-switch-row">
+              <span className="tk-switch-text" id="nt-fund-hint">
+                <b>{backed ? 'Backed by fundamentals' : 'Chart only'}</b>
+                <span>{backed ? FUND_HINT.yes : FUND_HINT.ask}</span>
               </span>
-            ) : (
-              <DateTimePicker value={at} onChange={setAt} now={clock ?? new Date()} counts={perDay} invalid={!!show('at')} />
-            )}
-            {show('at') && <span className="form-error">{errors.at}</span>}
+              <button
+                type="button"
+                role="switch"
+                aria-checked={backed}
+                aria-labelledby="nt-fund-label"
+                aria-describedby="nt-fund-hint"
+                className="switch fund-switch"
+                onClick={() => setBacked((v) => !v)}
+              >
+                <i aria-hidden="true" />
+              </button>
+            </div>
           </div>
 
-          <div className="field">
-            <span className="field-label">Screenshots</span>
-            <Dropzone items={images} onChange={setImages} onProblem={setImageProblem} disabled={!!busy} />
-            {imageProblem && <span className="form-error">{imageProblem}</span>}
+          <div className="tk-row">
+            <label className="tk-label" htmlFor="nt-notes">
+              Notes
+            </label>
+            <div className="tk-field">
+              <textarea
+                id="nt-notes"
+                className="textarea"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="The setup, why you took it, where the stop and target sit"
+                maxLength={TEXT_MAX}
+              />
+              {show('notes') && <span className="form-error">{errors.notes}</span>}
+            </div>
+          </div>
+
+          <div className="tk-row">
+            <span className="tk-label">When</span>
+            <div className="tk-field">
+              <Seg
+                wide
+                className="when-seg"
+                label="When"
+                value={when}
+                onChange={setWhen}
+                options={[
+                  { value: 'now', label: 'Now', icon: <Clock aria-hidden="true" /> },
+                  { value: 'earlier', label: 'Earlier', icon: <History aria-hidden="true" /> },
+                ]}
+              />
+              {when === 'now' ? (
+                <span className="field-hint">
+                  Stamped as you save{clock && <>: {fmtDay(clock)}, {fmtTime(clock)} · forex day {fmtDay(parseDay(forexDay(clock)))}</>}.
+                </span>
+              ) : (
+                <DateTimePicker value={at} onChange={setAt} now={clock ?? new Date()} counts={perDay} invalid={!!show('at')} />
+              )}
+              {show('at') && <span className="form-error">{errors.at}</span>}
+            </div>
+          </div>
+
+          <div className="tk-row">
+            <span className="tk-label">Screenshots</span>
+            <div className="tk-field">
+              <Dropzone items={images} onChange={setImages} onProblem={setImageProblem} disabled={!!busy} />
+              {imageProblem && <span className="form-error">{imageProblem}</span>}
+            </div>
           </div>
         </fieldset>
 
@@ -258,9 +318,18 @@ export default function NewTrade({ open, onClose }: { open: boolean; onClose: ()
           </p>
         )}
 
-        <button type="submit" className={`btn btn-primary btn-block${busy ? ' is-busy' : ''}`} disabled={!!busy || !!lock}>
-          {busy || (type === 'MISSED' ? 'Log missed setup' : type === 'DEMO' ? 'Log demo trade' : 'Log trade')}
-        </button>
+        <div className="nt-foot">
+          <span className="nt-summary" aria-hidden="true">
+            <b>{pair || 'No pair'}</b>
+            <span>{risk && !errors.risk ? `1:${Number(risk)}` : '1:—'}</span>
+            <span>{TYPE_LABEL[type]}</span>
+            {pace && <span>{PACE_LABEL[pace]}</span>}
+            {backed && <span>Fundamentals</span>}
+          </span>
+          <button type="submit" className={`btn btn-primary nt-submit${busy ? ' is-busy' : ''}`} disabled={!!busy || !!lock}>
+            {busy || (type === 'MISSED' ? 'Log missed setup' : type === 'DEMO' ? 'Log demo trade' : 'Log trade')}
+          </button>
+        </div>
       </form>
 
       <PairPicker open={picking !== null} onClose={() => setPicking(null)} pairs={PAIRS} value={pair} onPick={setPair} seed={picking ?? ''} />

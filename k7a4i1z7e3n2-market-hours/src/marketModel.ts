@@ -284,7 +284,7 @@ export function peakWindow(values: number[]): { from: number; to: number } | nul
 /** The y coordinate (in the 1000×100 viewBox) of a normalised volume value. */
 export const volumeY = (v: number) => 96 - v * 91;
 
-type Pt = readonly [number, number];
+export type Pt = readonly [number, number];
 const f1 = (n: number) => Math.round(n * 10) / 10;
 
 /** Catmull–Rom spline through the points, as cubic Bézier segments. */
@@ -364,7 +364,11 @@ export function amdSegments(dayStart: number): PhaseSegment[] {
       out.push({ phase: p.phase, start, end, rawStart, rawEnd });
     }
   }
-  return out.sort((a, b) => a.start - b.start || a.end - b.end);
+  out.sort((a, b) => a.start - b.start || a.end - b.end);
+  // where two phases overlap, the later one takes over: the earlier one is drawn up to
+  // where the next begins (its own hours, rawStart–rawEnd, stay as they are)
+  for (let i = 0; i < out.length - 1; i++) out[i].end = Math.min(out[i].end, out[i + 1].start);
+  return out.filter((s) => s.end - s.start >= 0.25);
 }
 
 /** The phase covering hour `h`; where two overlap, the one that started last wins. */
@@ -377,6 +381,9 @@ export function phaseAt(segments: PhaseSegment[], h: number): Phase | null {
 }
 
 const triangularWave = (x: number) => 1 - 4 * Math.abs(x - Math.floor(x) - 0.5);
+/** How many times accumulation swings across its range, and how wide the range is. */
+const ACC_CYCLES = 4;
+const ACC_SWING = 0.09;
 
 function lerpPoints(points: Pt[], t: number): number {
   for (let i = 0; i < points.length - 1; i++) {
@@ -403,13 +410,13 @@ const DISTRIBUTION: Pt[] = [
 
 /** Shape value (0–1) of a phase at normalised position t (0–1). */
 export function phaseValue(phase: Phase, t: number): number {
-  if (phase === 'accumulation') return 0.5 + 0.14 * triangularWave(t * 7);
+  if (phase === 'accumulation') return 0.5 + ACC_SWING * triangularWave(t * ACC_CYCLES);
   return lerpPoints(phase === 'manipulation' ? MANIPULATION : DISTRIBUTION, clamp(t, 0, 1));
 }
 
 /** Every corner of the piecewise-linear shape, so a polyline through them is exact. */
 function phaseBreaks(phase: Phase): number[] {
-  if (phase === 'accumulation') return Array.from({ length: 15 }, (_, j) => j / 14);
+  if (phase === 'accumulation') return Array.from({ length: ACC_CYCLES * 2 + 1 }, (_, j) => j / (ACC_CYCLES * 2));
   return (phase === 'manipulation' ? MANIPULATION : DISTRIBUTION).map(([t]) => t);
 }
 
@@ -421,6 +428,8 @@ const hx = (h: number) => (h / 24) * AMD_W;
 export interface AmdShape {
   phase: Phase;
   d: string;
+  /** the drawn corners, left to right, in viewBox units */
+  pts: Pt[];
   x0: number;
   x1: number;
   y0: number;
@@ -433,21 +442,26 @@ export interface AmdGraph {
 }
 
 export function amdGraph(segments: PhaseSegment[]): AmdGraph {
-  const shapes: AmdShape[] = segments.map((s) => {
+  const shapes: AmdShape[] = [];
+  for (const s of segments) {
     const len = s.rawEnd - s.rawStart;
     const t0 = (s.start - s.rawStart) / len;
     const t1 = (s.end - s.rawStart) / len;
     const ts = [t0, ...phaseBreaks(s.phase).filter((t) => t > t0 && t < t1), t1];
-    const pts = ts.map((t) => [hx(s.rawStart + t * len), amdY(phaseValue(s.phase, t))] as const);
-    return {
+    const pts: Pt[] = ts.map((t) => [hx(s.rawStart + t * len), amdY(phaseValue(s.phase, t))]);
+    // a phase that takes over from the one before carries on from where that one stopped
+    const prev = shapes[shapes.length - 1];
+    if (prev && Math.abs(prev.x1 - pts[0][0]) < 0.5) pts[0] = [pts[0][0], prev.y1];
+    shapes.push({
       phase: s.phase,
       d: pts.map(([x, y], i) => `${i ? 'L' : 'M'}${f1(x)},${f1(y)}`).join(''),
+      pts,
       x0: pts[0][0],
       y0: pts[0][1],
       x1: pts[pts.length - 1][0],
       y1: pts[pts.length - 1][1],
-    };
-  });
+    });
+  }
 
   // dotted connectors through every stretch with no phase
   const gaps: string[] = [];
@@ -469,20 +483,14 @@ export function amdGraph(segments: PhaseSegment[]): AmdGraph {
 }
 
 /**
- * Height of the drawn AMD path (in viewBox units) at hour `h`: on the active phase's shape,
- * or along the dotted line between phases.
+ * Height of the drawn AMD path (in viewBox units) at hour `h`: on the phase line drawn
+ * there, or along the dotted line between phases.
  */
-export function amdYAt(segments: PhaseSegment[], shapes: AmdShape[], h: number): number {
-  let active = -1;
-  segments.forEach((s, i) => {
-    if (h >= s.start && h < s.end && (active < 0 || s.start >= segments[active].start)) active = i;
-  });
-  if (active >= 0) {
-    const s = segments[active];
-    return amdY(phaseValue(s.phase, (h - s.rawStart) / (s.rawEnd - s.rawStart)));
-  }
+export function amdYAt(shapes: AmdShape[], h: number): number {
   if (!shapes.length) return amdY(0.5);
   const x = (h / 24) * AMD_W;
+  const on = shapes.filter((s) => x >= s.x0 && x <= s.x1).pop();
+  if (on) return lerpPoints(on.pts, x);
   const before = shapes.filter((s) => s.x1 <= x).sort((a, b) => b.x1 - a.x1)[0];
   const after = shapes.filter((s) => s.x0 >= x).sort((a, b) => a.x0 - b.x0)[0];
   if (before && after) return before.y1 + ((after.y0 - before.y1) * (x - before.x1)) / Math.max(1e-6, after.x0 - before.x1);

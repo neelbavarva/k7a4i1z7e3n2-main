@@ -101,7 +101,58 @@ function useMedia(query) {
   return matches;
 }
 
+const BASE = import.meta.env.BASE_URL;
+const onBase = () => {
+  const path = window.location.pathname;
+  return path === BASE || path === `${BASE}index.html` || `${path}/` === BASE;
+};
+
+// What each site is, for the 404's list
+const ABOUT = {
+  'Kaizen News': 'Where fundamentals lean, and the economic calendar.',
+  'Kaizen Screener': 'GDP, market value and AI capital flows, market by market.',
+  'Kaizen Market Hours': 'Which sessions are open, and the position size calculator.',
+  'Kaizen Journal': 'Trades, the monthly calendar and one-loss-a-day discipline.',
+  'Kaizen Vault': 'Passwords, cards and the trade journal, behind the lock.',
+};
+
+/** 404: any path other than the split view itself. */
+function NotFound() {
+  useEffect(() => {
+    document.title = 'Page not found · Kaizen';
+  }, []);
+  return (
+    <div className="nf-page">
+      <main className="state nf-in">
+        <p className="state-code">404</p>
+        <h1 className="state-title">This page doesn’t exist</h1>
+        <p className="state-text">The link may be broken, or the page may have moved.</p>
+        <nav className="nf-links" aria-label="Where to go">
+          <p className="nf-title">Try one of these</p>
+          {[{ title: 'Split view', url: BASE, about: 'All five Kaizen sites side by side, or as tabs.' }]
+            .concat(SITES.map((s) => ({ ...s, about: ABOUT[s.title] ?? s.url })))
+            .map((s) => (
+              <a key={s.url} href={s.url}>
+                <span>
+                  <b>{s.title}</b>
+                  <small>{s.about}</small>
+                </span>
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                  <path d="M6 3.5 10.5 8 6 12.5" />
+                </svg>
+              </a>
+            ))}
+        </nav>
+      </main>
+    </div>
+  );
+}
+
 export default function App() {
+  return onBase() ? <Viewer /> : <NotFound />;
+}
+
+function Viewer() {
   const wide = useMedia(WIDE_QUERY);
   const [layout, setLayout] = useState(loadLayout);
   // Bumping a site's nonce remounts its pane, which reloads the iframe.

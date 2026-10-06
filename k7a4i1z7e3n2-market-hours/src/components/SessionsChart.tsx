@@ -23,7 +23,11 @@ export default function SessionsChart({ day, scrub, is24Hour }: { day: MarketDay
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  const fits = (text: string, hours: number) => text.length * 6.1 + 18 <= (hours / 24) * width;
+  const fits = (text: string, hours: number, extra = 0) => text.length * 6.6 + 24 + extra <= (hours / 24) * width;
+
+  // the hour under the time line (now, or wherever it's been dragged): the bar it crosses fills up to it
+  const lineH = (scrub.percent / 100) * 24;
+  const through = (start: number, end: number) => (lineH >= start && lineH < end ? (lineH - start) / (end - start) : null);
 
   const tip = (h: number) => {
     const open = rows.filter((r) => r.segments.some((s) => h >= s.start && h < s.end));
@@ -62,11 +66,11 @@ export default function SessionsChart({ day, scrub, is24Hour }: { day: MarketDay
       <div className="legend">
         {rows.map(({ session }) => (
           <span key={session.id}>
-            <i style={{ background: session.color }} /> {session.city}
+            <i className="tint" style={{ '--c': session.color } as CSSProperties} /> {session.city}
           </span>
         ))}
         <span>
-          <i className="hatch" /> Overlap
+          <i className="ov-swatch" /> Overlap
         </span>
         <span>
           <i className={`line${preview ? ' dashed' : ''}`} /> {preview ? 'This time of day' : 'Now'}
@@ -122,12 +126,15 @@ export default function SessionsChart({ day, scrub, is24Hour }: { day: MarketDay
                 const text =
                   cutStart && cutEnd ? '' : cutStart ? `← ${clock(s.rawEnd)}` : cutEnd ? `${clock(s.rawStart)} →` : range(s.rawStart, s.rawEnd);
                 const isLive = !preview && status[session.id].open && nowMs >= dayStart + s.rawStart * HOUR_MS && nowMs < dayStart + s.rawEnd * HOUR_MS;
+                const done = through(s.start, s.end);
                 return (
                   <span
                     key={s.rawStart}
                     className={`bar${cutStart ? ' cut-start' : ''}${cutEnd ? ' cut-end' : ''}${isLive ? ' is-live' : ''}`}
                     style={{ left: `${(s.start / 24) * 100}%`, width: `${((s.end - s.start) / 24) * 100}%`, '--c': session.color } as CSSProperties}
                   >
+                    {/* how far through the session the time line is */}
+                    {done !== null && <span className="bar-fill" style={{ width: `${done * 100}%` }} />}
                     {fits(text, s.end - s.start) && <span className="bar-text">{text}</span>}
                   </span>
                 );
@@ -140,11 +147,18 @@ export default function SessionsChart({ day, scrub, is24Hour }: { day: MarketDay
               return (
                 <span
                   key={`${c.a.id}-${c.b.id}-${c.rawStart}`}
-                  className="ov"
+                  className={`ov${through(c.start, c.end) !== null ? ' is-at' : ''}`}
                   style={{ left: `${(c.start / 24) * 100}%`, width: `${((c.end - c.start) / 24) * 100}%` }}
                   title={`${text}: ${range(c.rawStart, c.rawEnd)}`}
                 >
-                  {fits(text, c.end - c.start) && <span className="bar-text">{text}</span>}
+                  {/* a dot for each session in the overlap, in its colour */}
+                  {fits('', c.end - c.start, 8) && (
+                    <span className="ov-dots" aria-hidden="true">
+                      <i style={{ background: c.a.color }} />
+                      <i style={{ background: c.b.color }} />
+                    </span>
+                  )}
+                  {fits(text, c.end - c.start, 18) && <span className="bar-text">{text}</span>}
                 </span>
               );
             })}

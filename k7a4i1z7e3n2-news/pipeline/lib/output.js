@@ -1,6 +1,7 @@
 import { join } from 'node:path';
 import { PAIRS, MODEL, publicPair } from '../config.js';
 import { buildSurpriseStats, computePair } from './score.js';
+import { savedCalendar } from './calendar.js';
 import { PUBLIC_DATA_DIR, writeJson } from './store.js';
 
 const HOUR = 3600 * 1000;
@@ -9,6 +10,7 @@ const HOUR = 3600 * 1000;
  * Scores every pair and writes the static JSON the website reads:
  *   public/data/meta.json         - pair list with headline scores
  *   public/data/pairs/<ID>.json   - series, prices, events, summary
+ *   public/data/calendar.json     - this week's releases with their actual values (Calendar page)
  */
 export async function writeOutputs({ events, nowMs, pricesFor, demo = false, sources = {} }) {
   const list = Object.values(events);
@@ -48,6 +50,7 @@ export async function writeOutputs({ events, nowMs, pricesFor, demo = false, sou
       futureLabel: s.path.label,
     });
   }
+  await writeJson(join(PUBLIC_DATA_DIR, 'calendar.json'), savedCalendar(list, { nowMs, demo, source: sources.calendar }));
   await writeJson(join(PUBLIC_DATA_DIR, 'meta.json'), meta, { pretty: true });
   return meta;
 }

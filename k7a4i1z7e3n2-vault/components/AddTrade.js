@@ -1,12 +1,13 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, ExternalLink, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { http } from "@/lib/http";
 import { TRADE_TYPES, grade } from "@/lib/format";
 import { checklistScore, checklistState, rrValue, storedDate, tfLabels, tickPart, tickWhole, todayIso } from "@/lib/trades";
 import TradeSymbols from "./TradeSymbols";
+import DatePicker from "./k7/DatePicker";
 import MarketIcon from "./k7/MarketIcon";
 import Modal from "./k7/Modal";
 import PairPicker from "./k7/PairPicker";
@@ -25,14 +26,32 @@ function Box({ state }) {
     );
 }
 
-function Field({ label, id, className = "", children }) {
+/** One line of the details ticket: a label in the left column, the control beside it. */
+function Row({ label, htmlFor, id, className = "", children }) {
     return (
-        <div className={`field ${className}`}>
-            {id ? <label htmlFor={id}>{label}</label> : <span className="field-label">{label}</span>}
-            {children}
+        <div className={`tk-row ${className}`}>
+            {htmlFor ? (
+                <label className="tk-label" htmlFor={htmlFor}>
+                    {label}
+                </label>
+            ) : (
+                <span className="tk-label" id={id}>
+                    {label}
+                </span>
+            )}
+            <div className="tk-field">{children}</div>
         </div>
     );
 }
+
+const RR_PRESETS = ["1.5", "2", "2.5", "3"];
+const isLink = (v) => /^https?:\/\/\S+\.\S+/i.test(v.trim());
+const usd = (v) => `$${Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+/** "4 Oct", from "2026-10-04" */
+const dayShort = (isoDay) => {
+    const [y, m, d] = String(isoDay).split("-").map(Number);
+    return y ? new Date(y, m - 1, d).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "";
+};
 
 /** New-trade dialog: grade against the checklist, then log the details. */
 export default function AddTrade({ open, onClose, onSaved }) {
@@ -135,6 +154,13 @@ function TradeForm({ strategy, secondaryStrategy, onSaving, onDone }) {
     const closed = tradeStatus === "Closed";
     const rr = rrValue(riskRewardRatio);
     const pnl = Number(totalPnL);
+    const sign = totalPnL.trim().startsWith("-") ? -1 : pnl > 0 ? 1 : 0;
+    // Win or Loss only sets the sign of what's typed; Loss on an empty field starts it with a minus
+    const setSign = (side) =>
+        setTotalPnL((v) => {
+            const n = v.trim().replace(/^[-+−]\s*/, "");
+            return side === "loss" ? `-${n}` : n;
+        });
     const missing = [
         !tradeSymbol && "pair",
         !day && "date",
@@ -308,53 +334,80 @@ function TradeForm({ strategy, secondaryStrategy, onSaving, onDone }) {
 
                 <div className="section-title" style={{ margin: "6px 0 0" }}>
                     <h3>Details</h3>
+                    <span>The trade itself</span>
                 </div>
-                <div className="form-grid">
-                    <Field label="Pair">
+                {/* an order ticket: a label column on the left, each line ruled off from the next */}
+                <div className="ticket">
+                    <Row label="Pair" id="nt-pair-label">
                         <button
                             type="button"
                             className={`btn pair-btn pair-field${tried && !tradeSymbol ? " is-invalid" : ""}`}
                             onClick={() => setPickerOpen(true)}
+                            aria-labelledby="nt-pair-label nt-pair-value"
                         >
                             {tradeSymbol ? <MarketIcon symbol={tradeSymbol} size={18} /> : null}
-                            <span className={`pair-field-text${tradeSymbol ? "" : " muted"}`}>{tradeSymbol || "Choose a pair"}</span>
+                            <span id="nt-pair-value" className={`pair-field-text${tradeSymbol ? "" : " muted"}`}>
+                                {tradeSymbol || "Choose a pair"}
+                            </span>
                             <ChevronDown className="chev" aria-hidden="true" />
                         </button>
-                    </Field>
-                    <Field label="Date of trade" id="nt-date">
-                        <input
-                            id="nt-date"
-                            type="date"
-                            className={`input${tried && !day ? " is-invalid" : ""}`}
-                            value={day}
-                            max={todayIso()}
-                            onChange={(e) => setDay(e.target.value)}
+                    </Row>
+                    <Row label="Date" htmlFor="nt-date">
+                        <DatePicker id="nt-date" value={day} onChange={setDay} max={todayIso()} invalid={tried && !day} />
+                    </Row>
+                    <Row label="Account">
+                        <Seg
+                            wide
+                            label="Account"
+                            value={tradeType}
+                            onChange={setTradeType}
+                            className={tried && !tradeType ? "is-invalid" : ""}
+                            options={TRADE_TYPES.map((t) => ({ value: t, label: t, icon: <i className={`type-key t-${t.toLowerCase()}`} aria-hidden="true" /> }))}
                         />
-                    </Field>
-                    <Field label="Account" className="span-2">
-                        <Seg wide label="Account" options={TRADE_TYPES} value={tradeType} onChange={setTradeType} className={tried && !tradeType ? "is-invalid" : ""} />
-                    </Field>
-                    <Field label="Status">
-                        <Seg wide label="Status" options={["Open", "Closed"]} value={tradeStatus} onChange={setTradeStatus} className={tried && !tradeStatus ? "is-invalid" : ""} />
-                    </Field>
-                    <Field label="Risk : reward" id="nt-rr">
-                        <div className="input-affix is-wide">
-                            <span aria-hidden="true">1 :</span>
-                            <input
-                                id="nt-rr"
-                                className={`input num-tab${tried && !(rr > 0) ? " is-invalid" : ""}`}
-                                inputMode="decimal"
-                                value={riskRewardRatio}
-                                // the "1 :" is already there, so a pasted "1:2.5" keeps just the 2.5
-                                onChange={(e) => setRiskRewardRatio(e.target.value.replace(/^\s*1\s*:\s*/, ""))}
-                                placeholder="2.5"
-                                autoComplete="off"
+                    </Row>
+                    <Row label="Status">
+                        <Seg
+                            wide
+                            label="Status"
+                            value={tradeStatus}
+                            onChange={setTradeStatus}
+                            className={tried && !tradeStatus ? "is-invalid" : ""}
+                            options={[
+                                { value: "Open", label: "Open", icon: <i className="status-key is-open" aria-hidden="true" /> },
+                                { value: "Closed", label: "Closed", icon: <i className="status-key is-closed" aria-hidden="true" /> },
+                            ]}
+                        />
+                        <span className="field-hint">
+                            {closed ? "Add the result and the charts below." : tradeStatus === "Open" ? "Still running: add the result once it closes." : "Running, or done?"}
+                        </span>
+                    </Row>
+                    <Row label="Risk : reward" htmlFor="nt-rr">
+                        <div className="tk-inline">
+                            <div className="input-affix is-wide tk-rr">
+                                <span aria-hidden="true">1 :</span>
+                                <input
+                                    id="nt-rr"
+                                    className={`input num-tab${tried && !(rr > 0) ? " is-invalid" : ""}`}
+                                    inputMode="decimal"
+                                    value={riskRewardRatio}
+                                    // the "1 :" is already there, so a pasted "1:2.5" keeps just the 2.5
+                                    onChange={(e) => setRiskRewardRatio(e.target.value.replace(/^\s*1\s*:\s*/, ""))}
+                                    placeholder="2.5"
+                                    autoComplete="off"
+                                />
+                            </div>
+                            <Seg
+                                label="Common ratios"
+                                className="rr-seg"
+                                value={RR_PRESETS.find((v) => Number(v) === rr) ?? ""}
+                                onChange={setRiskRewardRatio}
+                                options={RR_PRESETS.map((v) => ({ value: v, label: `1:${v}` }))}
                             />
                         </div>
-                    </Field>
+                    </Row>
                     {closed && (
-                        <>
-                            <Field label="Result (USD)" id="nt-pnl" className="span-2 fade-in">
+                        <Row label="Result" htmlFor="nt-pnl" className="fade-in">
+                            <div className={`pnl-field${sign > 0 ? " is-win" : sign < 0 ? " is-loss" : ""}`}>
                                 <div className="input-affix">
                                     <span aria-hidden="true">$</span>
                                     <input
@@ -363,37 +416,94 @@ function TradeForm({ strategy, secondaryStrategy, onSaving, onDone }) {
                                         inputMode="decimal"
                                         value={totalPnL}
                                         onChange={(e) => setTotalPnL(e.target.value)}
-                                        placeholder="240 for a win, -85 for a loss"
+                                        placeholder="0.00"
                                         autoComplete="off"
                                     />
                                 </div>
-                            </Field>
-                            <div className="form-grid form-grid-3 span-2 fade-in">
+                                <Seg
+                                    label="Win or loss"
+                                    className="pnl-seg"
+                                    value={sign > 0 ? "win" : sign < 0 ? "loss" : ""}
+                                    onChange={setSign}
+                                    options={[
+                                        { value: "win", label: "Win" },
+                                        { value: "loss", label: "Loss" },
+                                    ]}
+                                />
+                            </div>
+                            <span className="field-hint">
+                                {Number.isFinite(pnl) && totalPnL.trim() && totalPnL.trim() !== "-"
+                                    ? pnl > 0
+                                        ? `A win of ${usd(pnl)}.`
+                                        : pnl < 0
+                                          ? `A loss of ${usd(pnl)}.`
+                                          : "Break-even."
+                                    : "In USD. Type the amount; Win or Loss sets the sign."}
+                            </span>
+                        </Row>
+                    )}
+                    {closed && (
+                        <Row label="Charts" className="fade-in">
+                            <div className="links">
                                 {[
                                     [labels[0], lowTf, setLowTf, "nt-low"],
                                     [labels[1], midTf, setMidTf, "nt-mid"],
                                     [labels[2], highTf, setHighTf, "nt-high"],
                                 ].map(([l, v, setV, id]) => (
-                                    <Field key={id} label={`${l} chart`} id={id}>
-                                        <input id={id} className="input mono" value={v} onChange={(e) => setV(e.target.value)} placeholder="TradingView link" autoComplete="off" />
-                                    </Field>
+                                    <div className="lk-row" key={id}>
+                                        <span className="lk-tf" aria-hidden="true">
+                                            {l}
+                                        </span>
+                                        <input
+                                            id={id}
+                                            className="lk-input"
+                                            value={v}
+                                            onChange={(e) => setV(e.target.value)}
+                                            placeholder="Paste a TradingView link"
+                                            aria-label={`${l} chart`}
+                                            autoComplete="off"
+                                            spellCheck={false}
+                                        />
+                                        {isLink(v) ? (
+                                            <a className="lk-open" href={v.trim()} target="_blank" rel="noopener noreferrer" aria-label={`Open the ${l} chart`}>
+                                                <ExternalLink aria-hidden="true" />
+                                            </a>
+                                        ) : (
+                                            <span className="lk-open is-empty" aria-hidden="true">
+                                                <Link2 />
+                                            </span>
+                                        )}
+                                    </div>
                                 ))}
                             </div>
-                        </>
+                        </Row>
                     )}
-                    <Field label="Notes" id="nt-desc" className="span-2">
+                    <Row label="Notes" htmlFor="nt-desc">
                         <textarea id="nt-desc" className="textarea" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Why you took it" />
-                    </Field>
+                    </Row>
                 </div>
             </fieldset>
 
-            <div className="save-row">
-                {tried && missing.length > 0 && (
-                    <p className="form-error fade-in" role="alert">
-                        Still needed: {missing.join(", ")}.
-                    </p>
-                )}
-                <button type="submit" className={`btn btn-primary btn-block${loading ? " is-busy" : ""}`} disabled={loading}>
+            {tried && missing.length > 0 && (
+                <p className="form-error fade-in" role="alert">
+                    Still needed: {missing.join(", ")}.
+                </p>
+            )}
+            <div className="nt-foot">
+                <span className="nt-summary" aria-hidden="true">
+                    {!counterTrade && <span className={`grade g-${g.key}`}>{g.label}</span>}
+                    <b>{tradeSymbol || "No pair"}</b>
+                    {day && <span>{dayShort(day)}</span>}
+                    {tradeType && <span>{tradeType}</span>}
+                    <span>{rr > 0 ? `1:${+rr.toFixed(2)}` : "1:—"}</span>
+                    {closed && Number.isFinite(pnl) && totalPnL.trim() && totalPnL.trim() !== "-" && (
+                        <span className={pnl > 0 ? "up" : pnl < 0 ? "down" : ""}>
+                            {pnl > 0 ? "+" : pnl < 0 ? "−" : ""}
+                            {usd(pnl)}
+                        </span>
+                    )}
+                </span>
+                <button type="submit" className={`btn btn-primary nt-submit${loading ? " is-busy" : ""}`} disabled={loading}>
                     {loading ? "Saving…" : "Save trade"}
                 </button>
             </div>

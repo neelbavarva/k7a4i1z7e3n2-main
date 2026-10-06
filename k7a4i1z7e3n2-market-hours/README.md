@@ -20,6 +20,9 @@ status bar, command-palette picker and guide layout.
 - **Session times** and **Best times to trade** tables (stacked into cards on phones).
 - **How market hours work** (`#/how-it-works`): the guide, with contents that follow your scroll and an FAQ.
 - **Position size calculator** (`#/position-size`, also from the switch beside the title): see below.
+- **How position sizing works** (`#/position-size/how-it-works`): the calculator's guide: the formula with worked examples, how much to risk, stops, pips and lots, rates, margin, rounding and what it leaves out.
+
+Each tool's footer links to its own guide, and each guide back to its tool; the switch beside the title moves between the two tools.
 
 One time line is shared by every chart: press and drag anywhere on a chart to see another time, and it springs back to
 now when you let go. Double-click or `Esc` returns straight away; the arrow keys move it when the sessions chart is
@@ -77,13 +80,16 @@ It's a static site: `npm run build` writes everything to `dist/`, which any stat
 
 | File | What it does |
 | --- | --- |
-| `src/App.tsx` | Routes (`#/`, `#/how-it-works`, `#/position-size`), status bar, picker, footer, keyboard shortcuts |
+| `src/App.tsx` | Routes (`#/`, `#/how-it-works`, `#/position-size`, `#/position-size/how-it-works`, and a 404 for anything else), status bar, picker, footer, keyboard shortcuts |
+| `src/components/NotFound.tsx` | The 404 page, with the site's pages to go to. Builds also write the app as `dist/404.html` (`vite.config.ts`), which Vercel and GitHub Pages serve for unknown paths |
 | `src/components/Dashboard.tsx` | Head, day meter, brief, Right now card |
 | `src/components/SessionsChart.tsx`, `VolumeChart.tsx`, `AmdChart.tsx` | The three charts |
 | `src/components/common.tsx` | Flags, the site switch, time axis, and the chart area with the shared line and tooltip |
 | `src/components/Tables.tsx` | Session times and Best times to trade |
 | `src/components/ZonePicker.tsx`, `src/zones.ts` | Timezone search |
 | `src/components/Guide.tsx` | How market hours work |
+| `src/components/SizeGuide.tsx` | How position sizing works (examples run through `positionSize.ts`) |
+| `src/components/doc.tsx` | The guides' shared contents list and section tracking |
 | `src/components/Calculator.tsx` | The position size calculator: form, answer, workings, risk levels |
 | `src/components/Dropdown.tsx` | The select with a search box, for the pair and the account currency |
 | `src/instruments.ts` | The instruments, each one's contract and pip, and the pair search |

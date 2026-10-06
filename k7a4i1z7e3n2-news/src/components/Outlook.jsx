@@ -1,7 +1,8 @@
-import { useMemo } from 'react';
+import { Fragment, useMemo } from 'react';
 import { fmtDay, fmtTime, signed } from '../format.js';
 import { isFx } from '../markets.js';
-import { useMore } from './EventTables.jsx';
+import { Tick, useMore } from './EventTables.jsx';
+import { useNow } from '../clock.js';
 
 const HOUR = 3.6e6;
 const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -70,7 +71,8 @@ export default function Outlook({ data, K }) {
       d.score = last.s;
       d.delta = last.s - prev;
       prev = last.s;
-      d.events = upcoming
+      // the whole day, including what came out before the data was made: it shows as done
+      d.events = data.events
         .filter((e) => (e.impact === 'High' || e.impact === 'Medium') && dayKey.format(new Date(e.t)) === d.key)
         .sort((a, b) => Date.parse(a.t) - Date.parse(b.t));
       // Risk comes from the day's own releases: any High-impact one makes it a high-risk day.
@@ -108,6 +110,10 @@ export default function Outlook({ data, K }) {
   }, [data, K]);
 
   const [scenShown, scenMore] = useMore(o.scenarios);
+  // what is already out is judged by the clock, not by when the data was made
+  const clock = useNow();
+  const isOut = (e) => Date.parse(e.t) <= clock;
+  const todayKey = dayKey.format(new Date(clock));
   const s0 = o.nowPt.s;
   const s1 = o.end.s;
   const trend = trendOf(s0, s1);
@@ -182,40 +188,69 @@ export default function Outlook({ data, K }) {
         Day by day <span className="swipe-hint">swipe for more</span>
       </h3>
       <ol className="days">
-        {o.days.map((d, i) => {
-          const shown = [...d.events.filter((e) => e.impact === 'High'), ...d.events.filter((e) => e.impact !== 'High')]
+        {o.days.map((d) => {
+          const past = d.key < todayKey;
+          // four rows at most: what's still to come first (high impact before medium), then what's out
+          const rank = (e) => (isOut(e) ? 2 : 0) + (e.impact === 'High' ? 0 : 1);
+          const shown = [...d.events]
+            .sort((a, b) => rank(a) - rank(b))
             .slice(0, 4)
             .sort((a, b) => Date.parse(a.t) - Date.parse(b.t));
+          // on today's card, a "now" line between what's out and what's next
+          const nowAt = d.key === todayKey ? shown.findIndex((e) => !isOut(e)) : -1;
           return (
-            <li key={d.key} className={`day risk-${d.risk.toLowerCase()}`}>
+            <li key={d.key} className={`day risk-${d.risk.toLowerCase()}${past ? ' is-past' : ''}`}>
               <div className="day-head">
-                <span className="day-name">{i === 0 ? 'Today' : weekdayLong.format(new Date(d.t))}</span>
+                <span className="day-name">{d.key === todayKey ? 'Today' : weekdayLong.format(new Date(d.t))}</span>
                 <span className="day-date">{fmtDay(d.t)}</span>
-                <span className="risk-tag">
-                  <i aria-hidden="true" />
-                  {d.risk} risk
-                </span>
+                {past ? (
+                  <span className="done-tag">
+                    <Tick />
+                    Done
+                  </span>
+                ) : (
+                  <span className="risk-tag">
+                    <i aria-hidden="true" />
+                    {d.risk} risk
+                  </span>
+                )}
               </div>
               <div className="day-score-row">
                 <span className={`day-score ${sideClass(d.score)}`}>{signed(d.score)}</span>
                 <span className="day-delta">{Math.abs(d.delta) < 1 ? 'unchanged' : `${signed(d.delta)} on the day`}</span>
               </div>
               <ul className="day-events">
-                {shown.map((e) => (
-                  <li key={e.id} className={e.impact === 'High' ? 'hi' : ''}>
-                    <time>{fmtTime(e.t)}</time>
-                    <span className="day-ev-name">
-                      <span className="ccy">{e.ccy}</span> {e.title}
-                    </span>
-                    {e.ec != null && Math.abs(e.ec) >= 0.05 ? (
-                      <span className={`day-ev-dir ${e.ec > 0 ? 'up' : 'down'}`} title={pushWord(e.ec)}>
-                        {e.ec > 0 ? '▲' : '▼'}
-                      </span>
-                    ) : (
-                      <span />
-                    )}
-                  </li>
-                ))}
+                {shown.map((e, j) => {
+                  const out = isOut(e);
+                  return (
+                    <Fragment key={e.id}>
+                      {j === nowAt && j > 0 && (
+                        <li className="day-now" aria-label={`Now, ${fmtTime(clock)}`}>
+                          <span>Now</span>
+                          <i aria-hidden="true" />
+                        </li>
+                      )}
+                      <li className={`${e.impact === 'High' ? 'hi' : ''}${out ? ' is-done' : ''}`}>
+                        <time>{fmtTime(e.t)}</time>
+                        <span className="day-ev-name">
+                          <span className="ccy">{e.ccy}</span> {e.title}
+                          {out && <span className="visually-hidden"> (out)</span>}
+                        </span>
+                        {out ? (
+                          <span className="day-ev-done" title={e.a ? `Out: ${e.a} against ${e.f ?? 'no'} forecast` : 'Out'}>
+                            <Tick />
+                          </span>
+                        ) : e.ec != null && Math.abs(e.ec) >= 0.05 ? (
+                          <span className={`day-ev-dir ${e.ec > 0 ? 'up' : 'down'}`} title={pushWord(e.ec)}>
+                            {e.ec > 0 ? '▲' : '▼'}
+                          </span>
+                        ) : (
+                          <span />
+                        )}
+                      </li>
+                    </Fragment>
+                  );
+                })}
                 {d.events.length > shown.length && <li className="day-more">+{d.events.length - shown.length} more</li>}
                 {d.events.length === 0 && <li className="day-quiet">No major releases</li>}
               </ul>
@@ -246,9 +281,15 @@ export default function Outlook({ data, K }) {
               </thead>
               <tbody>
                 {scenShown.map(({ e, before, inline, above, below }) => (
-                  <tr key={e.id}>
+                  <tr key={e.id} className={isOut(e) ? 'is-done' : undefined}>
                     <td className="when c-when">
                       {weekday.format(new Date(e.t))} {fmtTime(e.t)}
+                      {isOut(e) && (
+                        <span className="out-tag">
+                          <Tick />
+                          Out
+                        </span>
+                      )}
                     </td>
                     <td className="c-main">
                       <span className="ccy">{e.ccy}</span> {e.title}

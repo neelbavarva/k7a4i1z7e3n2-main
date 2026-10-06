@@ -40,18 +40,19 @@ export function Dialog({
     <div className="sheet-backdrop" onMouseDown={e => e.target === e.currentTarget && onOpenChange(false)}>
       <div className="sheet" role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <div className="sheet-head">
-          <div>
-            <div style={{ minWidth: 0 }}>
-              <h2 id={titleId}>{title}</h2>
-              {subtitle && <p className="small muted" style={{ marginTop: 2 }}>{subtitle}</p>}
-            </div>
-            {actions}
+          <div style={{ minWidth: 0 }}>
+            <h2 id={titleId}>{title}</h2>
+            {subtitle && <p className="small muted" style={{ marginTop: 2 }}>{subtitle}</p>}
           </div>
-          <button type="button" className="btn btn-sm" onClick={() => onOpenChange(false)} aria-label="Close expanded chart">
-            <CloseIcon />
-            Close
-            <kbd className="kbd-hint">Esc</kbd>
-          </button>
+          {/* the sheet's own actions sit on the right, just before Close */}
+          <div className="sheet-actions">
+            {actions}
+            <button type="button" className="btn btn-sm" onClick={() => onOpenChange(false)} aria-label="Close expanded chart">
+              <CloseIcon />
+              Close
+              <kbd className="kbd-hint">Esc</kbd>
+            </button>
+          </div>
         </div>
         <div className="sheet-body">{children}</div>
       </div>

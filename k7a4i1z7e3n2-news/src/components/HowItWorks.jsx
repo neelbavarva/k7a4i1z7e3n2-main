@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import {
   ACTUALS,
   CALENDAR_URLS,
@@ -13,6 +12,7 @@ import {
 } from '../../pipeline/config.js';
 import { CATEGORIES, LOWER_IS_BETTER, NO_SIGNAL, RATE_DECISION } from '../../pipeline/rules.js';
 import { POLL_MINUTES, REFRESH_COOLDOWN_S, STALE_HOURS } from '../constants.js';
+import { Contents, useActiveSection } from './Doc.jsx';
 
 // Every number on this page is read from the pipeline's own settings (pipeline/config.js
 // and pipeline/rules.js), so the explanation can't drift from what the site computes.
@@ -53,50 +53,8 @@ const signedMult = (m) => (m > 0 ? `+${m}` : `−${Math.abs(m)}`);
 const days = (h) => (h === 24 ? '1 day' : h % 24 === 0 ? `${h / 24} days` : `${h} h`);
 const catName = { growth: 'growth', labour: 'jobs', inflation: 'inflation', rates: 'rate decisions' };
 
-/** Highlights the section currently on screen in the contents list. */
-function useActiveSection() {
-  const [active, setActive] = useState(SECTIONS[0][0]);
-  useEffect(() => {
-    const els = SECTIONS.map(([id]) => document.getElementById(id)).filter(Boolean);
-    const io = new IntersectionObserver(
-      (entries) => {
-        const seen = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-        if (seen[0]) setActive(seen[0].target.id);
-      },
-      { rootMargin: '0px 0px -70% 0px' },
-    );
-    els.forEach((el) => io.observe(el));
-    return () => io.disconnect();
-  }, []);
-  return active;
-}
-
-const jump = (e, id) => {
-  // the site uses #/ routes, so scroll in place instead of changing the hash
-  e.preventDefault();
-  // close the phone contents list first, so the page doesn't shift under the scroll
-  e.currentTarget.closest('details')?.removeAttribute('open');
-  requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
-};
-
-/** The contents as a line index: a dash per section, darker once read, longer for the one in view. */
-function Contents({ active }) {
-  const at = SECTIONS.findIndex(([id]) => id === active);
-  return (
-    <ol className="toc-list">
-      {SECTIONS.map(([id, title], i) => (
-        <li key={id}>
-          <a href={`#${id}`} onClick={(e) => jump(e, id)} aria-current={active === id ? 'true' : undefined} data-read={i < at || undefined}>
-            {title}
-          </a>
-        </li>
-      ))}
-    </ol>
-  );
-}
-
 export default function HowItWorks({ meta }) {
-  const active = useActiveSection();
+  const active = useActiveSection(SECTIONS);
   const K = MODEL.K;
   const W = MODEL.impactWeight;
   const lead = MODEL.expectationLeadHours;
@@ -123,13 +81,13 @@ export default function HowItWorks({ meta }) {
       <div className="doc-layout">
         <nav className="toc" aria-label="On this page">
           <p className="toc-title">On this page</p>
-          <Contents active={active} />
+          <Contents sections={SECTIONS} active={active} />
         </nav>
 
         <article className="doc-body">
           <details className="toc-mobile">
             <summary>On this page</summary>
-            <Contents active={active} />
+            <Contents sections={SECTIONS} active={active} />
           </details>
 
           {/* ------------------------------------------------------------------ */}
@@ -812,9 +770,10 @@ export default function HowItWorks({ meta }) {
                 surprise (z = ±1): 100 × tanh( (R ± m × d × w) ÷ {K} ).
               </li>
               <li>
-                <b>News load</b>: a spike at each scheduled release in the next {MODEL.forwardDays} days, as tall as its
-                risk weight ({MODEL.rateWeight} rate decision, {W.High} High, {W.Medium} Medium; speeches included), stacked
-                when several land in the same hour. The shaded “news pressure” is the same bell curve as the grey range (Σ wᵢ
+                <b>News load</b>: a spike at each hour with a scheduled release in the next {MODEL.forwardDays} days, as tall
+                as the releases' summed risk weight ({MODEL.rateWeight} rate decision, {W.High} High, {W.Medium} Medium;
+                speeches included), coloured by the biggest of them and marked ×2, ×3 when several land in the same hour. The
+                shaded “news pressure”, amber at the foot and red near the top, is the same bell curve as the grey range (Σ wᵢ
                 × e^−((t − tᵢ) ÷ {MODEL.band.widthHours} h)²), so clusters of news show up as hills. Each day is rated by its
                 summed weight: quiet (none), light (under 4), busy (under 9), very busy (9 and up); the week: quiet (under
                 8), moderate (under 20), busy (under 40), very busy. The height scale has a fixed floor, so a quiet market

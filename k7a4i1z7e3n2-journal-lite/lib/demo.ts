@@ -119,7 +119,8 @@ function build(): Store {
       const riskRatio = +(1 + Math.round(r() * 10) / 4).toFixed(2); // 1 to 3.5 in quarter steps
       const status: TradeStatus = tradeType === 'MISSED' ? 'PROFIT' : r() < 0.34 ? 'PROFIT' : 'LOSS';
       const closed = new Date(Math.min(now.getTime() - 60000, created.getTime() + (1 + r() * 30) * 3600000));
-      const decided = tradeType === 'MISSED' || r() < 0.75;
+      // backed by fundamentals (lib/fundamentals.ts), in the set-and-forget fields: most trades answer it
+      const decided = r() < 0.85;
       // pace, in the King fields (lib/pace.ts): rushed trades lose more often than the rest
       const p = r();
       const pace = p < (status === 'LOSS' ? 0.3 : 0.12) ? 'RUSHING' : p > 0.88 ? 'DRAGGING' : null;
@@ -132,7 +133,7 @@ function build(): Store {
         riskRatio,
         status,
         tradeType,
-        setForget: tradeType === 'MISSED' ? true : decided && r() < 0.65,
+        setForget: decided && r() < 0.45,
         setForgetDecided: decided,
         description: note,
         isKing: !!pace,
@@ -165,8 +166,6 @@ function build(): Store {
   for (const t of trades.filter((x) => x.tradeType !== 'MISSED').slice(0, 4)) {
     t.status = 'OPEN';
     t.closedAt = null;
-    t.setForgetDecided = false;
-    t.setForget = false;
     t.sabotagedWinner = false;
     if (t.description && LOSS_REVIEW.includes(t.description)) t.description = 'Waiting on the London close; stop and target are set.';
   }

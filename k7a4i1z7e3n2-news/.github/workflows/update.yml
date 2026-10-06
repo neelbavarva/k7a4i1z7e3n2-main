@@ -55,10 +55,8 @@ jobs:
       - name: Build the site
         env:
           BASE_PATH: /${{ github.event.repository.name }}/
-        run: |
-          npm run build
-          # GitHub Pages serves 404.html for unknown paths; the app shows its own "page not found" view
-          cp dist/index.html dist/404.html
+        # the build also writes dist/404.html (vite.config.js), which Pages serves for unknown paths
+        run: npm run build
 
       - uses: actions/upload-pages-artifact@v3
         with:

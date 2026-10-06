@@ -1,8 +1,8 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { copyFileSync, existsSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 
 /**
  * Local development only: the site's Refresh button POSTs to /__refresh, which re-runs
@@ -46,10 +46,50 @@ function refreshData() {
   };
 }
 
+/**
+ * Local development: /api/calendar answers from api/calendar.js, as the Vercel function does
+ * on the deployed site (loaded through Vite, so edits to it apply without a restart).
+ */
+function calendarApi() {
+  return {
+    name: 'fx-calendar-api',
+    configureServer(server) {
+      server.middlewares.use('/api/calendar', async (req, res) => {
+        try {
+          const { default: handler } = await server.ssrLoadModule('/api/calendar.js');
+          await handler(req, res);
+        } catch (err) {
+          server.config.logger.error(`[calendar] ${err.message}`, { timestamp: true });
+          res.statusCode = 500;
+          res.end(JSON.stringify({ error: err.message }));
+        }
+      });
+    },
+  };
+}
+
+/**
+ * Builds also write the app as 404.html. Vercel and GitHub Pages serve that file for any path
+ * that doesn't exist, and the app sees the unknown path and shows its own "page not found".
+ */
+function notFoundPage() {
+  let outDir;
+  return {
+    name: 'fx-404-page',
+    apply: 'build',
+    configResolved(config) {
+      outDir = resolve(config.root, config.build.outDir);
+    },
+    closeBundle() {
+      copyFileSync(join(outDir, 'index.html'), join(outDir, '404.html'));
+    },
+  };
+}
+
 // BASE_PATH is set by the GitHub Pages workflow ("/<repo-name>/"). Locally it is "/".
 export default defineConfig({
   base: process.env.BASE_PATH || '/',
-  plugins: [react(), refreshData()],
+  plugins: [react(), refreshData(), calendarApi(), notFoundPage()],
   server: {
     // the data job rewrites ~40 JSON files; don't let each one trigger a page reload
     watch: { ignored: ['**/public/data/**', '**/data/**'] },

@@ -33,19 +33,38 @@ export function NotFound({ kind, value, meta, onPick }) {
           ))}
         </div>
       )}
-      <div className="state-actions">
-        <a className="btn btn-primary" href={`${BASE}#/all`}>
-          See all markets
-        </a>
-        {meta && onPick && (
-          <button type="button" className="btn" onClick={onPick}>
+      {isPair && meta && onPick && (
+        <div className="state-actions">
+          <button type="button" className="btn btn-primary" onClick={onPick}>
             Search markets
           </button>
-        )}
-      </div>
+        </div>
+      )}
+      <nav className="nf-links" aria-label="Pages on this site">
+        <p className="nf-title">{isPair ? 'Or go to' : 'Try one of these'}</p>
+        {PAGES.map(([route, title, text]) => (
+          <a key={route} href={`${BASE}#/${route}`}>
+            <span>
+              <b>{title}</b>
+              <small>{text}</small>
+            </span>
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M6 3.5 10.5 8 6 12.5" />
+            </svg>
+          </a>
+        ))}
+      </nav>
     </main>
   );
 }
+
+/** Where a 404 points: both halves of the site and how each works. */
+const PAGES = [
+  ['all', 'All markets', 'Where fundamentals lean for every market, now and in 7 days.'],
+  ['calendar', 'Economic calendar', 'Every scheduled release this week, live, in your time zone.'],
+  ['how-it-works', 'How the score works', 'The data, the formulas and every setting behind the scores.'],
+  ['calendar/how-it-works', 'How the calendar works', 'Where the releases come from and how to read them.'],
+];
 
 /** Data couldn't be loaded: say so plainly and offer a retry. */
 export function ErrorState({ error, onRetry }) {
@@ -76,6 +95,19 @@ export function ErrorState({ error, onRetry }) {
 
 /** Placeholder shaped like the page that's loading, so nothing jumps when it arrives. */
 export function Skeleton({ kind }) {
+  if (kind === 'calendar') {
+    return (
+      <main className="skeleton" aria-busy="true" aria-label="Loading the calendar">
+        <div className="sk sk-line" />
+        <div className="sk sk-title sk-title-wide" />
+        <div className="sk sk-card" />
+        <div className="sk sk-search" />
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="sk sk-rows" />
+        ))}
+      </main>
+    );
+  }
   if (kind === 'pair') {
     return (
       <main className="skeleton" aria-busy="true" aria-label="Loading pair">
@@ -153,7 +185,7 @@ export function StatusBar({ generatedAt, onRefresh, refreshing, message, cooldow
   );
 }
 
-export function RefreshButton({ onRefresh, refreshing, cooldownUntil = 0 }) {
+export function RefreshButton({ onRefresh, refreshing, cooldownUntil = 0, what = 'scores' }) {
   const left = useCountdown(cooldownUntil);
   const waiting = !refreshing && left > 0;
   const total = REFRESH_COOLDOWN_S;
@@ -163,7 +195,7 @@ export function RefreshButton({ onRefresh, refreshing, cooldownUntil = 0 }) {
       className={`btn refresh${waiting ? ' is-waiting' : ''}`}
       onClick={onRefresh}
       disabled={refreshing || waiting}
-      title={waiting ? `You can refresh again in ${left} s` : 'Fetch the latest scores'}
+      title={waiting ? `You can refresh again in ${left} s` : `Fetch the latest ${what}`}
     >
       {waiting ? (
         <svg viewBox="0 0 24 24" aria-hidden="true" className="refresh-timer">

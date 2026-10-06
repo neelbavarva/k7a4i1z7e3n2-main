@@ -48,6 +48,16 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
+/* No scrollbars anywhere (page, dialogs, lists, the card strip, the chart viewer): everything still
+   scrolls by wheel, trackpad, touch and keys, there's just no bar drawn. scrollbar-width for Firefox,
+   Chrome and newer Safari; the -webkit- rule for older Safari. */
+* {
+  scrollbar-width: none;
+}
+::-webkit-scrollbar {
+  display: none;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -3829,6 +3839,502 @@ fieldset.bare:disabled {
   color: var(--muted);
 }
 
+/* ---------- New trade: the details as an order ticket ---------- */
+
+/* each line: a fixed label column, the control beside it, a hairline between lines */
+.ticket {
+  display: grid;
+  border-top: 1px solid var(--line);
+}
+.tk-row {
+  display: grid;
+  grid-template-columns: 116px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  padding: 13px 0;
+}
+.tk-row + .tk-row {
+  border-top: 1px solid var(--grid);
+}
+.tk-label {
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 38px; /* centred on a 38px control */
+  color: var(--ink2);
+}
+.tk-field {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+.ticket .seg-wide button {
+  height: 30px;
+  font-size: 12.5px;
+}
+
+/* account and status: a small key in each segment, as on the trade rows */
+.type-key {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--axis);
+}
+.type-key.t-real {
+  background: var(--ok);
+}
+.type-key.t-funded {
+  background: var(--bull);
+}
+.type-key.t-demo {
+  background: var(--medium);
+}
+.type-key.t-backtest {
+  background: var(--muted);
+}
+.status-key {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.status-key.is-open {
+  border: 1.5px solid var(--ok);
+}
+.status-key.is-closed {
+  background: var(--ink2);
+}
+
+/* risk : reward, then the usual ones to pick from */
+.tk-inline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+}
+.tk-rr {
+  flex: 0 0 140px;
+}
+.rr-seg button {
+  height: 30px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* the result: the amount, and whether it was a win or a loss, in its colour */
+.pnl-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pnl-field .input-affix {
+  flex: 1;
+  min-width: 0;
+}
+.pnl-field .input {
+  font-weight: 600;
+  transition: color 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+.pnl-field.is-win .input {
+  color: var(--bull-ink);
+}
+.pnl-field.is-loss .input {
+  color: var(--bear-ink);
+}
+.pnl-seg button {
+  height: 30px;
+  min-width: 58px;
+  justify-content: center;
+}
+.pnl-seg button[aria-pressed='true']:first-child {
+  color: var(--bull-ink);
+}
+.pnl-seg button[aria-pressed='true']:last-child {
+  color: var(--bear-ink);
+}
+
+/* chart links: one card, a line a time frame, an open button once a link is in */
+.links {
+  display: grid;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.links:focus-within {
+  border-color: var(--focus);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--focus) 16%, transparent);
+}
+.lk-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  padding: 0 6px 0 10px;
+}
+.lk-row + .lk-row {
+  border-top: 1px solid var(--grid);
+}
+.lk-tf {
+  flex: none;
+  width: 52px;
+  padding: 2px 0;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink2);
+  background: var(--page);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.lk-input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  outline: none;
+}
+.lk-input::placeholder {
+  font-family: var(--font);
+  font-size: 13.5px;
+  color: var(--muted);
+}
+.lk-open {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  color: var(--bull-ink);
+  border-radius: 7px;
+  transition: background-color 0.15s;
+}
+.lk-open:hover {
+  background: color-mix(in srgb, var(--bull) 8%, transparent);
+}
+.lk-open.is-empty {
+  color: var(--axis);
+}
+.lk-open.is-empty:hover {
+  background: none;
+}
+.lk-open svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* the foot stays in view while the dialog scrolls: what's being logged, and the button */
+.new-trade .form-error[role='alert'] {
+  margin: 4px 0 0;
+}
+.nt-foot {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 4px -24px -24px;
+  padding: 14px 24px 16px;
+  background: var(--raised);
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 16px 16px;
+}
+.nt-summary {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.nt-summary b {
+  font-weight: 600;
+  color: var(--ink);
+}
+.nt-summary .grade {
+  flex: none;
+  margin-right: 2px;
+}
+.nt-summary > b ~ span::before {
+  content: '·';
+  margin-right: 7px;
+  color: var(--axis);
+}
+.nt-submit {
+  flex: none;
+  height: 38px;
+  min-width: 140px;
+  padding: 0 20px;
+  font-size: 13.5px;
+}
+@media (max-width: 640px) {
+  .tk-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+    padding: 12px 0;
+  }
+  .tk-label {
+    line-height: 1.4;
+  }
+  .nt-foot {
+    margin: 4px -18px -28px;
+    padding: 12px 18px calc(14px + env(safe-area-inset-bottom));
+    border-radius: 0;
+  }
+  .nt-summary {
+    display: none;
+  }
+  .nt-submit {
+    flex: 1;
+  }
+}
+
+/* ---------- Date picker (components/k7/DatePicker.js) ---------- */
+
+/* the field: an input-sized button with the day written out, and how long ago it was */
+.dp-field {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  text-align: left;
+  cursor: pointer;
+}
+.dp-field:hover {
+  border-color: var(--axis);
+}
+.dp-field[data-state='open'] {
+  border-color: var(--focus);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--focus) 16%, transparent);
+}
+.dp-ico {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  color: var(--muted);
+}
+.dp-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.dp-rel {
+  flex: none;
+  padding: 0 8px;
+  font-size: 11.5px;
+  line-height: 20px;
+  color: var(--ink2);
+  background: var(--page);
+  border: 1px solid var(--line);
+  border-radius: 99px;
+}
+.dp-field .chev {
+  flex: none;
+  width: 13px;
+  height: 13px;
+  color: var(--muted);
+  transition: transform 0.2s var(--ease);
+}
+.dp-field[data-state='open'] .chev {
+  transform: rotate(180deg);
+}
+
+/* the calendar: a light card over the dialog */
+.dp {
+  z-index: 70;
+  width: 300px;
+  padding: 14px 12px 10px;
+  color: var(--ink);
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow-pop);
+  transform-origin: var(--radix-popover-content-transform-origin);
+  animation: dp-in 0.16s var(--ease) both;
+}
+@keyframes dp-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+.dp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 0 10px 6px;
+}
+.dp-title {
+  font-family: var(--serif);
+  font-size: 18px;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+.dp-title span {
+  color: var(--muted);
+}
+.dp-nav {
+  display: flex;
+  gap: 2px;
+}
+.dp-nav button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  color: var(--ink2);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+.dp-nav button:hover {
+  color: var(--ink);
+  background: var(--surface);
+  border-color: var(--line);
+}
+.dp-nav button:disabled {
+  opacity: 0.3;
+  cursor: default;
+  background: none;
+  border-color: transparent;
+}
+.dp-nav svg {
+  width: 16px;
+  height: 16px;
+}
+.dp-week,
+.dp-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+.dp-week span {
+  padding-bottom: 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+/* no forex at the weekend: those two columns step back */
+.dp-week span:nth-child(n + 6) {
+  color: var(--axis);
+}
+.dp-grid {
+  row-gap: 2px;
+  animation: dp-month 0.18s var(--ease) both;
+}
+@keyframes dp-month {
+  from {
+    opacity: 0.4;
+  }
+}
+.dp-day {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 36px;
+  padding: 0;
+  font: inherit;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background-color 0.12s, color 0.12s;
+}
+.dp-day:hover {
+  background: var(--page);
+}
+.dp-day.is-weekend {
+  color: var(--muted);
+}
+.dp-day.is-out {
+  color: var(--axis);
+}
+/* today: a dot under the number */
+.dp-day.is-today::after {
+  content: '';
+  position: absolute;
+  bottom: 5px;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--bull);
+}
+.dp-day[aria-selected='true'] {
+  font-weight: 600;
+  color: var(--raised);
+  background: var(--ink);
+}
+.dp-day[aria-selected='true']::after {
+  background: var(--raised);
+}
+.dp-day:disabled {
+  color: var(--grid);
+  background: none;
+  cursor: default;
+}
+.dp-day:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+.dp-foot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 10px 4px 0;
+  border-top: 1px solid var(--grid);
+}
+.dp-foot button {
+  height: 26px;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--ink2);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background-color 0.15s;
+}
+.dp-foot button:hover {
+  color: var(--ink);
+  border-color: var(--axis);
+}
+.dp-foot button[aria-pressed='true'] {
+  color: var(--bull-ink);
+  background: color-mix(in srgb, var(--bull) 8%, var(--raised));
+  border-color: color-mix(in srgb, var(--bull) 45%, transparent);
+}
+.dp-hint {
+  margin-left: auto;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
 /* ---------- Chart viewer: snapshots full screen ---------- */
 
 .viewer {
@@ -3921,8 +4427,6 @@ fieldset.bare:disabled {
   padding: 6px 76px 14px;
   overflow: auto;
   overscroll-behavior: contain;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
 }
 .viewer-stage img {
   flex: none;
@@ -4407,15 +4911,73 @@ fieldset.bare:disabled {
   gap: 10px;
   margin-top: 28px;
 }
-.state-img {
-  display: block;
-  margin-top: 28px;
-  width: 100%;
-  max-width: 360px;
-  height: auto;
+/* a 404's way back: the app's pages as one list (the same on every Kaizen app) */
+.nf-links {
+  display: flex;
+  flex-direction: column;
+  margin-top: 32px;
+  background: var(--raised);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.nf-title {
+  margin: 0;
+  padding: 10px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+.nf-links a {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 13px 16px;
+  color: inherit;
+  text-decoration: none;
+  transition: background-color 0.15s;
+}
+.nf-links a + a {
+  border-top: 1px solid var(--grid);
+}
+.nf-links a:hover {
+  background: var(--surface);
+}
+.nf-links span {
+  flex: 1;
+  min-width: 0;
+}
+.nf-links b {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.nf-links small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.nf-links svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.15s var(--ease), stroke 0.15s;
+}
+.nf-links a:hover svg {
+  stroke: var(--ink);
+  transform: translateX(2px);
 }
 
 /* ---------- Footer ---------- */

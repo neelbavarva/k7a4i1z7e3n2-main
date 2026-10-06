@@ -61,65 +61,34 @@ export default function BiasCheck({ data }) {
   const agrees = (s) => (dir === 0 ? Math.abs(s) < NEUTRAL : Math.sign(s) === dir && Math.abs(s) >= NEUTRAL);
   const pastPct = c.share == null ? null : Math.round(c.share * 100);
 
-  const checks = [
-    {
-      ok: agrees(now),
-      label: 'Now',
-      text: (
-        <>
-          <b className={sideClass(now)}>{signed(now)}</b>, {leanWord(now)}
-        </>
-      ),
-    },
+  // the checks, as tiles: a number each, and whether it backs the bias
+  const stats = [
+    { ok: agrees(now), label: 'Now', value: signed(now), cls: sideClass(now), note: leanWord(now) },
     {
       ok: agrees(later),
       label: 'In 7 days',
-      text: (
-        <>
-          <b className={sideClass(later)}>{signed(later)}</b>, {leanWord(later)} if releases match forecasts
-        </>
-      ),
+      value: signed(later),
+      cls: sideClass(later),
+      note: `${leanWord(later)} if releases match forecasts`,
     },
     dir !== 0 && {
       ok: c.agree >= 0.75,
       warn: c.agree >= 0.4 && c.agree < 0.75,
       label: 'Through the week',
-      text: (
-        <>
-          leans {dir > 0 ? 'bullish' : 'bearish'} {Math.round(c.agree * 100)}% of the time (range {signed(c.min)} to{' '}
-          {signed(c.max)})
-        </>
-      ),
+      value: `${Math.round(c.agree * 100)}%`,
+      note: `of the time ${dir > 0 ? 'bullish' : 'bearish'}, range ${signed(c.min)} to ${signed(c.max)}`,
     },
     dir !== 0 &&
       upcoming.length > 0 && {
         ok: withBias >= upcoming.length / 2,
         warn: withBias < upcoming.length / 2 && withBias > 0,
         label: 'Upcoming forecasts',
-        text: (
-          <>
-            {withBias} of {upcoming.length} lean {dir > 0 ? 'bullish' : 'bearish'}
-          </>
-        ),
+        value: `${withBias} of ${upcoming.length}`,
+        note: `lean ${dir > 0 ? 'bullish' : 'bearish'}`,
       },
-    risk && {
-      ok: risk.level === 'Low',
-      warn: risk.level !== 'Low',
-      label: 'Surprise risk',
-      text: (
-        <>
-          {risk.level}
-          {risk.level !== 'Low' && (
-            <>
-              , peaking {fmtDay(risk.t)}
-              {risk.events.length > 0 && ` (${risk.events.map((e) => `${e.ccy} ${e.title}`).join(', ')})`}: a surprise
-              could move the score ±{Math.round(risk.half)}
-            </>
-          )}
-        </>
-      ),
-    },
   ].filter(Boolean);
+  const pastSide = c.past > 0 ? 'up' : c.past < 0 ? 'down' : 'flat';
+  const upSide = c.up > 0 ? 'up' : c.up < 0 ? 'down' : 'flat';
 
   const tier = TIERS.find((t) => c.strength >= t.from && c.strength < t.to) ?? (c.strength >= 70 ? TIERS[2] : null);
 
@@ -130,6 +99,7 @@ export default function BiasCheck({ data }) {
         <span className="muted small">Released news plus forecasts for the next 7 days</span>
       </div>
 
+      {/* two columns, two rows: the words on top, and the two bars level with each other below */}
       <div className="bc-grid">
         <div className="bc-verdict">
           <p className={`bc-call ${side}`}>
@@ -139,40 +109,12 @@ export default function BiasCheck({ data }) {
             {verdict}
           </p>
           <p className="bc-sub">{sub}</p>
-
-          <div className="bc-strength">
-            <div className="bc-strength-top">
-              <span>Strength</span>
-              <span>
-                <b className={side}>{c.strength}</b>
-                <span className="muted">/100</span> · {tier ? tier.key : 'None'}
-              </span>
-            </div>
-            <div className="bc-meter" role="img" aria-label={`Strength ${c.strength} out of 100, ${tier ? tier.key : 'none'}`}>
-              <span className={`bc-fill ${side}`} style={{ width: `${Math.min(100, c.strength)}%` }} />
-              {TIERS.map((t) => (
-                <span key={t.key} className="bc-tick" style={{ left: `${t.from}%` }} />
-              ))}
-            </div>
-            <div className="bc-scale" aria-hidden="true">
-              <span style={{ left: '0%' }}>None</span>
-              {TIERS.map((t) => (
-                <span key={t.key} style={{ left: `${t.from}%` }} className={tier?.key === t.key ? 'on' : ''}>
-                  {t.key}
-                </span>
-              ))}
-            </div>
-          </div>
         </div>
 
         <div className="bc-weights">
           <h3>What it's built from</h3>
           {pastPct != null ? (
             <>
-              <div className="bc-split" aria-hidden="true">
-                <span className={`bc-split-past ${c.past > 0 ? 'up' : c.past < 0 ? 'down' : 'flat'}`} style={{ width: `${pastPct}%` }} />
-                <span className={`bc-split-up ${c.up > 0 ? 'up' : c.up < 0 ? 'down' : 'flat'}`} style={{ width: `${100 - pastPct}%` }} />
-              </div>
               <dl className="bc-parts">
                 <div>
                   <dt>
@@ -180,7 +122,7 @@ export default function BiasCheck({ data }) {
                     Released news
                   </dt>
                   <dd>
-                    <b className={c.past > 0 ? 'up' : c.past < 0 ? 'down' : 'flat'}>{signed(c.past)}</b> <span className="muted">· {pastPct}% of the weight</span>
+                    <b className={pastSide}>{signed(c.past)}</b> <span className="muted">· already out</span>
                   </dd>
                 </div>
                 <div>
@@ -189,8 +131,7 @@ export default function BiasCheck({ data }) {
                     Upcoming forecasts
                   </dt>
                   <dd>
-                    <b className={c.up > 0 ? 'up' : c.up < 0 ? 'down' : 'flat'}>{signed(c.up)}</b>{' '}
-                    <span className="muted">· {100 - pastPct}% of the weight</span>
+                    <b className={upSide}>{signed(c.up)}</b> <span className="muted">· if releases match</span>
                   </dd>
                 </div>
               </dl>
@@ -204,28 +145,91 @@ export default function BiasCheck({ data }) {
             <p className="muted small">No scored news in this window yet.</p>
           )}
         </div>
+
+        <div className="bc-strength">
+          <div className="bc-bar-top">
+            <span>Strength</span>
+            <span>
+              <b className={side}>{c.strength}</b>
+              <span className="muted">/100</span> · {tier ? tier.key : 'None'}
+            </span>
+          </div>
+          <div className="bc-meter" role="img" aria-label={`Strength ${c.strength} out of 100, ${tier ? tier.key : 'none'}`}>
+            <span className={`bc-fill ${side}`} style={{ width: `${Math.min(100, c.strength)}%` }} />
+            {TIERS.map((t) => (
+              <span key={t.key} className="bc-tick" style={{ left: `${t.from}%` }} />
+            ))}
+          </div>
+          <div className="bc-scale" aria-hidden="true">
+            <span style={{ left: '0%' }}>None</span>
+            {TIERS.map((t) => (
+              <span key={t.key} style={{ left: `${t.from}%` }} className={tier?.key === t.key ? 'on' : ''}>
+                {t.key}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {pastPct != null && (
+          <div className="bc-share">
+            <div className="bc-bar-top">
+              <span>Weight</span>
+              <span>
+                <b>{pastPct}%</b> <span className="muted">released · {100 - pastPct}% forecasts</span>
+              </span>
+            </div>
+            <div
+              className="bc-split"
+              role="img"
+              aria-label={`${pastPct}% of the weight from released news, ${100 - pastPct}% from upcoming forecasts`}
+            >
+              <span className={`bc-split-past ${pastSide}`} style={{ width: `${pastPct}%` }} />
+              <span className={`bc-split-up ${upSide}`} style={{ width: `${100 - pastPct}%` }} />
+            </div>
+            <div className="bc-scale" aria-hidden="true">
+              <span style={{ left: '0%' }}>Released news</span>
+              <span className="end">Forecasts</span>
+            </div>
+          </div>
+        )}
       </div>
 
-      <ul className="bc-checks">
-        {checks.map((k) => {
+      <ul className="bc-stats" style={{ '--n': stats.length }}>
+        {stats.map((k) => {
           // with no clear bias there is nothing to support or contradict: just show the facts
-          const kind = dir === 0 && k.label !== 'Surprise risk' ? 'info' : k.ok ? 'ok' : k.warn ? 'warn' : 'no';
+          const kind = dir === 0 ? 'info' : k.ok ? 'ok' : k.warn ? 'warn' : 'no';
           return (
-          <li key={k.label} className={kind}>
-            <span className="bc-icon" aria-label={{ ok: 'Supports', warn: 'Caution', no: 'Against', info: 'Info' }[kind]}>
-              {{ ok: '✓', warn: '!', no: '✕', info: '·' }[kind]}
-            </span>
-            <span className="bc-label">{k.label}</span>
-            <span className="bc-text">{k.text}</span>
-          </li>
+            <li key={k.label} className={kind}>
+              <span className="bc-stat-label">
+                <span className="bc-icon" aria-label={{ ok: 'Supports', warn: 'Caution', no: 'Against', info: 'Info' }[kind]}>
+                  {{ ok: '✓', warn: '!', no: '✕', info: '·' }[kind]}
+                </span>
+                {k.label}
+              </span>
+              <span className={`bc-stat-value ${k.cls ?? ''}`}>{k.value}</span>
+              <span className="bc-stat-note">{k.note}</span>
+            </li>
           );
         })}
       </ul>
 
-      <p className="bc-foot muted small">
-        Fundamentals only. Use it to check whether your technical setup has the fundamentals behind it, not as a signal on its
-        own.
-      </p>
+      {risk && (
+        <div className={`bc-risk ${risk.level === 'Low' ? 'ok' : 'warn'}`}>
+          <span className="bc-icon" aria-hidden="true">
+            {risk.level === 'Low' ? '✓' : '!'}
+          </span>
+          <p>
+            <b>Surprise risk: {risk.level}.</b>{' '}
+            {risk.level !== 'Low' && (
+              <>
+                Peaks {fmtDay(risk.t)}
+                {risk.events.length > 0 && <> around {risk.events.map((e) => `${e.ccy} ${e.title}`).join(' and ')}</>}.{' '}
+              </>
+            )}
+            A surprise could move the score ±{Math.round(risk.half)}.
+          </p>
+        </div>
+      )}
     </section>
   );
 }

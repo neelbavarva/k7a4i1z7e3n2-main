@@ -1,11 +1,10 @@
-import { useEffect, useState } from 'react';
-import type { MouseEvent } from 'react';
 import { SESSIONS, sessionStatus } from '../marketModel';
 import { cityOfZone, formatClock, formatGmtOffset, offsetMinutes, shiftDate, zonedParts, zonedWallToUtc } from '../marketTime';
+import { Contents, useActiveSection } from './doc';
 
 const BASE = import.meta.env.BASE_URL;
 
-const SECTIONS: [string, string][] = [
+const SECTIONS = [
   ['short', 'The short version'],
   ['sessions', 'The four sessions'],
   ['overlaps', 'Overlaps'],
@@ -16,54 +15,7 @@ const SECTIONS: [string, string][] = [
   ['dst', 'Daylight saving'],
   ['using', 'Using this page'],
   ['faq', 'Questions'],
-];
-
-function useActiveSection() {
-  const [active, setActive] = useState(SECTIONS[0][0]);
-  useEffect(() => {
-    const els = SECTIONS.map(([id]) => document.getElementById(id)).filter(Boolean) as HTMLElement[];
-    const io = new IntersectionObserver(
-      (entries) => {
-        const seen = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-        if (seen[0]) setActive(seen[0].target.id);
-      },
-      { rootMargin: '0px 0px -70% 0px' },
-    );
-    els.forEach((el) => io.observe(el));
-    // the last sections can't reach the top of the screen: at the bottom of the page, light up the last one
-    const onScroll = () => {
-      if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4) setActive(SECTIONS[SECTIONS.length - 1][0]);
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => {
-      io.disconnect();
-      window.removeEventListener('scroll', onScroll);
-    };
-  }, []);
-  return active;
-}
-
-const jump = (e: MouseEvent<HTMLAnchorElement>, id: string) => {
-  e.preventDefault();
-  e.currentTarget.closest('details')?.removeAttribute('open');
-  requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
-};
-
-/** The contents as a line index: a dash per section, darker once read, longer for the one in view. */
-function Contents({ active }: { active: string }) {
-  const at = SECTIONS.findIndex(([id]) => id === active);
-  return (
-    <ol className="toc-list">
-      {SECTIONS.map(([id, title], i) => (
-        <li key={id}>
-          <a href={`#${id}`} onClick={(e) => jump(e, id)} aria-current={active === id ? 'true' : undefined} data-read={i < at || undefined}>
-            {title}
-          </a>
-        </li>
-      ))}
-    </ol>
-  );
-}
+] as const;
 
 /** Next weekday's session in UTC and the viewer's zone, so the table reflects today's DST. */
 function hoursTable(timezone: string, nowMs: number, is24Hour: boolean) {
@@ -86,7 +38,7 @@ function hoursTable(timezone: string, nowMs: number, is24Hour: boolean) {
 }
 
 export default function Guide({ timezone, nowMs, is24Hour }: { timezone: string; nowMs: number; is24Hour: boolean }) {
-  const active = useActiveSection();
+  const active = useActiveSection(SECTIONS);
   const table = hoursTable(timezone, nowMs, is24Hour);
   const you = `${cityOfZone(timezone)} (${formatGmtOffset(offsetMinutes(timezone, nowMs))})`;
 
@@ -113,13 +65,13 @@ export default function Guide({ timezone, nowMs, is24Hour }: { timezone: string;
       <div className="doc-layout">
         <aside className="toc" aria-label="On this page">
           <p className="toc-title">On this page</p>
-          <Contents active={active} />
+          <Contents sections={SECTIONS} active={active} />
         </aside>
 
         <div className="doc-body">
           <details className="toc-mobile">
             <summary>On this page</summary>
-            <Contents active={active} />
+            <Contents sections={SECTIONS} active={active} />
           </details>
 
           <section id="short">

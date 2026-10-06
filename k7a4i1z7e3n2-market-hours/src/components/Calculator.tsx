@@ -9,6 +9,7 @@ import type { Sizing } from '../positionSize';
 import { convert, priceOf, useRates } from '../rates';
 import type { RateTable } from '../rates';
 import { SiteNav, ZoneBar, isMac } from './common';
+import { CurrencyIcon, PairIcon } from './CurrencyIcon';
 import Dropdown from './Dropdown';
 import type { DropdownOption } from './Dropdown';
 import { currencySymbol, formatMoney, formatNumber, formatPercent, formatPrice, formatRate } from './format';
@@ -78,7 +79,12 @@ const positive = (n: number | null) => (n !== null && n > 0 ? n : null);
 /** A number as it should sit in an input: no grouping, at most `dp` decimals. */
 const plain = (v: number, dp: number) => String(Number(v.toFixed(dp)));
 
-const CURRENCY_OPTIONS: DropdownOption[] = ACCOUNT_CURRENCIES.map((c) => ({ value: c, label: c, sub: CURRENCY_NAME[c] }));
+const CURRENCY_OPTIONS: DropdownOption[] = ACCOUNT_CURRENCIES.map((c) => ({
+  value: c,
+  label: c,
+  sub: CURRENCY_NAME[c],
+  icon: <CurrencyIcon code={c} size={20} />,
+}));
 
 const RISK_PRESETS = [0.5, 1, 2];
 const RISK_LEVELS = [0.25, 0.5, 1, 1.5, 2, 3, 5];
@@ -137,7 +143,14 @@ export default function Calculator({ nowMs, timezone, is24Hour, onPickZone }: Pr
     const map = new Map<string, DropdownOption>();
     for (const i of INSTRUMENTS) {
       const p = priceOf(table, i);
-      map.set(i.symbol, { value: i.symbol, label: i.symbol, sub: i.name, group: i.group, aside: p ? formatPrice(p.value, i.digits) : undefined });
+      map.set(i.symbol, {
+        value: i.symbol,
+        label: i.symbol,
+        sub: i.name,
+        group: i.group,
+        aside: p ? formatPrice(p.value, i.digits) : undefined,
+        icon: <PairIcon inst={i} size={28} />,
+      });
     }
     return { list: [...map.values()], search: (q: string) => searchInstruments(q).map((i) => map.get(i.symbol)!) };
   }, [table]);
@@ -157,10 +170,10 @@ export default function Calculator({ nowMs, timezone, is24Hour, onPickZone }: Pr
   const rate = conv ? { value: conv.value, source: conv.source as RateSource } : manual ? { value: manual, source: 'manual' as const } : null;
   const priceFresh = price ? freshness(price.source, table, nowMs, timezone, is24Hour) : '';
   const priceTag = price ? (
-    <>
-      {formatPrice(price.value, inst.digits)}
-      <span className={`rate-tag${priceFresh === 'live' ? ' is-live' : ''}`}> · {priceFresh}</span>
-    </>
+    <span className="pair-quote">
+      <b>{formatPrice(price.value, inst.digits)}</b>
+      <span className={`rate-tag${priceFresh === 'live' ? ' is-live' : ''}`}>{priceFresh}</span>
+    </span>
   ) : loading ? (
     <span className="rate-tag">getting prices…</span>
   ) : null;
@@ -209,6 +222,12 @@ export default function Calculator({ nowMs, timezone, is24Hour, onPickZone }: Pr
     if (!balance || !risk) return set({ riskMode: mode });
     set({ riskMode: mode, risk: mode === 'money' ? plain((balance * risk) / 100, 2) : plain((risk / balance) * 100, 2) });
   };
+
+  // the presets are percentages; with the risk in money they set that share of the balance
+  const presetOn = (p: number) =>
+    s.riskMode === 'percent' ? risk === p : !!balance && riskAmount !== null && Math.abs(riskAmount - (balance * p) / 100) < 0.005;
+  const pickPreset = (p: number) =>
+    set({ risk: s.riskMode === 'percent' || !balance ? String(p) : plain((balance * p) / 100, 2), ...(balance ? {} : { riskMode: 'percent' as const }) });
 
   // switching keeps the same trade: pips become an entry and stop (long, unless it was short), and back
   const switchStop = (mode: Settings['stopMode']) => {
@@ -286,13 +305,17 @@ export default function Calculator({ nowMs, timezone, is24Hour, onPickZone }: Pr
                 aside={priceTag}
                 open={pairOpen}
                 onOpenChange={setPairOpen}
+                tall
+                icon={<PairIcon inst={inst} size={36} />}
               />
             </div>
 
             <div className="field">
-              <span className="field-label" id="ps-account-label">
-                Account currency
-              </span>
+              <div className="field-top">
+                <span className="field-label" id="ps-account-label">
+                  Account currency
+                </span>
+              </div>
               <Dropdown
                 labelId="ps-account-label"
                 value={s.account}
@@ -306,9 +329,11 @@ export default function Calculator({ nowMs, timezone, is24Hour, onPickZone }: Pr
             </div>
 
             <div className="field">
-              <label className="field-label" htmlFor="ps-balance">
-                Account balance
-              </label>
+              <div className="field-top">
+                <label className="field-label" htmlFor="ps-balance">
+                  Account balance
+                </label>
+              </div>
               <div className="input-wrap">
                 <span className="input-pre">{sym}</span>
                 <input id="ps-balance" inputMode="decimal" autoComplete="off" value={s.balance} onChange={(e) => set({ balance: e.target.value })} />
@@ -333,22 +358,20 @@ export default function Calculator({ nowMs, timezone, is24Hour, onPickZone }: Pr
                 {s.riskMode === 'money' && <span className="input-pre">{sym}</span>}
                 <input id="ps-risk" inputMode="decimal" autoComplete="off" value={s.risk} onChange={(e) => set({ risk: e.target.value })} />
                 {s.riskMode === 'percent' && <span className="input-post">%</span>}
+                {riskAmount !== null && balance && (
+                  <span className="input-aside" aria-live="polite">
+                    {s.riskMode === 'percent' ? money(riskAmount) : formatPercent((riskAmount / balance) * 100)}
+                  </span>
+                )}
               </div>
               <div className="field-foot">
-                {s.riskMode === 'percent' && (
-                  <span className="chips" role="group" aria-label="Common risks">
-                    {RISK_PRESETS.map((p) => (
-                      <button key={p} type="button" className="chip" aria-pressed={risk === p} onClick={() => set({ risk: String(p) })}>
-                        {p}%
-                      </button>
-                    ))}
-                  </span>
-                )}
-                {riskAmount !== null && balance && (
-                  <span className="field-note">
-                    {s.riskMode === 'percent' ? `= ${money(riskAmount)}` : `= ${formatPercent((riskAmount / balance) * 100)} of the balance`}
-                  </span>
-                )}
+                <span className="chips" role="group" aria-label="Common risks">
+                  {RISK_PRESETS.map((p) => (
+                    <button key={p} type="button" className="chip" aria-pressed={presetOn(p)} onClick={() => pickPreset(p)}>
+                      {p}%
+                    </button>
+                  ))}
+                </span>
               </div>
             </div>
 
@@ -385,15 +408,14 @@ export default function Calculator({ nowMs, timezone, is24Hour, onPickZone }: Pr
                 <div className="input-wrap">
                   <input id="ps-stop-pips" inputMode="decimal" autoComplete="off" value={s.stopPips} onChange={(e) => set({ stopPips: e.target.value })} />
                   <span className="input-post">pips</span>
+                  {stopPips && <span className="input-aside">{formatPrice(stopPips * pip, inst.digits)}</span>}
                 </div>
               )}
               <div className="field-foot">
                 <span className="field-note">
-                  {byPrice
-                    ? side && stopPips
-                      ? `${side === 'long' ? 'Long' : 'Short'}: the stop is ${formatNumber(stopPips, 1)} pips ${side === 'long' ? 'below' : 'above'} the entry`
-                      : `1 pip = ${formatNumber(pip, 10)}`
-                    : `1 pip = ${formatNumber(pip, 10)}${stopPips ? `, so the stop is ${formatPrice(stopPips * pip, inst.digits)} from the entry` : ''}`}
+                  {byPrice && side && stopPips
+                    ? `${side === 'long' ? 'Long' : 'Short'}: the stop is ${formatNumber(stopPips, 1)} pips ${side === 'long' ? 'below' : 'above'} the entry`
+                    : `1 pip = ${formatNumber(pip, 10)} on ${pairLabel(inst)}`}
                 </span>
                 {byPrice && price && (
                   <button type="button" className="link-btn" onClick={() => set({ entry: plain(price.value, inst.digits) })}>
@@ -404,87 +426,66 @@ export default function Calculator({ nowMs, timezone, is24Hour, onPickZone }: Pr
             </div>
           </div>
 
-          <details className="calc-more">
-            <summary>
-              <span className="calc-more-title">Contract</span>
-              <span className="calc-more-sum">
-                1 lot = {formatNumber(lot, 4)} {units} · 1 pip = {formatNumber(pip, 10)} · steps of {formatNumber(lotStep, 6)} lots
-                {leverage ? ` · 1:${formatNumber(leverage, 2)}` : ''}
+          <div className="contract" role="group" aria-labelledby="ps-contract-title">
+            <div className="contract-head">
+              <span className="contract-title" id="ps-contract-title">
+                Contract <span className="muted">· {pairLabel(inst)}</span>
               </span>
-            </summary>
-            <div className="calc-fields">
-              <div className="field">
-                <label className="field-label" htmlFor="ps-lot">
-                  One lot
-                </label>
-                <div className="input-wrap">
-                  <input
-                    id="ps-lot"
-                    inputMode="decimal"
-                    autoComplete="off"
-                    value={custom.lot ?? formatNumber(inst.lot, 4)}
-                    onChange={(e) => setContract('lot', e.target.value)}
-                    onBlur={() => settleContract('lot')}
-                  />
-                  <span className="input-post">{units}</span>
-                </div>
-              </div>
-              <div className="field">
-                <label className="field-label" htmlFor="ps-pip">
-                  One pip
-                </label>
-                <div className="input-wrap">
-                  <input
-                    id="ps-pip"
-                    inputMode="decimal"
-                    autoComplete="off"
-                    value={custom.pip ?? formatNumber(inst.pip, 10)}
-                    onChange={(e) => setContract('pip', e.target.value)}
-                    onBlur={() => settleContract('pip')}
-                  />
-                  <span className="input-post">{inst.quote}</span>
-                </div>
-              </div>
-              <div className="field">
-                <label className="field-label" htmlFor="ps-step">
-                  Lot step
-                </label>
-                <div className="input-wrap">
-                  <input id="ps-step" inputMode="decimal" autoComplete="off" value={s.lotStep} onChange={(e) => set({ lotStep: e.target.value })} />
-                  <span className="input-post">lots</span>
-                </div>
-              </div>
-              <div className="field">
-                <label className="field-label" htmlFor="ps-leverage">
-                  Leverage
-                </label>
-                <div className="input-wrap">
-                  <span className="input-pre">1 :</span>
-                  <input id="ps-leverage" inputMode="decimal" autoComplete="off" value={s.leverage} onChange={(e) => set({ leverage: e.target.value })} />
-                </div>
-              </div>
+              <span className="contract-hint">
+                {customised && (
+                  <>
+                    <button type="button" className="link-btn" onClick={resetContract}>
+                      Reset
+                    </button>
+                    {' · '}
+                  </>
+                )}
+                Brokers differ, so check yours
+              </span>
             </div>
-            <p className="calc-more-note">
-              Brokers differ, above all on gold and crypto: check one lot and one pip against your platform’s contract
-              specification.
-              {customised && (
-                <>
-                  {' '}
-                  <button type="button" className="link-btn" onClick={resetContract}>
-                    Reset {pairLabel(inst)} to {formatNumber(inst.lot, 4)} {units} and {formatNumber(inst.pip, 10)}
-                  </button>
-                </>
-              )}
-            </p>
-          </details>
+            <div className="spec-strip">
+              <Spec
+                id="ps-lot"
+                label="One lot"
+                value={custom.lot ?? formatNumber(inst.lot, 4)}
+                unit={units}
+                custom={custom.lot !== undefined}
+                onChange={(v) => setContract('lot', v)}
+                onBlur={() => settleContract('lot')}
+              />
+              <Spec
+                id="ps-pip"
+                label="One pip"
+                value={custom.pip ?? formatNumber(inst.pip, 10)}
+                unit={inst.quote}
+                custom={custom.pip !== undefined}
+                onChange={(v) => setContract('pip', v)}
+                onBlur={() => settleContract('pip')}
+              />
+              <Spec id="ps-step" label="Lot step" value={s.lotStep} unit="lots" onChange={(v) => set({ lotStep: v })} />
+              <Spec id="ps-leverage" label="Leverage" value={s.leverage} pre="1:" onChange={(v) => set({ leverage: v })} />
+            </div>
+          </div>
         </form>
 
         <div className="calc-out">
-          <p className="calc-kicker">Position size</p>
-          <p className={`calc-lots${sizing ? '' : ' is-empty'}`} aria-live="polite">
-            <span className="calc-lots-num">{sizing ? formatNumber(sizing.lots, lotDp, lotDp) : '—'}</span>
-            <span className="calc-lots-unit">lots</span>
-          </p>
+          <div className="out-head">
+            <p className="calc-kicker">Position size</p>
+            <span className="out-pair">
+              <PairIcon inst={inst} size={20} />
+              {inst.symbol}
+              {side && <span className={`side-tag is-${side}`}>{side === 'long' ? 'Long' : 'Short'}</span>}
+            </span>
+          </div>
+          <div className="calc-hero">
+            <p className={`calc-lots${sizing ? '' : ' is-empty'}`} aria-live="polite">
+              <span className="calc-lots-num" key={sizing ? sizing.lots : 'none'}>
+                {sizing ? formatNumber(sizing.lots, lotDp, lotDp) : '—'}
+              </span>
+              <span className="calc-lots-unit">lots</span>
+            </p>
+            {sizing && sizing.lots > 0 && <CopyButton text={sizing.lots.toFixed(lotDp)} />}
+          </div>
 
           {sizing ? (
             <Result
@@ -542,6 +543,7 @@ export default function Calculator({ nowMs, timezone, is24Hour, onPickZone }: Pr
           rate={rate.value}
           entry={byPrice ? entry : null}
           stop={byPrice ? stop : null}
+          money={money}
         />
       )}
 
@@ -553,13 +555,76 @@ export default function Calculator({ nowMs, timezone, is24Hour, onPickZone }: Pr
           lotStep={lotStep}
           units={units}
           money={money}
+          onPick={(level) => set({ riskMode: 'percent', risk: String(level) })}
         />
       )}
     </main>
   );
 }
 
+
 // ---------------------------------------------------------------------------
+
+/** One cell of the contract strip: a label, and a value you can type over with its unit right after it. */
+function Spec({
+  id,
+  label,
+  value,
+  unit,
+  pre,
+  custom,
+  onChange,
+  onBlur,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  unit?: string;
+  pre?: string;
+  custom?: boolean;
+  onChange: (value: string) => void;
+  onBlur?: () => void;
+}) {
+  return (
+    <label className={`spec${custom ? ' is-custom' : ''}`} htmlFor={id}>
+      <span className="spec-label">{label}</span>
+      <span className="spec-row">
+        {pre && <span className="spec-unit">{pre}</span>}
+        {/* as wide as what's typed (a hidden copy sets the width), so the unit sits right after it */}
+        <span className="spec-fit" data-value={value || ' '}>
+          <input id={id} size={1} inputMode="decimal" autoComplete="off" value={value} onChange={(e) => onChange(e.target.value)} onBlur={onBlur} />
+        </span>
+        {unit && <span className="spec-unit">{unit}</span>}
+      </span>
+    </label>
+  );
+}
+
+/** Copies the size, plain ("0.50"), ready to paste into the order ticket. */
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!copied) return;
+    const t = window.setTimeout(() => setCopied(false), 1600);
+    return () => window.clearTimeout(t);
+  }, [copied]);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+    } catch {
+      // no clipboard (an old browser, or not allowed): nothing to do
+    }
+  };
+  return (
+    <button type="button" className={`copy-btn${copied ? ' is-done' : ''}`} onClick={copy} aria-label={copied ? 'Copied' : `Copy ${text} lots`}>
+      <svg viewBox="0 0 16 16" aria-hidden="true">
+        {copied ? <path d="M3.5 8.5l3 3 6-7" /> : <path d="M5.5 5.5V3.8c0-.7.6-1.3 1.3-1.3h5.4c.7 0 1.3.6 1.3 1.3v5.4c0 .7-.6 1.3-1.3 1.3h-1.7M3.8 5.5h5.4c.7 0 1.3.6 1.3 1.3v5.4c0 .7-.6 1.3-1.3 1.3H3.8c-.7 0-1.3-.6-1.3-1.3V6.8c0-.7.6-1.3 1.3-1.3z" />}
+      </svg>
+      <span aria-live="polite">{copied ? 'Copied' : 'Copy'}</span>
+    </button>
+  );
+}
 
 type CheckKind = 'ok' | 'warn' | 'no' | 'info';
 
@@ -606,15 +671,15 @@ function Result({
   } else if (pct > 5) {
     checks.push({ kind: 'no', label: 'Risk', text: `${formatPercent(pct)} of the account on one trade. A short losing run would do real damage.` });
   } else if (pct > 2) {
-    checks.push({ kind: 'warn', label: 'Risk', text: `${formatPercent(pct)} of the account, more than the usual 1–2% a trade.` });
+    checks.push({ kind: 'warn', label: 'Risk', text: `${formatPercent(pct)} of the account, above the usual 1–2%.` });
   } else {
-    checks.push({ kind: 'ok', label: 'Risk', text: `${formatPercent(pct)} of the account, within the usual 1–2% a trade.` });
+    checks.push({ kind: 'ok', label: 'Risk', text: `${formatPercent(pct)} of the account, within the usual 1–2%.` });
   }
   if (sizing.lots > 0 && sizing.exactLots - sizing.lots > 1e-9) {
     checks.push({
       kind: 'info',
       label: 'Rounded',
-      text: `down from ${formatNumber(sizing.exactLots, lotDp + 2)} lots to the ${formatNumber(lotStep, 6)} step, so the risk stays at or under ${money(sizing.riskAmount)}.`,
+      text: `down from ${formatNumber(sizing.exactLots, lotDp + 2)} lots to the ${formatNumber(lotStep, 6)} step.`,
     });
   }
   if (sizing.margin !== null && sizing.margin > balance) {
@@ -622,86 +687,88 @@ function Result({
   }
   if (rateNote) checks.push({ kind: 'info', label: 'Rate', text: rateNote });
 
+  // where the stop and each target sit: a price when the entry is known, else pips from it
+  const dir = side === 'short' ? -1 : 1;
+  const priced = !!(entry && side);
+  const at = (r: number) => formatPrice(entry! + dir * r * distance, inst.digits);
+
   return (
     <>
-      <p className="calc-units">
-        {formatNumber(sizing.units, 4)} {units}
+      <p className="unit-pills">
+        <span>
+          <b>{formatNumber(sizing.units, 4)}</b> {units}
+        </span>
         {fx && sizing.lots > 0 && (
-          <span className="muted">
-            {' '}
-            · {formatNumber(sizing.units / 10_000, 2)} mini · {formatNumber(sizing.units / 1_000, 1)} micro lots
-          </span>
+          <>
+            <span>
+              <b>{formatNumber(sizing.units / 10_000, 2)}</b> mini
+            </span>
+            <span>
+              <b>{formatNumber(sizing.units / 1_000, 1)}</b> micro
+            </span>
+          </>
         )}
       </p>
 
-      <dl className="calc-facts">
-        <div>
+      <dl className="stat-grid">
+        <div className="stat">
           <dt>Amount at risk</dt>
           <dd>
-            <b>{money(sizing.actualRisk)}</b> <span className="muted">· {formatPercent(sizing.actualPercent)}</span>
+            <b>{money(sizing.actualRisk)}</b>
+            <span>{formatPercent(sizing.actualPercent)} of the balance</span>
           </dd>
         </div>
-        <div>
+        <div className="stat">
           <dt>Pip value</dt>
           <dd>
-            <b>{money(sizing.pipValue)}</b> <span className="muted">· {money(sizing.pipValuePerLot)} a lot</span>
-          </dd>
-        </div>
-        <div>
-          <dt>Stop</dt>
-          <dd>
-            {formatNumber(stopPips, 1)} pips <span className="muted">· {formatPrice(distance, inst.digits)}{side ? `, ${side}` : ''}</span>
+            <b>{money(sizing.pipValue)}</b>
+            <span>{money(sizing.pipValuePerLot)} a lot</span>
           </dd>
         </div>
         {sizing.notional !== null && (
-          <div>
+          <div className="stat">
             <dt>Position value</dt>
-            <dd>{money(sizing.notional)}</dd>
+            <dd>
+              <b>{money(sizing.notional)}</b>
+              <span>{formatNumber(sizing.notional / balance, 1)}× the balance</span>
+            </dd>
           </div>
         )}
         {sizing.margin !== null && (
-          <div>
+          <div className="stat">
             <dt>Margin at 1:{formatNumber(leverage!, 2)}</dt>
             <dd>
-              {money(sizing.margin)} <span className="muted">· {formatPercent((sizing.margin / balance) * 100)}</span>
+              <b>{money(sizing.margin)}</b>
+              <span>{formatPercent((sizing.margin / balance) * 100)} of the balance</span>
             </dd>
           </div>
         )}
       </dl>
 
-      <div className="calc-targets" role="table" aria-label="Targets">
-        <div role="row">
-          <span role="rowheader" className="muted">
-            Targets
-          </span>
-          {TARGETS.map((k) => (
-            <span role="columnheader" key={k}>
-              1:{k}
-            </span>
-          ))}
+      <div className="ladder">
+        <div className="ladder-head">
+          <span>Stop and targets</span>
+          <span className="muted">{formatNumber(stopPips, 1)}-pip stop</span>
         </div>
-        <div role="row">
-          <span role="rowheader" className="muted">
-            Profit
-          </span>
+        <ol className="ladder-cols">
+          <li className="lc is-loss">
+            <b>−{money(sizing.actualRisk)}</b>
+            <i className="lc-seg" />
+            <span className="lc-k">Stop</span>
+            {priced && <span className="lc-at">{at(-1)}</span>}
+          </li>
           {TARGETS.map((k) => (
-            <b role="cell" key={k} className="up">
-              +{money(sizing.actualRisk * k)}
-            </b>
+            <li key={k} className={`lc is-win is-r${k}`}>
+              <b>+{money(sizing.actualRisk * k)}</b>
+              <i className="lc-seg" />
+              <span className="lc-k">1:{k}</span>
+              {priced && <span className="lc-at">{at(k)}</span>}
+            </li>
           ))}
-        </div>
-        {entry && side && (
-          <div role="row">
-            <span role="rowheader" className="muted">
-              Price
-            </span>
-            {TARGETS.map((k) => (
-              <span role="cell" key={k}>
-                {formatPrice(entry + (side === 'long' ? 1 : -1) * k * distance, inst.digits)}
-              </span>
-            ))}
-          </div>
-        )}
+          <li className="lc-entry" aria-hidden="true">
+            <span className="lc-k">Entry</span>
+          </li>
+        </ol>
       </div>
 
       <ul className="bc-checks calc-checks">
@@ -721,7 +788,7 @@ function Result({
 
 // ---------------------------------------------------------------------------
 
-/** The sum with the reader's own numbers, then what's worth knowing about the inputs. */
+/** The sum with the reader's own numbers, a card a step, then what's worth knowing about the inputs. */
 function Workings({
   inst,
   account,
@@ -735,6 +802,7 @@ function Workings({
   rate,
   entry,
   stop,
+  money,
 }: {
   inst: Instrument;
   account: string;
@@ -749,11 +817,12 @@ function Workings({
   rate: number;
   entry: number | null;
   stop: number | null;
+  money: (v: number) => string;
 }) {
   const n2 = (v: number) => formatNumber(v, 2, 2);
   const lotDp = decimals(lotStep);
-  const perLotQuote = pip * lot;
   const same = inst.quote === account;
+  const rounded = sizing.exactLots - sizing.lots > 1e-9;
   return (
     <section className="chart-block workings" aria-labelledby="wk-title">
       <div className="chart-head">
@@ -762,27 +831,38 @@ function Workings({
           <p>The amount you’re willing to lose, divided by what the stop costs on one lot. Here it is with your numbers.</p>
         </div>
       </div>
-      <div className="formula">
+      <ol className="steps-row">
         {entry !== null && stop !== null && (
-          <>
-            stop&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= |{formatPrice(entry, inst.digits)} − {formatPrice(stop, inst.digits)}| ÷ {formatNumber(pip, 10)} ={' '}
-            {formatNumber(stopPips, 1)} pips
-            <br />
-          </>
+          <li className="step">
+            <span className="step-k">Stop distance</span>
+            <b className="step-v">{formatNumber(stopPips, 1)} pips</b>
+            <span className="step-f">
+              |{formatPrice(entry, inst.digits)} − {formatPrice(stop, inst.digits)}| ÷ {formatNumber(pip, 10)}
+            </span>
+          </li>
         )}
-        risk&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;={' '}
-        {risk !== null ? `${formatNumber(balance, 2)} × ${formatNumber(risk, 4)}% = ` : ''}
-        {n2(sizing.riskAmount)} {account}
-        <br />
-        pip value = {formatNumber(pip, 10)} × {formatNumber(lot, 4)}
-        {same
-          ? ` = ${n2(sizing.pipValuePerLot)} ${account} a lot`
-          : ` = ${formatNumber(perLotQuote, 6)} ${inst.quote} × ${formatRate(rate)} = ${n2(sizing.pipValuePerLot)} ${account} a lot`}
-        <br />
-        lots&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= {n2(sizing.riskAmount)} ÷ ({formatNumber(stopPips, 1)} × {n2(sizing.pipValuePerLot)}) ={' '}
-        {formatNumber(sizing.exactLots, lotDp + 2)}
-        {sizing.exactLots - sizing.lots > 1e-9 ? ` → ${formatNumber(sizing.lots, lotDp, lotDp)}, rounded down to the step` : ''}
-      </div>
+        <li className="step">
+          <span className="step-k">Risk</span>
+          <b className="step-v">{money(sizing.riskAmount)}</b>
+          <span className="step-f">{risk !== null ? `${formatNumber(balance, 2)} × ${formatNumber(risk, 4)}%` : 'the amount you entered'}</span>
+        </li>
+        <li className="step">
+          <span className="step-k">One lot, per pip</span>
+          <b className="step-v">{money(sizing.pipValuePerLot)}</b>
+          <span className="step-f">
+            {formatNumber(pip, 10)} × {formatNumber(lot, 4)}
+            {same ? ` ${account}` : ` ${inst.quote} × ${formatRate(rate)}`}
+          </span>
+        </li>
+        <li className="step is-answer">
+          <span className="step-k">Position size</span>
+          <b className="step-v">{formatNumber(sizing.lots, lotDp, lotDp)} lots</b>
+          <span className="step-f">
+            {n2(sizing.riskAmount)} ÷ ({formatNumber(stopPips, 1)} × {n2(sizing.pipValuePerLot)})
+            {rounded ? ` = ${formatNumber(sizing.exactLots, lotDp + 2)}, rounded down` : ''}
+          </span>
+        </li>
+      </ol>
       <ul className="calc-notes">
         <li>
           <b>A lot</b> is 100,000 units of the base currency for forex, 100 oz of gold, platinum or palladium, 5,000 oz of
@@ -814,6 +894,7 @@ function RiskTable({
   lotStep,
   units,
   money,
+  onPick,
 }: {
   rows: { level: number; sizing: Sizing }[];
   current: number;
@@ -821,6 +902,7 @@ function RiskTable({
   lotStep: number;
   units: string;
   money: (v: number) => string;
+  onPick: (level: number) => void;
 }) {
   const lotDp = decimals(lotStep);
   return (
@@ -828,7 +910,7 @@ function RiskTable({
       <h2 id="rl-title">Other risk levels</h2>
       <p className="muted">
         The same balance and {formatNumber(stopPips, 1)}-pip stop at the risks most traders choose between, rounded down to
-        steps of {formatNumber(lotStep, 6)} lots.
+        steps of {formatNumber(lotStep, 6)} lots. Pick a row to use it.
       </p>
       <div className="scroll">
         <table className="stack risk-table">
@@ -850,26 +932,32 @@ function RiskTable({
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ level, sizing }) => (
-              <tr key={level} className={Math.abs(level - current) < 1e-6 ? 'is-current' : ''}>
-                <td className="c-main">
-                  <b>{formatPercent(level)}</b>
-                  {Math.abs(level - current) < 1e-6 && <span className="muted small"> · yours</span>}
-                </td>
-                <td className="num" data-label="Amount">
-                  {money(sizing.riskAmount)}
-                </td>
-                <td className="num" data-label="Position">
-                  {formatNumber(sizing.lots, lotDp, lotDp)} lots
-                </td>
-                <td className="num" data-label="Units">
-                  {formatNumber(sizing.units, 4)} {units}
-                </td>
-                <td className="num" data-label="Pip value">
-                  {money(sizing.pipValue)}
-                </td>
-              </tr>
-            ))}
+            {rows.map(({ level, sizing }) => {
+              const mine = Math.abs(level - current) < 1e-6;
+              return (
+                <tr key={level} className={mine ? 'is-current' : ''} onClick={() => onPick(level)}>
+                  <td className="c-main">
+                    <button type="button" className="row-pick" aria-pressed={mine} aria-label={`Risk ${formatPercent(level)}`}>
+                      <i className={`risk-dot is-${level > 5 ? 'no' : level > 2 ? 'warn' : 'ok'}`} />
+                      <b>{formatPercent(level)}</b>
+                    </button>
+                    {mine && <span className="yours">Yours</span>}
+                  </td>
+                  <td className="num" data-label="Amount">
+                    {money(sizing.riskAmount)}
+                  </td>
+                  <td className="num" data-label="Position">
+                    {formatNumber(sizing.lots, lotDp, lotDp)} lots
+                  </td>
+                  <td className="num" data-label="Units">
+                    {formatNumber(sizing.units, 4)} {units}
+                  </td>
+                  <td className="num" data-label="Pip value">
+                    {money(sizing.pipValue)}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

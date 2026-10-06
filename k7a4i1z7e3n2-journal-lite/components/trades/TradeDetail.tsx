@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Check, Pencil, RotateCcw, TrendingDown, TrendingUp, X } from 'lucide-react';
 import { deleteTrade, friendly, getTrade, updateTrade, type TradePatch } from '@/lib/api';
 import { TYPE_LABEL, fmtDateTime, fmtPct, fmtR, fmtRatio, isOpen, rOf, sideOf } from '@/lib/journal';
+import { FUND_LABEL, fundHint, fundOf, fundPatch } from '@/lib/fundamentals';
 import { PACE_HINT, PACE_LABEL, ON_PACE, pacePatch, paceOf } from '@/lib/pace';
 import { riskError, TEXT_MAX } from '@/lib/validate';
 import type { Trade, TradeImage } from '@/lib/types';
@@ -290,19 +291,17 @@ function Body({
               disabled={busy}
             />
           </li>
-          <li className="review-row">
+          <li className={`review-row fund-row${fundOf(t) ? ' is-on' : ''}`}>
             <div>
-              <b>Set and forget</b>
-              <span>{t.setForgetDecided ? (t.setForget ? 'You let it run to stop or target.' : 'You stepped in before it played out.') : 'Did you leave it alone once it was placed?'}</span>
+              <b>{FUND_LABEL}</b>
+              <span>{fundHint(fundOf(t))}</span>
             </div>
-            <div className="seg" role="group" aria-label="Set and forget">
-              <button type="button" aria-pressed={t.setForgetDecided && t.setForget} onClick={() => patch('sf', { setForget: true })} disabled={busy}>
-                Yes
-              </button>
-              <button type="button" aria-pressed={t.setForgetDecided && !t.setForget} onClick={() => patch('sf', { setForget: false })} disabled={busy}>
-                No
-              </button>
-            </div>
+            <Switch
+              label={FUND_LABEL}
+              on={!!fundOf(t)}
+              onChange={(v) => patch('fund', fundPatch(v), v ? 'Marked as backed by fundamentals' : 'Marked as chart only')}
+              disabled={busy}
+            />
           </li>
           {!open && (
             <li className="review-row">

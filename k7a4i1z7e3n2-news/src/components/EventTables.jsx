@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { fmtDayTime, fmtRelative, signed } from '../format.js';
+import { useNow } from '../clock.js';
 
 const FIRST = 6;
 
@@ -27,6 +28,15 @@ function Push({ v }) {
   );
 }
 
+/** A small check mark: this release is out. */
+export function Tick() {
+  return (
+    <svg className="tick" viewBox="0 0 12 12" aria-hidden="true">
+      <path d="M2.5 6.4 4.9 8.7 9.5 3.6" />
+    </svg>
+  );
+}
+
 const Impact = ({ level }) => <span className={`impact impact-${level.toLowerCase()}`}>{level}</span>;
 
 export function UpcomingTable({ data }) {
@@ -35,6 +45,8 @@ export function UpcomingTable({ data }) {
     .filter((e) => Date.parse(e.t) > now && (e.impact === 'High' || e.impact === 'Medium'))
     .slice(0, 16);
   const [shown, more] = useMore(rows);
+  // times are counted from the clock, so a release that has come out since the data was made says so
+  const clock = useNow();
   return (
     <section className="table-block" aria-labelledby="up-title">
       <h2 id="up-title">Coming up</h2>
@@ -57,10 +69,17 @@ export function UpcomingTable({ data }) {
             </thead>
             <tbody>
               {shown.map((e) => (
-                <tr key={e.id}>
+                <tr key={e.id} className={Date.parse(e.t) <= clock ? 'is-done' : undefined}>
                   <td className="when c-when">
                     <div>{fmtDayTime(e.t)}</div>
-                    <div className="muted small">{fmtRelative(e.t, now)}</div>
+                    {Date.parse(e.t) <= clock ? (
+                      <div className="out-tag">
+                        <Tick />
+                        Out {fmtRelative(e.t, clock)}
+                      </div>
+                    ) : (
+                      <div className="muted small">{fmtRelative(e.t, clock)}</div>
+                    )}
                   </td>
                   <td className="c-main">
                     <span className="ccy">{e.ccy}</span> {e.title}

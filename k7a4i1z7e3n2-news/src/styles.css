@@ -44,6 +44,16 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
+/* No scrollbars anywhere (page, tables, picker, swipeable days): everything still scrolls by wheel,
+   trackpad, touch and keys, there's just no bar drawn. scrollbar-width for Firefox, Chrome and newer
+   Safari; the -webkit- rule for older Safari. */
+* {
+  scrollbar-width: none;
+}
+::-webkit-scrollbar {
+  display: none;
+}
+
 body {
   margin: 0;
   background: var(--page);
@@ -257,11 +267,34 @@ kbd {
   gap: 12px;
   flex-wrap: wrap;
 }
+/* words on top, bars below: the two bars sit in the same row, so they line up */
 .bc-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
-  gap: 32px;
+  grid-template-areas:
+    'verdict info'
+    'strength share';
   margin-top: 16px;
+}
+.bc-verdict {
+  grid-area: verdict;
+  padding-right: 32px;
+}
+.bc-weights {
+  grid-area: info;
+}
+.bc-strength {
+  grid-area: strength;
+  padding: 20px 32px 0 0;
+}
+.bc-share {
+  grid-area: share;
+  padding-top: 20px;
+}
+.bc-weights,
+.bc-share {
+  padding-left: 32px;
+  border-left: 1px solid var(--grid);
 }
 .bc-call {
   display: flex;
@@ -285,22 +318,20 @@ kbd {
   font-size: 13.5px;
   color: var(--ink2);
 }
-.bc-strength {
-  margin-top: 20px;
-}
-.bc-strength-top {
+.bc-bar-top {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
+  gap: 12px;
   font-size: 12.5px;
   color: var(--ink2);
 }
-.bc-strength-top b {
+.bc-bar-top b {
   font-family: var(--serif);
   font-weight: 400;
   font-size: 22px;
 }
-.bc-strength-top b.flat {
+.bc-bar-top b.flat {
   color: var(--ink);
 }
 .bc-meter {
@@ -351,9 +382,10 @@ kbd {
   color: var(--ink);
   font-weight: 600;
 }
-.bc-weights {
-  padding-left: 32px;
-  border-left: 1px solid var(--grid);
+.bc-scale .end {
+  left: auto;
+  right: 0;
+  transform: none;
 }
 .bc-weights h3 {
   margin: 4px 0 12px;
@@ -365,6 +397,7 @@ kbd {
   display: flex;
   height: 10px;
   gap: 2px;
+  margin-top: 8px;
   border-radius: 99px;
   overflow: hidden;
   background: var(--grid);
@@ -393,7 +426,7 @@ kbd {
   background-color: var(--bear);
 }
 .bc-parts {
-  margin: 14px 0 0;
+  margin: 0;
   display: grid;
   gap: 10px;
 }
@@ -436,62 +469,112 @@ kbd {
   font-size: 12.5px;
   color: var(--ink2);
 }
-.bc-checks {
-  list-style: none;
-  margin: 20px 0 0;
-  padding: 14px 0 0;
-  border-top: 1px solid var(--grid);
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 10px 28px;
-}
-.bc-checks li {
-  display: grid;
-  grid-template-columns: 20px auto 1fr;
-  align-items: baseline;
-  gap: 8px;
-  font-size: 13px;
-  line-height: 1.45;
-  color: var(--ink2);
-}
-.bc-label {
-  color: var(--ink);
-  font-weight: 600;
-  white-space: nowrap;
-}
 .bc-icon {
   display: inline-grid;
   place-items: center;
-  width: 18px;
-  height: 18px;
-  font-size: 11px;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  font-size: 10px;
   font-weight: 700;
+  line-height: 1;
   border-radius: 50%;
-  transform: translateY(3px);
 }
-.bc-checks .ok .bc-icon {
+.ok > .bc-icon,
+.ok .bc-stat-label .bc-icon {
   color: #2f7d3d;
   background: color-mix(in srgb, #2f7d3d 13%, transparent);
 }
-.bc-checks .warn .bc-icon {
+.warn > .bc-icon,
+.warn .bc-stat-label .bc-icon {
   color: #a26a00;
-  background: color-mix(in srgb, var(--medium) 18%, transparent);
+  background: color-mix(in srgb, var(--medium) 20%, transparent);
 }
-.bc-checks .no .bc-icon {
+.no .bc-stat-label .bc-icon {
   color: var(--bear-ink);
   background: color-mix(in srgb, var(--bear) 13%, transparent);
 }
-.bc-checks .info .bc-icon {
+.info .bc-stat-label .bc-icon {
   color: var(--muted);
   background: var(--grid);
 }
-.bc-text b {
-  font-weight: 600;
+/* the checks: one tile each, a number and what it means */
+.bc-stats {
+  list-style: none;
+  margin: 22px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr));
+  border-top: 1px solid var(--grid);
 }
-.bc-foot {
-  margin: 14px 0 0;
+.bc-stats li {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  min-width: 0;
+  padding: 14px 18px 2px;
 }
-
+.bc-stats li:first-child {
+  padding-left: 0;
+}
+.bc-stats li + li {
+  border-left: 1px solid var(--grid);
+}
+.bc-stat-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  line-height: 18px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink2);
+}
+.bc-stat-label .bc-icon {
+  margin-top: 1px;
+}
+.bc-stat-value {
+  margin-top: 4px;
+  font-family: var(--serif);
+  font-size: 24px;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.bc-stat-value.flat {
+  color: var(--ink);
+}
+.bc-stat-note {
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+/* surprise risk gets a line of its own: it's a caution, not a check */
+.bc-risk {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink2);
+  background: var(--surface);
+  border: 1px solid var(--grid);
+}
+.bc-risk.warn {
+  background: color-mix(in srgb, var(--medium) 8%, var(--raised));
+  border-color: color-mix(in srgb, var(--medium) 28%, var(--line));
+}
+.bc-risk > .bc-icon {
+  margin-top: 2px;
+}
+.bc-risk p {
+  margin: 0;
+}
+.bc-risk b {
+  color: var(--ink);
+}
 /* ---------- Market icons ---------- */
 
 .mi {
@@ -1173,18 +1256,14 @@ kbd {
   padding: 14px 16px;
   overflow: hidden;
 }
-.day::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 3px;
-  background: transparent;
+/* a risky day is outlined all round in a light wash of its colour, with the faintest tint inside */
+.day.risk-high {
+  border-color: color-mix(in srgb, var(--high) 30%, var(--line));
+  background: color-mix(in srgb, var(--high) 2.5%, var(--raised));
 }
-.day.risk-high::before {
-  background: var(--high);
-}
-.day.risk-medium::before {
-  background: var(--medium);
+.day.risk-medium {
+  border-color: color-mix(in srgb, var(--medium) 40%, var(--line));
+  background: color-mix(in srgb, var(--medium) 3%, var(--raised));
 }
 .day-head {
   display: flex;
@@ -1245,18 +1324,32 @@ kbd {
 }
 .day-events {
   list-style: none;
-  padding: 10px 0 0;
+  padding: 2px 0 0;
   margin: 12px 0 0;
   border-top: 1px solid var(--grid);
   font-size: 12.5px;
-}
-.day-events li {
   display: grid;
-  grid-template-columns: 5.2em 1fr auto;
-  gap: 8px;
+  grid-template-columns: max-content minmax(0, 1fr) auto;
+  column-gap: 12px;
+}
+/* one release per row, a hairline between them, so a name that wraps still reads as one item */
+.day-events li {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 3.6em minmax(0, 1fr) auto;
+  column-gap: 12px;
   align-items: baseline;
-  padding: 3px 0;
-  line-height: 1.35;
+  padding: 7px 0;
+  line-height: 1.3;
+}
+/* the time column is as wide as the card's longest time, the same on every row */
+@supports (grid-template-columns: subgrid) {
+  .day-events li {
+    grid-template-columns: subgrid;
+  }
+}
+.day-events li + li {
+  border-top: 1px solid color-mix(in srgb, var(--grid) 80%, transparent);
 }
 .day-events time {
   white-space: nowrap;
@@ -1275,6 +1368,111 @@ kbd {
   display: block;
   color: var(--muted);
   font-size: 12px;
+}
+.day-events li.day-more {
+  padding-bottom: 0;
+}
+
+/* What's already out reads as done: a check instead of the arrow, and the row steps back. A day
+   that's over steps back as a whole, and today's card draws a "now" line between out and next. */
+.tick {
+  width: 11px;
+  height: 11px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.day-events li.is-done {
+  color: var(--muted);
+}
+.day-events li.is-done time,
+.day-events li.is-done .day-ev-name,
+.day-events li.is-done .ccy {
+  color: var(--muted);
+  font-weight: 400;
+  opacity: 0.75;
+}
+.day-ev-done {
+  display: inline-flex;
+  align-self: center;
+  color: var(--muted);
+}
+.day-events li.day-now {
+  align-items: center;
+  padding: 3px 0;
+  border-top: 0;
+}
+.day-events li.day-now + li {
+  border-top: 0;
+}
+.day-now span {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.day-now i {
+  grid-column: 2 / -1;
+  position: relative;
+  height: 1px;
+  background: var(--ink);
+}
+.day-now i::before {
+  content: '';
+  position: absolute;
+  left: -3px;
+  top: -2px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--ink);
+}
+.done-tag {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.day.is-past {
+  background: transparent;
+  border-color: var(--line);
+}
+.day.is-past .day-name {
+  color: var(--muted);
+}
+.day.is-past .day-score-row,
+.day.is-past .day-events {
+  opacity: 0.45;
+}
+.day.is-past .day-events li.is-done time,
+.day.is-past .day-events li.is-done .day-ev-name,
+.day.is-past .day-events li.is-done .ccy {
+  opacity: 1;
+}
+/* the same in the tables: the row steps back, the time says it's out */
+tr.is-done > td:not(.c-when) {
+  opacity: 0.45;
+}
+tr.is-done > td.c-when {
+  color: var(--muted);
+}
+.out-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.scen .out-tag {
+  margin-left: 8px;
 }
 
 /* Scenario table */
@@ -1338,6 +1536,18 @@ kbd {
   height: 8px;
   transform: rotate(45deg);
   border-radius: 1px;
+}
+.legend i.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+/* the news-pressure heat: amber at the foot, red at the top */
+.legend i.heat {
+  width: 14px;
+  height: 10px;
+  border-radius: 3px 3px 1px 1px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--high) 55%, transparent), color-mix(in srgb, var(--medium) 22%, transparent));
 }
 .chart {
   width: 100%;
@@ -1447,8 +1657,8 @@ kbd {
 }
 .nl-days {
   position: relative;
-  height: 44px;
-  margin: 6px 8px 0;
+  height: 62px;
+  margin: 8px 8px 0;
 }
 .nl-day {
   position: absolute;
@@ -1460,8 +1670,8 @@ kbd {
 }
 .nl-day-bar {
   display: block;
-  height: 5px;
-  margin-bottom: 6px;
+  height: 4px;
+  margin-bottom: 7px;
   border-radius: 99px;
   background: var(--grid);
 }
@@ -1474,6 +1684,7 @@ kbd {
 .nl-day.very-busy .nl-day-bar {
   background: var(--high);
 }
+.nl-day-date,
 .nl-day-name,
 .nl-day-count {
   display: block;
@@ -1483,9 +1694,24 @@ kbd {
   font-size: 11.5px;
   line-height: 1.35;
 }
-.nl-day-name {
+.nl-day-date {
+  margin-bottom: 1px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--ink);
+}
+.nl-day-name {
+  font-weight: 600;
+  color: var(--ink2);
+}
+.nl-day.light .nl-day-name {
+  color: #a26a00;
+}
+.nl-day.busy .nl-day-name {
+  color: #b35a12;
+}
+.nl-day.very-busy .nl-day-name {
+  color: var(--bear-ink);
 }
 .nl-day.quiet .nl-day-name {
   color: var(--muted);
@@ -1513,6 +1739,105 @@ kbd {
   width: 14px;
   height: 5px;
   margin: 0;
+}
+/* Where we are: the time line over the chart and the days, the passed part washed back, and a
+   line above saying what's on now or how long until the next release */
+.nl-plot {
+  position: relative;
+}
+.nl-now-layer {
+  position: absolute;
+  inset: 0 8px;
+  pointer-events: none;
+}
+.nl-past {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 200px;
+  background: color-mix(in srgb, var(--surface) 62%, transparent);
+}
+.nl-now {
+  position: absolute;
+  top: 0;
+  height: 212px;
+  width: 1.5px;
+  margin-left: -0.75px;
+  background: var(--ink);
+}
+.nl-now::after {
+  content: '';
+  position: absolute;
+  bottom: -3px;
+  left: -2.5px;
+  width: 6.5px;
+  height: 6.5px;
+  border-radius: 50%;
+  background: var(--ink);
+  box-shadow: 0 0 0 2px var(--surface);
+}
+.nl-now-tag {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 1px 7px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  color: var(--raised);
+  background: var(--ink);
+  border-radius: 6px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.nl-now-tag.at-start {
+  transform: translateX(-2px);
+}
+.nl-now-tag.at-end {
+  transform: translateX(calc(-100% + 2px));
+}
+.nl-day.is-past {
+  opacity: 0.45;
+}
+.nl-status {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin: 4px 0 8px;
+  padding: 8px 12px;
+  font-size: 12.5px;
+  color: var(--ink2);
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+}
+.nl-status > i {
+  flex: none;
+  align-self: center;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ink);
+}
+.nl-status-now {
+  font-weight: 600;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.nl-status-text b {
+  color: var(--ink);
+}
+.nl-status.is-live {
+  background: color-mix(in srgb, var(--high) 5%, var(--raised));
+  border-color: color-mix(in srgb, var(--high) 30%, var(--line));
+}
+.nl-status.is-live > i {
+  background: var(--high);
+}
+.nl-status.is-live .nl-status-text b {
+  color: var(--bear-ink);
 }
 .nl-summary {
   margin: 12px 0 0;
@@ -1943,6 +2268,73 @@ td.when {
   gap: 10px;
   margin-top: 28px;
 }
+/* a 404's way back: the site's pages as one list */
+.nf-links {
+  display: flex;
+  flex-direction: column;
+  margin-top: 32px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.nf-title {
+  margin: 0;
+  padding: 10px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+.nf-links a {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 13px 16px;
+  text-decoration: none;
+  transition: background-color 0.15s;
+}
+.nf-links a + a {
+  border-top: 1px solid var(--grid);
+}
+.nf-links a:hover {
+  background: var(--surface);
+}
+.nf-links span {
+  flex: 1;
+  min-width: 0;
+}
+.nf-links b {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.nf-links small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.nf-links svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.15s var(--ease), stroke 0.15s;
+}
+.nf-links a:hover svg {
+  stroke: var(--ink);
+  transform: translateX(2px);
+}
 .btn-primary {
   background: var(--ink);
   border-color: var(--ink);
@@ -2329,11 +2721,41 @@ code.block {
 @media (max-width: 1000px) {
   .bc-grid {
     grid-template-columns: minmax(0, 1fr);
-    gap: 20px;
+    grid-template-areas: 'verdict' 'strength' 'info' 'share';
+  }
+  .bc-verdict,
+  .bc-strength {
+    padding-right: 0;
+  }
+  .bc-weights,
+  .bc-share {
+    padding-left: 0;
+    border-left: 0;
   }
   .bc-weights {
-    padding: 16px 0 0;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--grid);
+  }
+  .bc-share {
+    padding-top: 14px;
+  }
+  /* the checks, two tiles to a row */
+  .bc-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .bc-stats li,
+  .bc-stats li:first-child {
+    padding: 12px 12px 10px 0;
+  }
+  .bc-stats li + li {
     border-left: 0;
+  }
+  .bc-stats li:nth-child(even) {
+    padding-left: 14px;
+    border-left: 1px solid var(--grid);
+  }
+  .bc-stats li:nth-child(n + 3) {
     border-top: 1px solid var(--grid);
   }
 
@@ -2479,8 +2901,9 @@ code.block {
 /* ---------- Phones: stacked tables, swipeable days ---------- */
 
 @media (max-width: 640px) {
+  /* phones keep the date under each day; the key below explains the colours */
   .nl-days {
-    height: 8px;
+    height: 30px;
   }
   .nl-day-name,
   .nl-day-count {
@@ -2498,20 +2921,6 @@ code.block {
 
   .biascheck {
     padding: 18px 16px 14px;
-  }
-  .bc-checks li {
-    display: block;
-    position: relative;
-    padding-left: 28px;
-  }
-  .bc-checks .bc-icon {
-    position: absolute;
-    left: 0;
-    top: 0;
-    transform: translateY(1px);
-  }
-  .bc-label {
-    margin-right: 6px;
   }
 
   .sb-extra {
@@ -2661,11 +3070,7 @@ code.block {
     margin: 12px -16px 0;
     padding: 2px 16px 8px;
     scroll-padding: 0 16px;
-    scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
-  }
-  .days::-webkit-scrollbar {
-    display: none;
   }
   .day {
     flex: 0 0 82%;
@@ -2678,10 +3083,6 @@ code.block {
     flex-wrap: nowrap;
     overflow-x: auto;
     max-width: 100%;
-    scrollbar-width: none;
-  }
-  .kinds::-webkit-scrollbar {
-    display: none;
   }
   .kinds button {
     flex: none;
@@ -2761,5 +3162,1112 @@ code.block {
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* ==========================================================================
+   The two halves: News (the bias scores) and the Economic calendar
+   ========================================================================== */
+
+.site-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 16px;
+}
+.brand {
+  font-family: var(--serif);
+  font-size: 16px;
+  color: var(--ink);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.sections {
+  display: inline-flex;
+  flex: none;
+  gap: 2px;
+  padding: 2px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+}
+.sections a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 7px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink2);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color 0.15s, color 0.15s;
+}
+.sections a:hover {
+  color: var(--ink);
+}
+.sections a[aria-current='page'] {
+  color: var(--ink);
+  background: var(--raised);
+  box-shadow: 0 1px 2px rgba(16, 24, 32, 0.12);
+}
+.sections svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.nav-short {
+  display: none;
+}
+
+/* ---------- Round currency flags ---------- */
+
+.flag {
+  --flag: 16px;
+  display: inline-flex;
+  flex: none;
+  width: var(--flag);
+  height: var(--flag);
+  border-radius: 50%;
+  overflow: hidden;
+  vertical-align: middle;
+  box-shadow: 0 0 0 1px rgba(22, 26, 22, 0.08);
+}
+.flag img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.flag svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: var(--ink2);
+  stroke-width: 1.2;
+}
+
+/* ---------- Impact: three rising bars ---------- */
+
+.imp {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 12px;
+  vertical-align: -1px;
+}
+.imp i {
+  width: 3px;
+  border-radius: 1px;
+  background: var(--line);
+}
+.imp i:nth-child(1) {
+  height: 5px;
+}
+.imp i:nth-child(2) {
+  height: 8.5px;
+}
+.imp i:nth-child(3) {
+  height: 12px;
+}
+.imp-high i.on {
+  background: var(--high);
+}
+.imp-medium i.on {
+  background: var(--medium);
+}
+.imp-low i.on {
+  background: color-mix(in srgb, var(--muted) 75%, var(--line));
+}
+.imp-holiday {
+  align-items: center;
+}
+.imp-holiday svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: var(--ink2);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ---------- Economic calendar ---------- */
+
+.cal-head {
+  margin-top: 26px;
+}
+.cal-head .overview-lede {
+  max-width: 780px;
+  margin-bottom: 20px;
+}
+
+/* This week at a glance: the next big release over a strip of the days, in one card */
+.cal-top {
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: clip;
+}
+.nx {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 18px 20px 16px;
+}
+.nx-main {
+  min-width: 0;
+}
+.nx p {
+  margin: 0;
+}
+.nx-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.nx-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  max-width: 100%;
+  margin-top: 9px;
+  padding: 0;
+  font: inherit;
+  font-size: 18px;
+  line-height: 1.25;
+  text-align: left;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.nx-ccy {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.nx-name {
+  font-weight: 500;
+  min-width: 0;
+}
+.nx-title:hover .nx-name {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+}
+.nx-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 0;
+  margin-top: 6px !important;
+  font-size: 13px;
+  color: var(--ink2);
+}
+.nx-meta span + span::before {
+  content: '·';
+  margin: 0 8px;
+  color: var(--axis);
+}
+.nx-meta b {
+  font-weight: 600;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.nx-none {
+  margin-top: 6px !important;
+  color: var(--ink2);
+}
+/* the countdown: one tile per unit, numbers on a fixed width so they don't jump */
+.nx-clock {
+  display: flex;
+  flex: none;
+  gap: 6px;
+}
+.nx-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 54px;
+  padding: 7px 6px 6px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+}
+.nx-unit b {
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.nx-unit small {
+  margin-top: 2px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* the days: columns split by hairlines, each day's releases on its 24 hours */
+.ws {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  border-top: 1px solid var(--line);
+}
+.ws li + li {
+  border-left: 1px solid var(--grid);
+}
+.ws-day {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px 12px;
+  font: inherit;
+  text-align: left;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+.ws-day:hover {
+  background: var(--surface);
+}
+.ws-day.is-today {
+  background: color-mix(in srgb, var(--focus) 4%, var(--raised));
+}
+.ws-day.is-today:hover {
+  background: color-mix(in srgb, var(--focus) 6%, var(--raised));
+}
+.ws-day.is-past > * {
+  opacity: 0.45;
+}
+.ws-top {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
+  white-space: nowrap;
+}
+.ws-name {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.ws-num {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.ws-today {
+  margin-left: 2px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--bull-ink);
+}
+.ws-end {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: auto;
+  align-self: center;
+  color: var(--muted);
+}
+.ws-track {
+  position: relative;
+  height: 22px;
+  border-bottom: 1px solid var(--axis);
+}
+/* noon */
+.ws-track::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 4px;
+  bottom: 0;
+  border-left: 1px dashed var(--line);
+}
+.ws-tick {
+  position: absolute;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px 1px 0 0;
+}
+.ws-tick.t-high {
+  height: 20px;
+  background: var(--high);
+}
+.ws-tick.t-medium {
+  height: 13px;
+  background: var(--medium);
+}
+.ws-tick.t-low {
+  height: 6px;
+  background: var(--axis);
+}
+.ws-now {
+  position: absolute;
+  top: -3px;
+  bottom: -4px;
+  width: 1.5px;
+  margin-left: -0.75px;
+  background: var(--ink);
+}
+.ws-counts {
+  display: flex;
+  gap: 8px;
+  overflow: hidden;
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--muted);
+}
+.n-high {
+  font-weight: 600;
+  color: var(--high);
+}
+.n-med {
+  font-weight: 600;
+  color: #a26a00;
+}
+
+/* filters: one toolbar, search and impact on top, currencies under */
+.cal-tools {
+  margin-top: 16px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.ct-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 42px;
+  padding: 5px 8px;
+}
+.ct-row + .ct-row {
+  border-top: 1px solid var(--grid);
+}
+.ct-search {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  height: 32px;
+  padding: 0 8px 0 10px;
+  border-radius: 8px;
+  cursor: text;
+  transition: box-shadow 0.15s;
+}
+.ct-search:focus-within {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus) 35%, transparent);
+}
+.ct-search svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.ct-search input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  outline: none;
+}
+.ct-search input::placeholder {
+  color: var(--muted);
+}
+.ct-search input::-webkit-search-cancel-button {
+  display: none;
+}
+.ct-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+.ct-impacts {
+  flex: 1 1 0;
+  padding-left: 14px;
+  border-left: 1px solid var(--grid);
+}
+.ct-label {
+  flex: none;
+  margin: 0 8px 0 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.ct-impacts .ct-label {
+  margin-left: 0;
+}
+/* the choices sit in a recessed track, as the News / Calendar switch does; a choice that's on
+   is raised out of it in white, one that's off stays flat (an impact level that's off also fades) */
+.ct-track {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+  padding: 3px;
+  background: var(--page);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+}
+.ct-tog {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 25px;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--ink2);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s, box-shadow 0.15s;
+}
+.ct-tog:hover {
+  color: var(--ink);
+}
+.ct-tog[aria-pressed='true'] {
+  color: var(--ink);
+  background: var(--raised);
+  box-shadow: 0 1px 2px rgba(16, 24, 32, 0.12), 0 0 0 1px rgba(16, 24, 32, 0.04);
+}
+/* search and impact share the top row half and half; the impact levels and the currencies each
+   fill their space, every choice an equal share */
+.ct-ccys {
+  flex: 1;
+}
+.ct-impacts .ct-track,
+.ct-ccys .ct-track {
+  flex: 1;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+}
+.ct-impacts .ct-tog,
+.ct-ccys .ct-tog {
+  flex: 1;
+  justify-content: center;
+}
+.ct-imp[aria-pressed='false'] {
+  color: var(--muted);
+}
+.ct-imp[aria-pressed='false'] .imp {
+  opacity: 0.35;
+}
+.ct-n {
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.cal-count {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.linklike {
+  padding: 0;
+  font: inherit;
+  color: var(--ink2);
+  background: none;
+  border: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.linklike:hover {
+  color: var(--ink);
+}
+
+/* the list */
+.cal-board {
+  margin-top: 10px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: clip;
+}
+.cal-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 13px;
+}
+.cal-table col.w-time {
+  width: 68px;
+}
+.cal-table col.w-left {
+  width: 116px;
+}
+.cal-table col.w-cur {
+  width: 80px;
+}
+.cal-table col.w-imp {
+  width: 64px;
+}
+.cal-table col.w-num {
+  width: 94px;
+}
+.cal-table col.w-chev {
+  width: 40px;
+}
+.cal-table thead th {
+  padding: 10px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: left;
+  color: var(--muted);
+  background: var(--surface);
+}
+.cal-table th.num,
+.cal-table td.c-num {
+  text-align: right;
+}
+.cal-table td {
+  padding: 11px 12px;
+  border-top: 1px solid var(--grid);
+  vertical-align: middle;
+}
+.cal-day th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 0;
+  text-align: left;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  scroll-margin-top: 8px;
+}
+.cal-day-in {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 6px 14px;
+}
+.cal-day-name {
+  font-family: var(--serif);
+  font-size: 17px;
+  font-weight: 400;
+  color: var(--ink);
+}
+.cal-day-date {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.cal-day-meta {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.cal-day-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 9px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink2);
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.cal-day-toggle:hover {
+  color: var(--ink);
+  border-color: var(--axis);
+}
+.cal-group.is-today .cal-day th {
+  background: color-mix(in srgb, var(--ink) 3.5%, var(--surface));
+}
+.cal-group.is-past .cal-day-name {
+  color: var(--muted);
+}
+
+.cal-row {
+  cursor: pointer;
+}
+.cal-row > td {
+  transition: background-color 0.12s;
+}
+.cal-row:hover > td,
+.cal-row.is-open > td {
+  background: var(--surface);
+}
+.c-time {
+  font-weight: 500;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.c-time.is-same {
+  color: transparent;
+}
+.c-left {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.c-left .out-tag {
+  vertical-align: middle;
+  line-height: 1;
+}
+.left-next {
+  font-weight: 600;
+  color: var(--ink);
+}
+.cal-row.is-next .c-time {
+  font-weight: 700;
+}
+.c-cur {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.c-cur .flag {
+  margin-right: 7px;
+  vertical-align: -3px;
+}
+.ev-pre {
+  display: none;
+}
+.ev-btn {
+  padding: 0;
+  font: inherit;
+  text-align: left;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.ev-btn:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.imp-row-high .ev-btn {
+  font-weight: 600;
+}
+.ev-tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 0 6px;
+  font-size: 11px;
+  line-height: 18px;
+  color: var(--ink2);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  white-space: nowrap;
+  vertical-align: 1px;
+}
+.c-num {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.c-act {
+  font-weight: 600;
+}
+.c-act a {
+  color: inherit;
+}
+.c-chev svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  margin-left: auto;
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.2s var(--ease);
+}
+.cal-row.is-open .c-chev svg {
+  transform: rotate(180deg);
+}
+/* out: the row steps back, its actual number doesn't */
+.cal-row.is-out > td:not(.c-act):not(.c-left):not(.c-chev) {
+  opacity: 0.45;
+}
+
+/* now, between what's out and what's next */
+.cal-now td {
+  padding: 0;
+  border-top: 0;
+}
+.cal-now-in {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 24px;
+  padding: 0 12px;
+}
+.cal-now-in b {
+  padding: 1px 6px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--raised);
+  background: var(--ink);
+  border-radius: 5px;
+}
+.cal-now-in span {
+  font-size: 11.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.cal-now-in i {
+  flex: 1;
+  height: 1.5px;
+  background: var(--ink);
+}
+.cal-now + .cal-row > td {
+  border-top: 0;
+}
+
+/* an opened release: across the full row, its text starting where the row's does */
+.cal-detail > td {
+  padding: 0;
+  border-top: 0;
+  background: var(--surface);
+}
+.cd {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.25fr);
+  border-top: 1px dashed var(--line);
+}
+.cd-col {
+  padding: 14px 12px 16px;
+}
+.cd-col + .cd-col {
+  padding-left: 16px;
+  border-left: 1px solid var(--grid);
+}
+.cd h4 {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.cd p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink2);
+}
+.cd b {
+  color: var(--ink);
+}
+.cd-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cd-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: none;
+  white-space: nowrap;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  transition: border-color 0.15s;
+}
+.cd-chip:hover {
+  border-color: var(--axis);
+}
+.cd-chip .up,
+.cd-chip .down {
+  font-size: 9px;
+}
+.cd .cd-note {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.cal-empty {
+  margin-top: 10px;
+  padding: 36px 20px;
+  text-align: center;
+  color: var(--ink2);
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.cal-empty p {
+  margin: 0 0 14px;
+}
+.guide-imp {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .cal-table col.w-left {
+    width: 100px;
+  }
+  .cal-table col.w-num {
+    width: 80px;
+  }
+  .cd {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .cd-markets {
+    grid-column: 1 / -1;
+    padding-left: 12px !important;
+    border-left: 0 !important;
+    border-top: 1px solid var(--grid);
+  }
+}
+
+@media (max-width: 640px) {
+  .site-nav {
+    gap: 10px;
+  }
+  .brand {
+    font-size: 15px;
+  }
+  /* the countdown goes under the release, its tiles across the card */
+  .nx {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+    padding: 16px;
+  }
+  .nx-title {
+    align-items: flex-start;
+    font-size: 16px;
+  }
+  .nx-title .flag {
+    margin-top: 1px;
+  }
+  .nx-unit {
+    flex: 1;
+    min-width: 0;
+  }
+  .nx-unit b {
+    font-size: 20px;
+  }
+  /* the days scroll sideways inside the card */
+  .ws {
+    grid-auto-columns: 148px;
+    overflow-x: auto;
+  }
+
+  /* each release as two lines: time, currency, impact and name; then status and the three numbers */
+  .cal-table,
+  .cal-table tbody,
+  .cal-day,
+  .cal-day th,
+  .cal-now,
+  .cal-now td,
+  .cal-detail,
+  .cal-detail > td {
+    display: block;
+  }
+  .cal-table thead,
+  .cal-table colgroup,
+  .cal-row > td.c-cur,
+  .cal-row > td.c-imp {
+    display: none;
+  }
+  .cal-day-in {
+    min-height: 44px;
+    padding: 6px 12px;
+    flex-wrap: wrap;
+    row-gap: 0;
+  }
+  .cal-day-date {
+    display: none;
+  }
+  .cal-row {
+    display: grid;
+    grid-template-columns: 56px repeat(3, minmax(0, 1fr)) 16px;
+    grid-template-areas:
+      'time ev ev ev chev'
+      'left act fc prev .';
+    column-gap: 10px;
+    row-gap: 6px;
+    padding: 11px 12px;
+    border-top: 1px solid var(--grid);
+  }
+  .cal-row > td {
+    display: block;
+    padding: 0;
+    border: 0;
+    min-width: 0;
+  }
+  /* the row is one block here, so it takes the hover and open shade, not each cell */
+  .cal-row:hover,
+  .cal-row.is-open {
+    background: var(--surface);
+  }
+  .cal-row:hover > td,
+  .cal-row.is-open > td {
+    background: none;
+  }
+  .cal-now + .cal-row {
+    border-top: 0;
+  }
+  .c-time {
+    grid-area: time;
+  }
+  .c-ev {
+    grid-area: ev;
+  }
+  .c-chev {
+    grid-area: chev;
+  }
+  .c-left {
+    grid-area: left;
+    font-size: 11px;
+    white-space: normal;
+    line-height: 1.3;
+  }
+  .c-act {
+    grid-area: act;
+  }
+  .cal-row > td.c-num {
+    text-align: left;
+    font-size: 12.5px;
+    line-height: 1.3;
+  }
+  .cal-row > td.c-num::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .c-num[data-label='Forecast'] {
+    grid-area: fc;
+  }
+  .c-num[data-label='Previous'] {
+    grid-area: prev;
+  }
+  .ev-pre {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-right: 8px;
+    vertical-align: -2px;
+    font-size: 12px;
+    letter-spacing: 0.02em;
+  }
+  .ev-pre .imp {
+    margin-left: 2px;
+  }
+  .cd {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cd-col,
+  .cd-col + .cd-col {
+    padding: 12px;
+  }
+  .cd-col + .cd-col {
+    border-left: 0;
+    border-top: 1px solid var(--grid);
+  }
+}
+
+@media (max-width: 1000px) {
+  /* once half the row is too narrow for the four impact levels, the toolbar stacks: search, then
+     impact, then currencies, each scrolling sideways if it must */
+  .ct-top {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 7px;
+  }
+  .ct-impacts {
+    padding: 7px 0 0;
+    border-left: 0;
+    border-top: 1px solid var(--grid);
+  }
+  .ct-track {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+  .ct-tog,
+  .ct-impacts .ct-tog,
+  .ct-ccys .ct-tog {
+    flex: 1 0 auto;
+  }
+  .ct-impacts .ct-label {
+    margin-left: 6px;
+  }
+}
+
+@media (max-width: 400px) {
+  .nav-long {
+    display: none;
+  }
+  .nav-short {
+    display: inline;
   }
 }

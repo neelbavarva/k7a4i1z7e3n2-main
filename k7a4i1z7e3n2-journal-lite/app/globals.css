@@ -24,12 +24,15 @@
   --band: rgba(110, 120, 104, 0.16);
   --high: #d03b3b;
   --medium: #eda100;
-  /* pace (lib/pace.ts): rushing runs hot, dragging runs cold, on pace stays quiet. Clear of the
+  /* pace (lib/pace.ts): rushing is violet, dragging orange, on pace stays quiet. Clear of the
      colours already taken: blue profit and missed, red loss, green real and open, amber demo */
-  --rush: #ee6a24;
-  --rush-ink: #b5470c;
-  --drag: #7c5ce6;
-  --drag-ink: #5a3fc0;
+  --rush: #7c5ce6;
+  --rush-ink: #5a3fc0;
+  --drag: #ee6a24;
+  --drag-ink: #b5470c;
+  /* backed by fundamentals (lib/fundamentals.ts): a teal of its own */
+  --fund: #0f8b8d;
+  --fund-ink: #0b6466;
   --focus: #2a78d6;
   --shadow: 0 1px 2px rgba(22, 26, 22, 0.04), 0 6px 20px rgba(22, 26, 22, 0.05);
   --shadow-lift: 0 2px 4px rgba(22, 26, 22, 0.05), 0 12px 28px rgba(22, 26, 22, 0.08);
@@ -179,7 +182,7 @@ code {
 /* ---------- Motion ---------- */
 
 .fade-in {
-  animation: fade-in 0.35s var(--ease) both;
+  animation: fade-in 0.35s var(--ease) backwards;
 }
 @keyframes fade-in {
   from {
@@ -190,7 +193,7 @@ code {
 
 /* Rows rise in one after another. --i is the row index; the delay caps out so long lists never wait. */
 .stagger > * {
-  animation: row-in 0.42s var(--ease) both;
+  animation: row-in 0.42s var(--ease) backwards;
   animation-delay: calc(min(var(--i, 0), 14) * 22ms);
 }
 @keyframes row-in {
@@ -237,15 +240,17 @@ code {
   }
 }
 
-@keyframes pulse-dot {
+/* a ring that grows out of the live dot and fades: transform and opacity only, so the GPU runs
+   it without repainting the page */
+@keyframes pulse-ring {
   0% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, #4f9a5b 40%, transparent);
+    transform: scale(1);
+    opacity: 0.45;
   }
-  70% {
-    box-shadow: 0 0 0 7px color-mix(in srgb, #4f9a5b 0%, transparent);
-  }
+  70%,
   100% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, #4f9a5b 0%, transparent);
+    transform: scale(3);
+    opacity: 0;
   }
 }
 
@@ -534,7 +539,6 @@ a.brand {
   height: 7px;
   border-radius: 50%;
   background: #4f9a5b;
-  animation: pulse-dot 2.4s ease-out infinite;
 }
 .statusbar.is-idle > i {
   background: var(--axis);
@@ -602,7 +606,7 @@ a.brand {
   border: 1px solid var(--line);
   border-radius: 50%;
   cursor: pointer;
-  animation: pop 0.25s var(--ease) both;
+  animation: pop 0.25s var(--ease) backwards;
 }
 .search-clear svg {
   width: 12px;
@@ -890,7 +894,7 @@ a.brand {
   border-radius: 99px;
   background: var(--muted);
   transform-origin: left center;
-  animation: grow-x 0.8s var(--ease) both;
+  animation: grow-x 0.8s var(--ease) backwards;
   transition: width 0.6s var(--ease), background-color 0.3s;
 }
 .meter-fill.up {
@@ -972,9 +976,26 @@ a.brand {
   height: 7px;
   border-radius: 50%;
   background: #4f9a5b;
-  animation: pulse-dot 2.4s ease-out infinite;
+}
+.live-dot {
+  position: relative;
+}
+.live-dot::after,
+.open-tag::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  margin-top: -3.5px;
+  border-radius: 50%;
+  background: #4f9a5b;
+  pointer-events: none;
+  animation: pulse-ring 2.4s ease-out infinite;
 }
 .open-tag {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -1204,7 +1225,7 @@ a.brand {
   margin-top: 4px;
 }
 .reveal {
-  animation: reveal 0.5s var(--ease) both;
+  animation: reveal 0.5s var(--ease) backwards;
 }
 @keyframes reveal {
   from {
@@ -1397,7 +1418,7 @@ a.brand {
   }
 }
 .skeleton {
-  animation: fade-in 0.4s 0.15s var(--ease) both; /* fast loads never flash a skeleton */
+  animation: fade-in 0.4s 0.15s var(--ease) backwards; /* fast loads never flash a skeleton */
 }
 .sk-line {
   height: 14px;
@@ -1433,6 +1454,74 @@ a.brand {
   display: flex;
   gap: 10px;
   margin-top: 28px;
+}
+/* a 404's way back: the app's pages as one list (the same on every Kaizen app) */
+.nf-links {
+  display: flex;
+  flex-direction: column;
+  margin-top: 32px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.nf-title {
+  margin: 0;
+  padding: 10px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+.nf-links a {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 13px 16px;
+  color: inherit;
+  text-decoration: none;
+  transition: background-color 0.15s;
+}
+.nf-links a + a {
+  border-top: 1px solid var(--grid);
+}
+.nf-links a:hover {
+  background: var(--surface);
+}
+.nf-links span {
+  flex: 1;
+  min-width: 0;
+}
+.nf-links b {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.nf-links small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.nf-links svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.15s var(--ease), stroke 0.15s;
+}
+.nf-links a:hover svg {
+  stroke: var(--ink);
+  transform: translateX(2px);
 }
 .state-img {
   display: block;
@@ -1534,9 +1623,6 @@ a.brand {
    Journal Lite: pieces of its own, built from the same tokens
    ========================================================================== */
 
-html:has(dialog[open]) {
-  overflow: hidden;
-}
 .field {
   align-content: start;
 }
@@ -1840,17 +1926,15 @@ dialog.modal {
   border: 1px solid var(--line);
   border-radius: 16px;
   box-shadow: var(--shadow-pop);
-  animation: modal-in 0.22s var(--ease) both;
+  animation: modal-in 0.22s var(--ease) backwards;
   outline: none;
 }
 dialog.modal.wide {
   max-width: 720px;
 }
 dialog.modal::backdrop {
-  background: color-mix(in srgb, #161a16 28%, transparent);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  animation: backdrop-in 0.18s ease both;
+  background: color-mix(in srgb, #161a16 34%, transparent);
+  animation: backdrop-in 0.18s ease backwards;
 }
 dialog.modal[aria-busy='true'] {
   cursor: progress;
@@ -1971,9 +2055,12 @@ dialog.picker {
   height: 11px;
   stroke-width: 2.4;
 }
-.mark-chip.sf {
-  color: var(--ok);
-  background: color-mix(in srgb, var(--ok) 13%, transparent);
+.mark-chip.fund {
+  color: var(--fund-ink);
+  background: color-mix(in srgb, var(--fund) 14%, transparent);
+}
+.fund-row .switch[aria-checked='true'] {
+  background: var(--fund);
 }
 .mark-chip.sab {
   color: var(--bear-ink);
@@ -1981,6 +2068,180 @@ dialog.picker {
 }
 .group-head + .rows-card {
   margin-top: 10px;
+}
+
+/* ---------- New trade: an order ticket ---------- */
+
+dialog.modal.new-trade {
+  max-width: 580px;
+}
+.new-trade .modal-body {
+  gap: 0;
+  padding-top: 14px;
+  padding-bottom: 0;
+}
+/* each line: a fixed label column, the control beside it, a hairline between lines */
+.ticket {
+  display: grid;
+  border-top: 1px solid var(--line);
+}
+.tk-row {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  padding: 14px 0;
+}
+.tk-row + .tk-row {
+  border-top: 1px solid var(--grid);
+}
+.tk-label {
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 36px; /* centred on a 36px control */
+  color: var(--ink2);
+}
+.tk-field {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+.ticket .seg-wide button {
+  height: 28px;
+  font-size: 12.5px;
+}
+.ticket .input,
+.ticket .pair-field {
+  height: 36px;
+}
+.ticket .notice {
+  margin-top: 3px;
+}
+
+/* type: a small square of the type's colour in each segment, as on the rows */
+.type-key {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--axis);
+}
+.type-key.t-normal {
+  background: var(--ok);
+}
+.type-key.t-demo {
+  background: var(--medium);
+}
+.type-key.t-missed {
+  background: var(--bull);
+  border-radius: 50%;
+}
+
+/* risk: the ratio, then the usual ones to pick from */
+.tk-inline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+}
+.tk-risk {
+  flex: 0 0 132px;
+}
+.r-seg button {
+  height: 28px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* fundamentals: what it means on the left, the switch on the right */
+.tk-switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 36px;
+}
+.tk-switch-text {
+  display: grid;
+  min-width: 0;
+  line-height: 1.4;
+}
+.tk-switch-text b {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.tk-switch-text span {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.ticket .fund-switch[aria-checked='true'] {
+  background: var(--fund);
+}
+
+/* the foot stays in view while the ticket scrolls: what's being logged, and the button */
+.nt-foot {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 0 -24px;
+  padding: 14px 24px 16px;
+  background: var(--raised);
+  border-top: 1px solid var(--line);
+}
+.nt-summary {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.nt-summary b {
+  font-weight: 600;
+  color: var(--ink);
+}
+.nt-summary > span::before {
+  content: '·';
+  margin-right: 7px;
+  color: var(--axis);
+}
+.nt-submit {
+  flex: none;
+  height: 38px;
+  min-width: 132px;
+  padding: 0 20px;
+  font-size: 13.5px;
+}
+.form-error + .nt-foot,
+.new-trade .modal-body > .form-error {
+  margin-top: 10px;
+}
+@media (max-width: 560px) {
+  .tk-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+    padding: 12px 0;
+  }
+  .tk-label {
+    line-height: 1.4;
+  }
+  .nt-foot {
+    margin: 0 -18px;
+    padding: 12px 18px calc(14px + env(safe-area-inset-bottom));
+  }
+  .nt-summary {
+    display: none;
+  }
+  .nt-submit {
+    flex: 1;
+  }
 }
 
 /* ---------- Pace: rushing, dragging, on pace ---------- */
@@ -3116,7 +3377,7 @@ dialog.viewer::backdrop {
 }
 .toast {
   pointer-events: auto;
-  animation: toast-in 0.28s var(--ease) both;
+  animation: toast-in 0.28s var(--ease) backwards;
 }
 .toast-text {
   flex: 1;
@@ -3422,7 +3683,7 @@ dialog.viewer::backdrop {
     margin: auto 0 0;
     border-radius: 18px 18px 0 0;
     border-bottom: 0;
-    animation: sheet-in 0.28s var(--ease) both;
+    animation: sheet-in 0.28s var(--ease) backwards;
   }
   dialog.viewer {
     max-height: none;

@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { AiCapitalFlowRecord, AiCapitalFlowResponse, EconomicsResponse, EconomicRecord } from '@/types/economics';
 import { compactCurrency, percent } from '@/lib/formatting/numbers';
-import { DataSources } from './data-sources';
 import { BubbleLibrary } from './bubble-library';
 import { BUBBLE_LIBRARY, BUBBLE_OFFSETS, CHARTED_BUBBLES, bubbleOffsetLabel, bubbleOffsetTip, bubblePathByOffset } from '@/lib/bubbles/library';
 import { DATASET_REGISTRY } from '@/lib/datasets/registry';
@@ -84,7 +83,6 @@ export function Dashboard({
   const [focusMarket, setFocusMarket] = useState('US');
   const [period, setPeriod] = useState<number | 'MAX' | 'CUSTOM'>(10);
   const [customRange, setCustomRange] = useState({ start: '', end: '' });
-  const [rangeDraft, setRangeDraft] = useState({ start: '', end: '' });
   const [selectedModes, setSelectedModes] = useState<Set<string>>(new Set(['gdp']));
   const [aiMode, setAiMode] = useState<'intensity' | 'flow'>('intensity');
 
@@ -121,21 +119,24 @@ export function Dashboard({
   const rangeEnd    = Math.max(selectedStart, selectedEnd);
   const rangeLabel  = `${rangeStart}–${rangeEnd}`;
 
-  const draftStart   = parseYear(rangeDraft.start, rangeStart);
-  const draftEnd     = parseYear(rangeDraft.end, rangeEnd);
-  const rangeIsValid = Boolean(rangeDraft.start && rangeDraft.end) && draftStart <= draftEnd;
 
   /* ── Handlers ── */
-  const openCustomRange = () => setRangeDraft({ start: String(rangeStart), end: String(rangeEnd) });
-
-  const selectRangePart = (part: 'start' | 'end', value: string) => {
-    const next = { ...rangeDraft, [part]: value };
-    setRangeDraft(next);
-    if (next.start && next.end && Number(next.start) <= Number(next.end)) {
-      setCustomRange(next);
-      setPeriod('CUSTOM');
-    }
+  const selectRange = (start: number, end: number) => {
+    setCustomRange({ start: String(start), end: String(end) });
+    setPeriod('CUSTOM');
   };
+
+  // the custom range's shortcuts: each bubble from its run-up to two years after it burst
+  const eras = useMemo(
+    () =>
+      BUBBLE_LIBRARY.flatMap(b => {
+        if (b.startYear == null || allYears.length === 0) return [];
+        const start = Math.max(b.startYear, earliestYear);
+        const end = Math.min((b.crashYear ?? b.peakYear ?? b.startYear) + 2, latestYear);
+        return start < end ? [{ label: b.name.replace(/\s*\(.*\)$/, '').replace(/ bubble$/i, ''), start, end, title: b.name }] : [];
+      }).sort((x, y) => x.start - y.start),
+    [allYears.length, earliestYear, latestYear],
+  );
 
   const toggleMarket = (market: string) =>
     setSelectedMarkets(current =>
@@ -671,10 +672,8 @@ export function Dashboard({
             rangeStart={rangeStart}
             rangeEnd={rangeEnd}
             allYears={allYears}
-            draft={rangeDraft}
-            onDraftOpen={openCustomRange}
-            onPickPart={selectRangePart}
-            rangeIsValid={rangeIsValid}
+            eras={eras}
+            onRange={selectRange}
           />
         </section>
 
@@ -777,8 +776,6 @@ export function Dashboard({
         )}
 
         {selectedModes.has('bubbles') && <BubbleLibrary bubbles={BUBBLE_LIBRARY} />}
-
-        <DataSources aiSource={initialAiCapitalFlow?.source} />
 
         <footer className="footer">
           <p>

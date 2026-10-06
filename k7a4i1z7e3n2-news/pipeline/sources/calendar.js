@@ -30,10 +30,13 @@ export async function fetchCalendar({ fixtureDir } = {}) {
   return items;
 }
 
-/** Normalises feed items into event records. */
-export function normalise(items) {
+/**
+ * Normalises feed items into event records. The scores keep the currencies they use; the
+ * Calendar page passes `currencies: null` to keep every country in the feed.
+ */
+export function normalise(items, { currencies = CURRENCIES } = {}) {
   return items
-    .filter((it) => CURRENCIES.has(it.country) && it.date)
+    .filter((it) => (!currencies || currencies.has(it.country)) && it.date)
     .map((it) => {
       const time = new Date(it.date).toISOString();
       const cls = classify(it.title, it.impact);

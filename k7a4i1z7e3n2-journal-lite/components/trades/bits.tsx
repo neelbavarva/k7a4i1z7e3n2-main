@@ -1,7 +1,8 @@
 'use client';
 
-import { ChevronRight, Rabbit, Snail, Target, Anchor } from 'lucide-react';
+import { ChevronRight, Newspaper, Rabbit, Snail, Target } from 'lucide-react';
 import { TYPE_LABEL, fmtR, fmtRatio, fmtRowDay, isOpen, rOf, sideOf } from '@/lib/journal';
+import { FUND_LABEL, fundOf } from '@/lib/fundamentals';
 import { ON_PACE, PACE_LABEL, paceKey, paceOf, type Pace, type PaceOrNone } from '@/lib/pace';
 import type { Trade, TradeType } from '@/lib/types';
 import MarketIcon from '../ui/MarketIcon';
@@ -12,7 +13,7 @@ export function PaceIcon({ pace }: { pace: Pace }) {
   return pace === 'RUSHING' ? <Rabbit aria-hidden="true" /> : <Snail aria-hidden="true" />;
 }
 
-/** A trade's pace in its colour: orange for rushing, violet for dragging, quiet for on pace. */
+/** A trade's pace in its colour: violet for rushing, orange for dragging, quiet for on pace. */
 export function PaceTag({ pace, compact }: { pace: PaceOrNone; compact?: boolean }) {
   const label = pace ? PACE_LABEL[pace] : ON_PACE;
   if (compact) {
@@ -60,15 +61,15 @@ export function PaceSeg({ value, onChange, disabled, wide }: { value: PaceOrNone
   );
 }
 
-/** The marks a trade carries: its pace (when it isn't on pace), set-and-forget, would've hit TP. */
+/** The marks a trade carries: its pace (when it isn't on pace), backed by fundamentals, would've hit TP. */
 export function Marks({ t, pace = true }: { t: Trade; pace?: boolean }) {
   return (
     <span className="marks">
       {pace && <PaceTag pace={paceOf(t)} compact />}
-      {t.setForgetDecided && t.setForget && (
-        <span className="mark-chip sf" title="Set and forget">
-          <Anchor aria-hidden="true" />
-          <span className="visually-hidden">Set and forget</span>
+      {fundOf(t) && (
+        <span className="mark-chip fund" title={FUND_LABEL}>
+          <Newspaper aria-hidden="true" />
+          <span className="visually-hidden">{FUND_LABEL}</span>
         </span>
       )}
       {t.sabotagedWinner && (

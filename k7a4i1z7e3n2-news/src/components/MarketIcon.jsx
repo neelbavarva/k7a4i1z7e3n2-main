@@ -1,14 +1,4 @@
-import US from '../assets/flags/US.svg';
-import EU from '../assets/flags/EU.svg';
-import GB from '../assets/flags/GB.svg';
-import AU from '../assets/flags/AU.svg';
-import NZ from '../assets/flags/NZ.svg';
-import CA from '../assets/flags/CA.svg';
-import CH from '../assets/flags/CH.svg';
-import JP from '../assets/flags/JP.svg';
-
-// Currency -> round flag (country-flag-icons, MIT; see assets/flags/LICENSE.txt)
-const FLAGS = { USD: US, EUR: EU, GBP: GB, AUD: AU, NZD: NZ, CAD: CA, CHF: CH, JPY: JP };
+import { FLAGS } from './Flag.jsx';
 
 // Metals, oil and indices: an original symbol each (no third-party logos)
 const COINS = {

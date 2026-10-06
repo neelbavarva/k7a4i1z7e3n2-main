@@ -290,8 +290,10 @@ export default function HowItWorks() {
                 {TIMEFRAMES[0]} years.
               </li>
               <li>
-                <b>Custom range</b> picks any start and end year with data. The chart updates as you pick; an end year before
-                the start year is refused.
+                <b>Custom range</b> lays out every year with data, a decade to a row: click a first year, then a last one, and
+                the band between them is the range (it follows the pointer, or the arrow keys, until you click). From and To
+                pick one end again on its own; clicking a year before the start while picking the end starts over from there.
+                The eras jump to each bubble in the library, from its run-up to two years after it burst.
               </li>
               <li>
                 Every view except Bubbles follows the range, and so do the brief, Compared markets and the status labels.
