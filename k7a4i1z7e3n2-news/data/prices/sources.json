@@ -1,0 +1,9 @@
+{
+  "XAUUSD": "XAU/USD",
+  "XAGUSD": "SLV",
+  "COPPER": "CPER",
+  "USOIL": "USO",
+  "US500": "SPY",
+  "NAS100": "QQQ",
+  "US30": "DIA"
+}
