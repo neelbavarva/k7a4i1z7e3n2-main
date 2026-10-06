@@ -143,10 +143,30 @@ export async function fillFromGemini(store, nowMs, { apiKey, model = ACTUALS.gem
       }
     } catch (err) {
       log(`actuals: Gemini error for ${e.currency} ${e.title}: ${err.message}`);
-      error = err.message.split('\n')[0].slice(0, 160);
+      error = err.message.split('\n')[0].slice(0, 260);
     }
   }
   return { tried: todo.length, filled, error, model: modelInUse ?? model };
+}
+
+/**
+ * Google's error bodies are long JSON; keep what says why: the message's first sentence, and for a
+ * quota error which quota it was, its limit, and when to try again.
+ */
+function explain(body) {
+  try {
+    const err = JSON.parse(body).error ?? {};
+    const parts = [String(err.message ?? '').split(/\. |\n/)[0]];
+    for (const d of err.details ?? []) {
+      for (const v of d.violations ?? []) {
+        if (v.quotaId) parts.push(`quota ${v.quotaId}${v.quotaValue != null ? `, limit ${v.quotaValue}` : ''}`);
+      }
+      if (d.retryDelay) parts.push(`retry after ${d.retryDelay}`);
+    }
+    return parts.filter(Boolean).join('; ');
+  } catch {
+    return body.slice(0, 200);
+  }
 }
 
 // Google retires model versions; when it does, its 404 names the replacement ("use
@@ -172,7 +192,7 @@ async function callGemini(prompt, { apiKey, model }) {
       modelInUse = next;
       continue;
     }
-    throw new Error(`HTTP ${res.status}: ${body.slice(0, 200)}`);
+    throw new Error(`HTTP ${res.status}: ${explain(body)} (model ${m})`);
   }
   throw new Error('Gemini model lookup went round in circles');
 }
