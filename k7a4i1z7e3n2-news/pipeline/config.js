@@ -171,3 +171,19 @@ export const ACTUALS = {
   minutesAfterRelease: 20, // a release counts as waiting for its value this long after it's out…
   lookbackDays: 7, // …until this long after
 };
+
+// Released values from ForexFactory's calendar page, through the "forexfactory-calendar" scraper on
+// Apify (pipeline/sources/apify.js). Apify's free plan is $5 of usage a month; a run here costs a few
+// cents (a start fee per GB of memory, $0.002 a result on the free tier, and a little compute).
+export const APIFY = {
+  actor: 'xtracto~forexfactory-calendar',
+  minutesAfterRelease: 20, // ask once a release has been out this long…
+  lookbackDays: 2, // …and until this long after (older ones wait for the feed)
+  maxTries: 3, // paid runs per release before it's left to the feed
+  maxRunsPerJob: 2, // days asked for in one hourly run
+  maxItems: 60, // events a run may return (each one costs)
+  memoryMb: 1024, // the start fee is charged per GB
+  timeoutS: 120,
+  maxChargePerRunUsd: 0.15,
+  reserveUsd: 0.3, // stop asking when this little of the month's credit is left
+};

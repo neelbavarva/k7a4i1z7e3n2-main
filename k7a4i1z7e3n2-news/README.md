@@ -12,7 +12,7 @@ GitHub Actions (hourly)                         Vercel
 │ pipeline/run.js                      │        │ React + Vite site     │
 │  1. ForexFactory calendar ──┐        │  build │ reads public/data/*.  │
 │  2. actual values           ├─ data/ ├───────▶│ json only; no keys,   │
-│     (feed, CSV)             │ (state)│        │ no API calls          │
+│     (feed, Apify, CSV)      │ (state)│        │ no API calls          │
 │  3. Twelve Data prices ─────┘        │        └───────────────────────┘
 │  4. score → public/data/*.json       │
 └──────────────────────────────────────┘
@@ -43,10 +43,10 @@ Other commands:
 To run the real pipeline locally with keys:
 
 ```bash
-TWELVE_DATA_KEY=xxx npm run pipeline
+TWELVE_DATA_KEY=xxx APIFY_TOKEN=yyy npm run pipeline
 ```
 
-The key is optional. Without it, prices are skipped and everything else still works.
+Both keys are optional. Without them, prices and Apify lookups are skipped and everything else still works.
 
 ## Deploy (Vercel, updated hourly by GitHub Actions)
 
@@ -57,6 +57,7 @@ The hourly job is `.github/workflows/news-update.yml` at the **root of the monor
    - `VERCEL_TOKEN`: a token from vercel.com/account/tokens
    - `VERCEL_ORG_ID`: `orgId` from `.vercel/project.json`
    - `VERCEL_NEWS_PROJECT_ID`: `projectId` from `.vercel/project.json`
+   - `APIFY_TOKEN` (recommended): your personal API token from apify.com (Settings → API & Integrations). The job runs the `xtracto/forexfactory-calendar` scraper to read released values from ForexFactory's calendar page. It asks only when a Medium/High release is waiting, one day and the waiting currencies at a time, at most 3 tries per release, and checks the month's usage first so it stays inside the free plan's $5 (`APIFY` in `pipeline/config.js`).
    - `TWELVE_DATA_KEY` (optional): free key from twelvedata.com (prices for the lower chart). 14 series are downloaded an hour (336 credits a day, inside the free 800): the 7 USD pairs, from which every FX cross is calculated (EUR/GBP = EUR/USD ÷ GBP/USD), plus one symbol per instrument. Indices use their tracking funds (SPY, QQQ, DIA). Silver, copper and oil try spot first (XAG/USD, XCU/USD, WTI/USD) and fall back to SLV, CPER and USO if your plan doesn't include spot; `data/prices/sources.json` records which one is used.
 3. **Make Refresh collect new data:** create a fine-grained GitHub token (github.com/settings/personal-access-tokens) for this repository only, with **Actions: Read and write**, and add it to the Vercel project as `GITHUB_DISPATCH_TOKEN` (from this folder: `vercel env add GITHUB_DISPATCH_TOKEN production`, then redeploy, or let the next hourly run do it). Optional overrides: `NEWS_REPO`, `NEWS_WORKFLOW`, `NEWS_REF`.
 4. **Actions → News - update data and deploy → Run workflow** for the first run. After that it runs every hour at :07, and on every push that touches this folder.
@@ -136,7 +137,7 @@ All tunables live in `pipeline/config.js`.
 
 ## Where actual values come from
 
-The ForexFactory feed has forecasts and previous values but **no actual values**. The pipeline fills them from two sources, in priority order (a paid released-values API is planned as a third):
+The ForexFactory feed has forecasts and previous values but **no actual values**. The pipeline fills them from three sources, in priority order:
 
 1. **Manual:** `data/actuals_overrides.csv`, edited directly on GitHub. Always wins.
    ```csv
@@ -144,7 +145,8 @@ The ForexFactory feed has forecasts and previous values but **no actual values**
    2026-10-02,USD,Non-Farm Employment Change,150K
    ```
    `date` is the release date in UTC, and `title` must match the calendar exactly.
-2. **Feed:** for recurring indicators, the next listing's "previous" figure is the official value. This is free and automatic, but only arrives when the next release appears in the feed (next week for weekly data, the release week for monthly data).
+2. **ForexFactory's calendar page, through Apify:** minutes after a release, the page shows its actual value under the same title, currency and time as the feed, so it matches exactly and comes in the feed's format. Read by the `forexfactory-calendar` scraper on Apify with `APIFY_TOKEN`, sparingly (see above). A value must have the forecast's unit and a plausible size.
+3. **Feed:** for recurring indicators, the next listing's "previous" figure is the official value. This is free and automatic, but only arrives when the next release appears in the feed (next week for weekly data, the release week for monthly data).
 
 ## Project layout
 

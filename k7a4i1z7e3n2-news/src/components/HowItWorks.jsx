@@ -1,4 +1,5 @@
 import {
+  APIFY,
   CALENDAR_URLS,
   CURRENCIES,
   INSTRUMENTS,
@@ -123,9 +124,8 @@ export default function HowItWorks({ meta }) {
             <ol className="steps">
               <li>
                 <b>Sources.</b> ForexFactory publishes the week's economic calendar as a JSON feed: times, forecasts and
-                previous values. Released values come from the feed itself (each release's next listing carries it as
-                “previous”) or from a hand-edited file. Twelve Data supplies hourly prices; its key lives in GitHub
-                Secrets.
+                previous values. Its calendar page shows each release's actual value minutes after it's out, and a scraper
+                on Apify reads it from there. Twelve Data supplies hourly prices. Both keys live in GitHub Secrets.
               </li>
               <li>
                 <b>The hourly job.</b> GitHub Actions runs <code>pipeline/run.js</code> every hour at :07 UTC, and right away
@@ -172,7 +172,7 @@ export default function HowItWorks({ meta }) {
               </li>
               <li>
                 <b>Released values.</b> Fill in the actual numbers for releases that have come out: from the calendar feed
-                itself or from a hand-edited file.
+                itself, from ForexFactory's calendar page (through Apify), or from a hand-edited file.
               </li>
               <li>
                 <b>Prices.</b> Download hourly prices for {Object.keys(PRICE_LEGS).length} dollar pairs and{' '}
@@ -225,6 +225,26 @@ export default function HowItWorks({ meta }) {
                       <span className="muted small">This week is required; next week is optional (it appears late in the week).</span>
                     </td>
                     <td data-label="Limits">One week at a time, and no actual values, which is why step 2 exists.</td>
+                  </tr>
+                  <tr>
+                    <td data-label="Service">
+                      <b>Apify</b>
+                      <div className="muted small">
+                        <code>APIFY_TOKEN</code>
+                      </div>
+                    </td>
+                    <td data-label="Used for">Released values, read from ForexFactory's calendar page.</td>
+                    <td data-label="How it's called">
+                      <code className="block">api.apify.com/v2/acts/{APIFY.actor}/run-sync-get-dataset-items</code>
+                      <span className="muted small">
+                        One day and the currencies waiting, Medium impact and up, {APIFY.memoryMb / 1024} GB, at most{' '}
+                        {APIFY.maxRunsPerJob} runs an hour.
+                      </span>
+                    </td>
+                    <td data-label="Limits">
+                      Free plan: $5 of usage a month, checked before every run; the job stops asking with{' '}
+                      {`$${APIFY.reserveUsd.toFixed(2)}`} left.
+                    </td>
                   </tr>
                   <tr>
                     <td data-label="Service">
@@ -298,12 +318,21 @@ export default function HowItWorks({ meta }) {
           {/* ------------------------------------------------------------------ */}
           <section id="actuals">
             <h2>2. Released values</h2>
-            <p>The calendar feed never lists a release's own actual value, so two sources fill them in, tried in this order each run:</p>
+            <p>The calendar feed never lists a release's own actual value, so three sources fill them in, tried in this order each run:</p>
             <ol className="steps">
               <li>
                 <b>The feed's own “previous” figure.</b> When an indicator's next release appears on the calendar, its
                 “previous” value is the official (possibly revised) result of the last one. It's used once the release is at
                 least an hour old and the units match.
+              </li>
+              <li>
+                <b>ForexFactory's calendar page, through Apify.</b> The page shows each release's actual value minutes after
+                it's out, under the same title, currency and time as the feed, so it matches exactly and arrives in the
+                feed's own format. The <code>forexfactory-calendar</code> scraper on Apify reads it. Each run costs a few
+                cents and Apify's free plan is $5 of usage a month, so the job asks only when a Medium or High
+                release has been out {APIFY.minutesAfterRelease} minutes without its value, only for that day and those
+                currencies, at most {APIFY.maxTries} times per release, and not at all once the month's credit is nearly
+                used. Older releases wait for the feed.
               </li>
               <li>
                 <b>Manual file.</b> <code>data/actuals_overrides.csv</code>, with columns{' '}
@@ -312,8 +341,8 @@ export default function HowItWorks({ meta }) {
               </li>
             </ol>
             <p>
-              Monthly figures therefore arrive about a month late, when the next release is listed, and weekly ones a week
-              late. A release still waiting for its value keeps its expected change for up to{' '}
+              Every value from Apify must be the same kind of number as the forecast (same unit, a plausible size) before
+              it's accepted. A release still waiting for its value keeps its expected change for up to{' '}
               {MODEL.provisionalDays} days and is marked “expected” in the tables.
             </p>
           </section>

@@ -95,14 +95,24 @@ async function runChecks() {
         };
 
     const values = m.counts ? `${m.counts.withActual} of ${m.counts.released} released have a value` : '';
-    const a = r.actuals;
-    const all = m.counts && m.counts.withActual >= m.counts.released;
-    checks.actuals = {
-      state: all ? 'ok' : 'warn',
-      detail: `${a.feed} filled from the feed and ${a.overrides} from the manual file this run · ${values}${
-        all ? '' : '. No released-values API is connected yet, so the rest wait for their next listing in the feed'
-      }`,
-    };
+    const ap = r.actuals.apify;
+    const credit = ap && ap.used != null ? ` · $${ap.used.toFixed(2)} of $${ap.limit.toFixed(2)} Apify credit used this month` : '';
+    checks.actuals = !ap
+      ? noReport
+      : ap.skipped
+        ? { state: LOCAL ? 'off' : 'warn', detail: `Skipped: no APIFY_TOKEN${LOCAL ? ' on this machine' : ''}, so released values wait for the feed's next listing · ${values}` }
+        : ap.error
+          ? { state: 'fail', detail: `${ap.error} · ${values}` }
+          : ap.paused
+            ? { state: 'warn', detail: `Paused: ${ap.paused}. Values wait for the feed until the credit resets · ${values}` }
+            : {
+                state: ap.tried && ap.filled < ap.tried ? 'warn' : 'ok',
+                detail: `${
+                  ap.tried
+                    ? `Filled ${ap.filled} of ${ap.tried} waiting in ${plural(ap.runs, 'run')}${ap.filled < ap.tried ? '; the rest are asked for again next hour' : ''}`
+                    : 'Nothing waiting'
+                }${credit} · ${values}`,
+              };
 
     const p = r.prices;
     checks.prices = !p
@@ -125,7 +135,7 @@ const TRIGGER = { schedule: 'the hourly schedule', workflow_dispatch: 'Refresh',
 // the checks, in the order the data flows
 const CHECKS = [
   { id: 'feed', title: 'Calendar feed', what: `ForexFactory, fetched by the last ${LOCAL ? 'local run of the job' : 'hourly job'}` },
-  { id: 'actuals', title: 'Released values', what: `The feed's own "previous" figures and the manual file, in the last ${LOCAL ? 'local run of the job' : 'hourly job'}` },
+  { id: 'actuals', title: 'Released values', what: `ForexFactory's calendar page, read through Apify, in the last ${LOCAL ? 'local run of the job' : 'hourly job'}` },
   { id: 'prices', title: 'Prices', what: `Twelve Data, in the last ${LOCAL ? 'local run of the job' : 'hourly job'}` },
   { id: 'job', title: 'Hourly job', what: 'GitHub Actions, asked through /api/refresh' },
   { id: 'files', title: 'Published scores', what: LOCAL ? 'data/meta.json, your local copy' : 'data/meta.json on Vercel' },
@@ -135,7 +145,8 @@ const CHECKS = [
 
 // which checks light up each box in the diagram
 const NODE_CHECKS = {
-  ff: ['feed', 'live', 'actuals'],
+  ff: ['feed', 'live'],
+  apify: ['actuals'],
   twelve: ['prices'],
   actions: ['job'],
   files: ['files', 'pair'],
@@ -206,6 +217,7 @@ export function DataFlow({ checks }) {
       <div className="fl-col">
         <span className="fl-label">1 · Sources</span>
         <Node id="ff" name="ForexFactory" sub="Weekly calendar: times, forecasts, previous values" />
+        <Node id="apify" name="Apify" sub="Released values, from ForexFactory's calendar page" />
         <Node id="twelve" name="Twelve Data" sub="Hourly prices" />
       </div>
       <Arrow />

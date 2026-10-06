@@ -5,6 +5,7 @@ import { surprise, toScore, labelFor, computePair, buildSurpriseStats, bandWidth
 import { normalise, mergeCalendar } from '../sources/calendar.js';
 import { fillFromFeedPrevious, applyOverrides, plausible, needsLookup } from '../sources/actuals.js';
 import { MODEL } from '../config.js';
+import { fillFromApify } from '../sources/apify.js';
 
 const near = (a, b, tol = 0.6) => assert.ok(Math.abs(a - b) <= tol, `${a} not within ${tol} of ${b}`);
 const HOUR = 3600e3;
@@ -83,9 +84,10 @@ test('calendar merge keeps actuals and drops rescheduled events', () => {
   ]);
   assert.equal(fresh.length, 1, 'non-tracked currencies are dropped');
   assert.equal(fresh[0].time, '2026-09-30T01:30:00.000Z', 'times are stored in UTC');
-  const store = { [fresh[0].id]: { ...fresh[0], actual: 4.3, actualRaw: '4.3%', actualSource: 'manual' }, ghost: { ...fresh[0], id: 'ghost', actual: null } };
+  const store = { [fresh[0].id]: { ...fresh[0], actual: 4.3, actualRaw: '4.3%', actualSource: 'manual', apifyTries: 2 }, ghost: { ...fresh[0], id: 'ghost', actual: null } };
   mergeCalendar(store, fresh, now);
   assert.equal(store[fresh[0].id].actual, 4.3);
+  assert.equal(store[fresh[0].id].apifyTries, 2, 'paid tries are kept across merges');
   assert.equal(store.ghost, undefined);
 });
 
@@ -404,3 +406,59 @@ test('saved calendar starts at the beginning of the current week', () => {
   assert.equal(cal.live, false);
 });
 
+
+test('Apify fills released values from ForexFactory, sparingly and without exposing the token', async () => {
+  const [ism, ivey, low] = normalise([
+    { title: 'ISM Services PMI', country: 'USD', date: '2026-10-05T10:00:00-04:00', impact: 'Medium', forecast: '55.1', previous: '55.4' },
+    { title: 'Ivey PMI', country: 'CAD', date: '2026-10-06T10:00:00-04:00', impact: 'Medium', forecast: '65.2', previous: '64.3' },
+    { title: 'Final Services PMI', country: 'USD', date: '2026-10-05T09:45:00-04:00', impact: 'Low', forecast: '58.7', previous: '58.7' },
+  ]);
+  const store = Object.fromEntries([ism, ivey, low].map((e) => [e.id, e]));
+  const calls = [];
+  const real = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({ url: String(url), auth: init.headers?.Authorization, body: init.body ? JSON.parse(init.body) : null });
+    if (String(url).endsWith('/users/me/limits')) return { ok: true, json: async () => ({ data: { limits: { maxMonthlyUsageUsd: 5 }, current: { monthlyUsageUsd: 1.2 } } }) };
+    const { day } = JSON.parse(init.body);
+    const items = {
+      '2026-10-05': [{ title: 'ISM Services PMI', currency: 'USD', datetimeISO: '2026-10-05T14:00:00Z', actual: '54.9', forecast: '55.1', previous: '55.4' }],
+      '2026-10-06': [{ title: 'Ivey PMI', currency: 'CAD', datetimeISO: '2026-10-06T14:00:00Z', actual: '58.2', forecast: '65.2', previous: '64.3' }],
+    }[day];
+    return { ok: true, status: 201, json: async () => items ?? [] };
+  };
+  try {
+    const r = await fillFromApify(store, Date.parse('2026-10-06T20:00:00Z'), { token: 'SECRET' });
+    assert.equal(r.filled, 2);
+    assert.equal(ism.actualRaw, '54.9');
+    assert.equal(ivey.actualRaw, '58.2');
+    assert.equal(ivey.actualSource, 'forexfactory');
+    // Low impact isn't worth a paid run
+    assert.equal(low.apifyTries, undefined);
+    const runs = calls.filter((c) => c.body);
+    assert.equal(runs.length, 2);
+    assert.deepEqual(runs.map((c) => c.body.currencies), [['USD'], ['CAD']]);
+    assert.ok(runs.every((c) => c.body.minImpact === 'medium' && c.body.dateRange === 'day'));
+    assert.ok(calls.every((c) => !c.url.includes('SECRET') && c.auth === 'Bearer SECRET'));
+    assert.equal(r.used, 1.2);
+  } finally {
+    globalThis.fetch = real;
+  }
+});
+
+test('Apify pauses when the month\'s credit is nearly used', async () => {
+  const [e] = normalise([{ title: 'Ivey PMI', country: 'CAD', date: '2026-10-06T10:00:00-04:00', impact: 'Medium', forecast: '65.2', previous: '64.3' }]);
+  let runs = 0;
+  const real = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    if (String(url).endsWith('/users/me/limits')) return { ok: true, json: async () => ({ data: { limits: { maxMonthlyUsageUsd: 5 }, current: { monthlyUsageUsd: 4.9 } } }) };
+    runs++;
+    return { ok: true, json: async () => [] };
+  };
+  try {
+    const r = await fillFromApify({ [e.id]: e }, Date.parse('2026-10-06T20:00:00Z'), { token: 't' });
+    assert.equal(runs, 0);
+    assert.match(r.paused, /nearly used/);
+  } finally {
+    globalThis.fetch = real;
+  }
+});

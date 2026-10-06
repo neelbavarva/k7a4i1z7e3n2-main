@@ -78,7 +78,8 @@ export function mergeCalendar(store, fresh, nowMs) {
       actualRaw: old?.actualRaw ?? null,
       actualSource: old?.actualSource ?? null,
       actualSourceUrl: old?.actualSourceUrl ?? null,
-      attempts: old?.attempts ?? 0,
+      // paid lookups already spent on this release (pipeline/sources/apify.js), so the cap holds across runs
+      apifyTries: old?.apifyTries ?? 0,
       firstSeen: old?.firstSeen ?? new Date(nowMs).toISOString(),
     };
   }

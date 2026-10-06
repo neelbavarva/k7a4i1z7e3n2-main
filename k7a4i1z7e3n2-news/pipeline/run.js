@@ -5,11 +5,13 @@
 //   node pipeline/run.js --fixture       use the saved sample calendar, no network for it
 //   node pipeline/run.js --skip-prices   don't call Twelve Data
 //
-// Environment: TWELVE_DATA_KEY (optional; without it prices are skipped and the site still updates).
+// Environment: APIFY_TOKEN, TWELVE_DATA_KEY (both optional; a step without its key is skipped and the
+// site still updates).
 
 import { join } from 'node:path';
 import { fetchCalendar, normalise, mergeCalendar } from './sources/calendar.js';
 import { fillFromFeedPrevious, applyOverrides } from './sources/actuals.js';
+import { fillFromApify } from './sources/apify.js';
 import { syncPrices, loadLegs, makePriceSource } from './sources/prices.js';
 import { writeOutputs } from './lib/output.js';
 import { DATA_DIR, ROOT, readJson, writeJson, readText, log } from './lib/store.js';
@@ -25,7 +27,7 @@ async function main() {
   const report = {
     trigger: process.env.GITHUB_EVENT_NAME || 'local',
     calendar: { files: [], added: 0, updated: 0, removed: 0, error: null },
-    actuals: { feed: 0, overrides: 0 },
+    actuals: { feed: 0, apify: null, overrides: 0 },
     prices: null,
   };
 
@@ -42,9 +44,23 @@ async function main() {
     log(`calendar: ${err.message}; continuing with ${Object.keys(events).length} stored events`);
   }
 
-  // 2. Actual values: feed "previous" -> manual CSV (manual always wins)
+  // 2. Actual values: feed "previous" -> ForexFactory's page via Apify -> manual CSV (manual always wins)
   report.actuals.feed = fillFromFeedPrevious(events, nowMs);
   log(`actuals: ${report.actuals.feed} filled from the feed`);
+  const apifyToken = process.env.APIFY_TOKEN;
+  if (apifyToken) {
+    try {
+      const r = (report.actuals.apify = await fillFromApify(events, nowMs, { token: apifyToken }));
+      log(`actuals: Apify filled ${r.filled}/${r.tried} in ${r.runs} run(s), ${r.results} results${r.used != null ? `; $${r.used.toFixed(2)} of $${r.limit.toFixed(2)} used this month` : ''}`);
+      sources.actuals.push('forexfactory');
+    } catch (err) {
+      report.actuals.apify = { error: err.message };
+      log(`actuals: ${err.message}`);
+    }
+  } else {
+    log('actuals: Apify skipped (no APIFY_TOKEN)');
+    report.actuals.apify = { skipped: 'no APIFY_TOKEN' };
+  }
   const overrides = await readText(join(DATA_DIR, 'actuals_overrides.csv'));
   report.actuals.overrides = applyOverrides(events, overrides);
   log(`actuals: ${report.actuals.overrides} manual overrides applied`);
