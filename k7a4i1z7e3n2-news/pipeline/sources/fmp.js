@@ -92,10 +92,17 @@ export async function fillFromFmp(store, nowMs, { apiKey, isDriver }) {
 
   // the key goes in the query string; it never appears in a log or an error
   const res = await fetch(`${URL}?from=${from}&to=${to}&apikey=${encodeURIComponent(apiKey)}`, { signal: AbortSignal.timeout(20_000) });
-  const body = await res.json().catch(() => null);
+  const text = await res.text();
+  let body = null;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    /* not JSON: the text itself says why */
+  }
   if (!res.ok || !Array.isArray(body)) {
-    const why = (body && (body['Error Message'] || body.message || body.error)) || `HTTP ${res.status}`;
-    throw new Error(`FMP: ${String(why).replace(/apikey=\w+/gi, 'apikey=…').slice(0, 220)}`);
+    const why = (body && (body['Error Message'] || body.message || body.error)) || text.replace(/<[^>]+>/g, ' ').trim() || 'no reason given';
+    const plan = res.status === 402 ? ' (your FMP plan doesn\'t include the economic calendar)' : '';
+    throw new Error(`FMP HTTP ${res.status}${plan}: ${String(why).replace(/apikey=[^&\s"]+/gi, 'apikey=…').replace(/\s+/g, ' ').slice(0, 200)}`);
   }
   const rows = body
     .filter((r) => r.actual != null && r.actual !== '')

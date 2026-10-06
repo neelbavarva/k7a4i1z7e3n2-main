@@ -144,6 +144,7 @@ export async function fillFromGemini(store, nowMs, { apiKey, model = ACTUALS.gem
     } catch (err) {
       log(`actuals: Gemini error for ${e.currency} ${e.title}: ${err.message}`);
       error = err.message.split('\n')[0].slice(0, 260);
+      if (/no Gemini model has quota/.test(err.message)) break;
     }
   }
   return { tried: todo.length, filled, error, model: modelInUse ?? model };
@@ -172,9 +173,14 @@ function explain(body) {
 // Google retires model versions; when it does, its 404 names the replacement ("use
 // models/gemini-x-flash"), so follow that once and keep using it for the rest of the run.
 let modelInUse = null;
+// a model whose quota is used up (or that a free plan doesn't include) is skipped for the rest of
+// the run, and the next one tried; when none is left, the run stops asking
+const exhausted = new Set();
 async function callGemini(prompt, { apiKey, model }) {
-  for (let hop = 0; hop < 2; hop++) {
-    const m = modelInUse ?? model;
+  const order = [...new Set([modelInUse ?? model, ...ACTUALS.geminiFallbacks])];
+  for (let hop = 0; hop < order.length + 2; hop++) {
+    const m = modelInUse ?? order.find((x) => !exhausted.has(x));
+    if (!m) throw new Error(`HTTP 429: no Gemini model has quota left on this key (tried ${[...exhausted].join(', ')})`);
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
@@ -184,13 +190,25 @@ async function callGemini(prompt, { apiKey, model }) {
         generationConfig: { temperature: 0 },
       }),
     });
-    if (res.ok) return res;
+    if (res.ok) {
+      modelInUse = m;
+      return res;
+    }
     const body = await res.text();
     const next = res.status === 404 && body.match(/use models\/([\w.-]+)/)?.[1];
-    if (next && next !== m) {
+    if (next && next !== m && !exhausted.has(next)) {
       log(`actuals: Gemini model ${m} is retired; using ${next}`);
       modelInUse = next;
       continue;
+    }
+    if (res.status === 429 || res.status === 404) {
+      exhausted.add(m);
+      if (modelInUse === m) modelInUse = null;
+      const left = order.find((x) => !exhausted.has(x));
+      if (left) {
+        log(`actuals: Gemini ${m}: ${explain(body)}; trying ${left}`);
+        continue;
+      }
     }
     throw new Error(`HTTP ${res.status}: ${explain(body)} (model ${m})`);
   }

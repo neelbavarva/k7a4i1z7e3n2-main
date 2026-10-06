@@ -426,7 +426,7 @@ test('FMP fills released values: renamed releases, scaled units, and nothing tha
     { date: '2026-10-06 06:00:00', country: 'DE', event: 'Factory Orders (MoM) (Aug)', currency: 'EUR', previous: 2.5, estimate: -0.9, actual: -0.6 },
   ];
   const real = globalThis.fetch;
-  globalThis.fetch = async () => ({ ok: true, status: 200, json: async () => rows });
+  globalThis.fetch = async () => ({ ok: true, status: 200, text: async () => JSON.stringify(rows) });
   try {
     const r = await fillFromFmp(store, Date.parse('2026-10-06T20:00:00Z'), { apiKey: 'k', isDriver: () => false });
     assert.equal(r.filled, 4);
@@ -445,10 +445,11 @@ test('FMP fills released values: renamed releases, scaled units, and nothing tha
 test('FMP errors say why without the key', async () => {
   const [e] = normalise([{ title: 'Ivey PMI', country: 'CAD', date: '2026-10-06T10:00:00-04:00', impact: 'Medium', forecast: '65.2', previous: '64.3' }]);
   const real = globalThis.fetch;
-  globalThis.fetch = async () => ({ ok: false, status: 403, json: async () => ({ 'Error Message': 'Restricted Endpoint: not available under your current subscription (apikey=SECRET123)' }) });
+  globalThis.fetch = async () => ({ ok: false, status: 402, text: async () => JSON.stringify({ 'Error Message': 'Restricted Endpoint: not available under your current subscription (apikey=SECRET123)' }) });
   try {
     await assert.rejects(fillFromFmp({ [e.id]: e }, Date.parse('2026-10-06T20:00:00Z'), { apiKey: 'SECRET123', isDriver: () => false }), (err) => {
       assert.match(err.message, /Restricted Endpoint/);
+      assert.match(err.message, /plan doesn't include the economic calendar/);
       assert.doesNotMatch(err.message, /SECRET123/);
       return true;
     });

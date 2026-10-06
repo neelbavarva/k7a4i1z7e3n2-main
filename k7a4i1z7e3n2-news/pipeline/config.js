@@ -175,4 +175,6 @@ export const ACTUALS = {
   lookbackDays: 7,
   delayMs: 5000,
   fmpMinFit: 0.6, // share of a release's name an FMP listing must share to count as the same release
+  // tried in turn when a model has no quota left on the key (a free plan may not include the newest)
+  geminiFallbacks: ['gemini-flash-latest', 'gemini-flash-lite-latest'],
 };

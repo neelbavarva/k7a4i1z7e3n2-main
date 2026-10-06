@@ -31,7 +31,10 @@ jobs:
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_NEWS_PROJECT_ID }}
     steps:
+      # the latest main, not the commit that started the run: another run may have saved data since
       - uses: actions/checkout@v4
+        with:
+          ref: main
 
       - uses: actions/setup-node@v4
         with:
@@ -62,9 +65,10 @@ jobs:
             echo "No data changes"
           else
             git commit -m "news data: hourly update"
-            # someone may have pushed code while this job ran: replay the data commit on top
-            git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
-            git push
+            # someone may have pushed code (or another run saved data) while this job ran: replay the
+            # data commit on top, and where both touched the same file this run's fresher data wins
+            git pull --rebase -X theirs --autostash origin main
+            git push origin HEAD:main
           fi
 
       # build here, where public/data/ was just written, and upload the result as-is
