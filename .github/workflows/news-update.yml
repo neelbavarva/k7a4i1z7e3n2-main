@@ -52,6 +52,7 @@ jobs:
         env:
           TWELVE_DATA_KEY: ${{ secrets.TWELVE_DATA_KEY }}
           APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+          JBLANKED_API_KEY: ${{ secrets.JBLANKED_API_KEY }}
         run: npm run pipeline
 
       - name: Save pipeline state (data/) back to the repo

@@ -6,6 +6,7 @@ import { normalise, mergeCalendar } from '../sources/calendar.js';
 import { fillFromFeedPrevious, applyOverrides, plausible, needsLookup } from '../sources/actuals.js';
 import { MODEL } from '../config.js';
 import { fillFromApify } from '../sources/apify.js';
+import { fillFromJBlanked } from '../sources/jblanked.js';
 
 const near = (a, b, tol = 0.6) => assert.ok(Math.abs(a - b) <= tol, `${a} not within ${tol} of ${b}`);
 const HOUR = 3600e3;
@@ -477,6 +478,42 @@ test('Apify: a page ForexFactory blocks is tried once more, then reported, and t
     await assert.rejects(fillFromApify({ [e.id]: e }, Date.parse('2026-10-06T20:00:00Z'), { token: 't' }), /bot protection/);
     assert.equal(runs, 2);
     assert.equal(e.apifyTries, 1);
+  } finally {
+    globalThis.fetch = real;
+  }
+});
+
+test('JBlanked fills released values: exact names, plain numbers scaled to our format, the key in a header', async () => {
+  const [ism, nfp, claims] = normalise([
+    { title: 'ISM Services PMI', country: 'USD', date: '2026-10-05T10:00:00-04:00', impact: 'Medium', forecast: '55.1', previous: '55.4' },
+    { title: 'Non-Farm Employment Change', country: 'USD', date: '2026-10-02T08:30:00-04:00', impact: 'High', forecast: '150K', previous: '22K' },
+    { title: 'Unemployment Claims', country: 'USD', date: '2026-10-01T08:30:00-04:00', impact: 'High', forecast: '225K', previous: '231K' },
+  ]);
+  const store = Object.fromEntries([ism, nfp, claims].map((e) => [e.id, e]));
+  const calls = [];
+  const real = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    calls.push({ url: String(url), auth: init.headers.Authorization });
+    return {
+      ok: true,
+      status: 200,
+      text: async () =>
+        JSON.stringify([
+          // times three hours off (another zone) still match on name and currency
+          { Name: 'ISM Services PMI', Currency: 'USD', Date: '2026.10.05 17:00:00', Actual: 54.9, Forecast: 55.1, Previous: 55.4 },
+          { Name: 'Non-Farm Employment Change', Currency: 'USD', Date: '2026.10.02 15:30:00', Actual: 119000, Forecast: 150000, Previous: 22000 },
+          { Name: 'Unemployment Claims', Currency: 'EUR', Date: '2026.10.01 15:30:00', Actual: 240000, Forecast: 225000, Previous: 231000 },
+        ]),
+    };
+  };
+  try {
+    const r = await fillFromJBlanked(store, Date.parse('2026-10-06T20:00:00Z'), { apiKey: 'KEY', isDriver: () => false });
+    assert.equal(r.filled, 2);
+    assert.equal(ism.actualRaw, '54.9');
+    assert.equal(nfp.actualRaw, '119K');
+    assert.equal(nfp.actual, 119000);
+    assert.ok(claims.actual == null, 'another currency must not fill it');
+    assert.ok(calls.every((c) => c.auth === 'Api-Key KEY' && !c.url.includes('KEY')));
   } finally {
     globalThis.fetch = real;
   }

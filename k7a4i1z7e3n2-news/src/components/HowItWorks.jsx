@@ -1,5 +1,6 @@
 import {
   APIFY,
+  JBLANKED,
   CALENDAR_URLS,
   CURRENCIES,
   INSTRUMENTS,
@@ -124,8 +125,9 @@ export default function HowItWorks({ meta }) {
             <ol className="steps">
               <li>
                 <b>Sources.</b> ForexFactory publishes the week's economic calendar as a JSON feed: times, forecasts and
-                previous values. Its calendar page shows each release's actual value minutes after it's out, and a scraper
-                on Apify reads it from there. Twelve Data supplies hourly prices. Both keys live in GitHub Secrets.
+                previous values. Released values come from JBlanked's free calendar API, which relays ForexFactory's
+                with actual values, and for anything it misses, from ForexFactory's calendar page through a scraper on
+                Apify. Twelve Data supplies hourly prices. The keys live in GitHub Secrets.
               </li>
               <li>
                 <b>The hourly job.</b> GitHub Actions runs <code>pipeline/run.js</code> every hour at :07 UTC, and right away
@@ -172,7 +174,8 @@ export default function HowItWorks({ meta }) {
               </li>
               <li>
                 <b>Released values.</b> Fill in the actual numbers for releases that have come out: from the calendar feed
-                itself, from ForexFactory's calendar page (through Apify), or from a hand-edited file.
+                itself, from JBlanked's calendar API, from ForexFactory's calendar page (through Apify), or from a
+                hand-edited file.
               </li>
               <li>
                 <b>Prices.</b> Download hourly prices for {Object.keys(PRICE_LEGS).length} dollar pairs and{' '}
@@ -225,6 +228,20 @@ export default function HowItWorks({ meta }) {
                       <span className="muted small">This week is required; next week is optional (it appears late in the week).</span>
                     </td>
                     <td data-label="Limits">One week at a time, and no actual values, which is why step 2 exists.</td>
+                  </tr>
+                  <tr>
+                    <td data-label="Service">
+                      <b>JBlanked</b>
+                      <div className="muted small">
+                        <code>JBLANKED_API_KEY</code>
+                      </div>
+                    </td>
+                    <td data-label="Used for">Released values, relayed from ForexFactory's calendar.</td>
+                    <td data-label="How it's called">
+                      <code className="block">jblanked.com/news/api/{JBLANKED.source}/calendar/range/</code>
+                      <span className="muted small">One request a run, from the oldest waiting release to tomorrow.</span>
+                    </td>
+                    <td data-label="Limits">Free key. A small independent service: when it's down, Apify takes over.</td>
                   </tr>
                   <tr>
                     <td data-label="Service">
@@ -318,7 +335,7 @@ export default function HowItWorks({ meta }) {
           {/* ------------------------------------------------------------------ */}
           <section id="actuals">
             <h2>2. Released values</h2>
-            <p>The calendar feed never lists a release's own actual value, so three sources fill them in, tried in this order each run:</p>
+            <p>The calendar feed never lists a release's own actual value, so four sources fill them in, tried in this order each run, each taking what the ones before it left:</p>
             <ol className="steps">
               <li>
                 <b>The feed's own “previous” figure.</b> When an indicator's next release appears on the calendar, its
@@ -326,7 +343,13 @@ export default function HowItWorks({ meta }) {
                 least an hour old and the units match.
               </li>
               <li>
-                <b>ForexFactory's calendar page, through Apify.</b> The page shows each release's actual value minutes after
+                <b>JBlanked's calendar API.</b> A free service that relays ForexFactory's calendar with actual values. One
+                request a run covers every release still waiting (High and Medium, plus anything a commodity or index counts
+                on its own), matched by currency and name within {JBLANKED.matchHours} hours. A plain number is scaled
+                against the forecast both calendars carry and written in the feed's own unit and decimals.
+              </li>
+              <li>
+                <b>ForexFactory's calendar page, through Apify.</b> The backup for what JBlanked misses. The page shows each release's actual value minutes after
                 it's out, under the same title, currency and time as the feed, so it matches exactly and arrives in the
                 feed's own format. The <code>forexfactory-calendar</code> scraper on Apify reads it. Each run costs a few
                 cents and Apify's free plan is $5 of usage a month, so the job asks only when a Medium or High
@@ -341,7 +364,7 @@ export default function HowItWorks({ meta }) {
               </li>
             </ol>
             <p>
-              Every value from Apify must be the same kind of number as the forecast (same unit, a plausible size) before
+              Every value from JBlanked or Apify must be the same kind of number as the forecast (same unit, a plausible size) before
               it's accepted. A release still waiting for its value keeps its expected change for up to{' '}
               {MODEL.provisionalDays} days and is marked “expected” in the tables.
             </p>

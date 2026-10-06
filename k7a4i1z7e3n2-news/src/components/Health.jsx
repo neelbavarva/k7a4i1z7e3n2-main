@@ -82,7 +82,7 @@ async function runChecks() {
   }
 
   // the job's sources, from its own report
-  if (!r) Object.assign(checks, { feed: noReport, actuals: noReport, prices: noReport });
+  if (!r) Object.assign(checks, { feed: noReport, jblanked: noReport, actuals: noReport, prices: noReport });
   else {
     const c = r.calendar;
     const week = c.files[0];
@@ -95,12 +95,26 @@ async function runChecks() {
         };
 
     const values = m.counts ? `${m.counts.withActual} of ${m.counts.released} released have a value` : '';
+    const jb = r.actuals.jblanked;
+    checks.jblanked = !jb
+      ? noReport
+      : jb.skipped
+        ? { state: LOCAL ? 'off' : 'warn', detail: `Skipped: no JBLANKED_API_KEY${LOCAL ? ' on this machine' : ''}. Apify looks everything up instead.` }
+        : jb.error
+          ? { state: 'fail', detail: `${jb.error}. Apify looks everything up instead.` }
+          : {
+              state: jb.tried && !jb.filled ? 'warn' : 'ok',
+              detail: jb.tried
+                ? `Filled ${jb.filled} of ${jb.tried} waiting, from ${plural(jb.results, 'event')}${jb.filled < jb.tried ? '; Apify is asked for the rest' : ''}`
+                : 'Nothing waiting',
+            };
+
     const ap = r.actuals.apify;
     const credit = ap && ap.used != null ? ` · $${ap.used.toFixed(2)} of $${ap.limit.toFixed(2)} Apify credit used this month` : '';
     checks.actuals = !ap
       ? noReport
       : ap.skipped
-        ? { state: LOCAL ? 'off' : 'warn', detail: `Skipped: no APIFY_TOKEN${LOCAL ? ' on this machine' : ''}, so released values wait for the feed's next listing · ${values}` }
+        ? { state: LOCAL ? 'off' : 'warn', detail: `Skipped: no APIFY_TOKEN${LOCAL ? ' on this machine' : ''}, so what JBlanked misses waits for the feed's next listing · ${values}` }
         : ap.error
           ? { state: 'fail', detail: `${ap.error} · ${values}` }
           : ap.paused
@@ -135,7 +149,8 @@ const TRIGGER = { schedule: 'the hourly schedule', workflow_dispatch: 'Refresh',
 // the checks, in the order the data flows
 const CHECKS = [
   { id: 'feed', title: 'Calendar feed', what: `ForexFactory, fetched by the last ${LOCAL ? 'local run of the job' : 'hourly job'}` },
-  { id: 'actuals', title: 'Released values', what: `ForexFactory's calendar page, read through Apify, in the last ${LOCAL ? 'local run of the job' : 'hourly job'}` },
+  { id: 'jblanked', title: 'Released values', what: `JBlanked's free calendar API, in the last ${LOCAL ? 'local run of the job' : 'hourly job'}` },
+  { id: 'actuals', title: 'Released values, backup', what: `ForexFactory's calendar page through Apify, for what JBlanked missed, in the last ${LOCAL ? 'local run of the job' : 'hourly job'}` },
   { id: 'prices', title: 'Prices', what: `Twelve Data, in the last ${LOCAL ? 'local run of the job' : 'hourly job'}` },
   { id: 'job', title: 'Hourly job', what: 'GitHub Actions, asked through /api/refresh' },
   { id: 'files', title: 'Published scores', what: LOCAL ? 'data/meta.json, your local copy' : 'data/meta.json on Vercel' },
@@ -146,6 +161,7 @@ const CHECKS = [
 // which checks light up each box in the diagram
 const NODE_CHECKS = {
   ff: ['feed', 'live'],
+  jblanked: ['jblanked'],
   apify: ['actuals'],
   twelve: ['prices'],
   actions: ['job'],
@@ -236,7 +252,8 @@ export function DataFlow({ checks }) {
       <div className="fl-col">
         <span className="fl-label">1 · Sources</span>
         <Node id="ff" name="ForexFactory" sub="Weekly calendar: times, forecasts, previous values" />
-        <Node id="apify" name="Apify" sub="Released values, from ForexFactory's calendar page" />
+        <Node id="jblanked" name="JBlanked" sub="Released values, free calendar API" />
+        <Node id="apify" name="Apify" sub="Backup: ForexFactory's calendar page" />
         <Node id="twelve" name="Twelve Data" sub="Hourly prices" />
       </div>
       <Arrow />

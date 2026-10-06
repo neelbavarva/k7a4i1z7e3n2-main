@@ -172,6 +172,14 @@ export const ACTUALS = {
   lookbackDays: 7, // …until this long after
 };
 
+// Released values from JBlanked's News API (pipeline/sources/jblanked.js), which relays
+// ForexFactory's calendar with actual values. Free, so it's asked before Apify.
+export const JBLANKED = {
+  base: 'https://www.jblanked.com',
+  source: 'forex-factory', // the calendar it relays (also: mql5, fxstreet)
+  matchHours: 12, // its times may be in another zone: same currency and name within this window
+};
+
 // Released values from ForexFactory's calendar page, through the "forexfactory-calendar" scraper on
 // Apify (pipeline/sources/apify.js). Apify's free plan is $5 of usage a month; a run here costs a few
 // cents (a start fee per GB of memory, $0.002 a result on the free tier, and a little compute).
