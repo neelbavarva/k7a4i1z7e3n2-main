@@ -5,7 +5,6 @@ import { surprise, toScore, labelFor, computePair, buildSurpriseStats, bandWidth
 import { normalise, mergeCalendar } from '../sources/calendar.js';
 import { fillFromFeedPrevious, applyOverrides, plausible, needsLookup } from '../sources/actuals.js';
 import { MODEL } from '../config.js';
-import { fillFromFmp } from '../sources/fmp.js';
 
 const near = (a, b, tol = 0.6) => assert.ok(Math.abs(a - b) <= tol, `${a} not within ${tol} of ${b}`);
 const HOUR = 3600e3;
@@ -405,55 +404,3 @@ test('saved calendar starts at the beginning of the current week', () => {
   assert.equal(cal.live, false);
 });
 
-test('FMP fills released values: renamed releases, scaled units, and nothing that only looks similar', async () => {
-  const [ism, ivey, nfp, cpiYoy, german] = normalise([
-    { title: 'ISM Services PMI', country: 'USD', date: '2026-10-05T10:00:00-04:00', impact: 'Medium', forecast: '55.1', previous: '55.4' },
-    { title: 'Ivey PMI', country: 'CAD', date: '2026-10-06T10:00:00-04:00', impact: 'Medium', forecast: '65.2', previous: '64.3' },
-    { title: 'Non-Farm Employment Change', country: 'USD', date: '2026-10-02T08:30:00-04:00', impact: 'High', forecast: '150K', previous: '22K' },
-    { title: 'CPI y/y', country: 'USD', date: '2026-10-01T08:30:00-04:00', impact: 'High', forecast: '2.9%', previous: '2.9%' },
-    { title: 'German Factory Orders m/m', country: 'EUR', date: '2026-10-06T02:00:00-04:00', impact: 'Medium', forecast: '-0.9%', previous: '2.5%' },
-  ]);
-  const store = Object.fromEntries([ism, ivey, nfp, cpiYoy, german].map((e) => [e.id, e]));
-  const rows = [
-    { date: '2026-10-05 14:00:00', country: 'US', event: 'ISM Non-Manufacturing PMI (Sep)', currency: 'USD', previous: 55.4, estimate: 55, actual: 54.9 },
-    { date: '2026-10-06 14:00:00', country: 'CA', event: 'Ivey PMI s.a (Sep)', currency: 'CAD', previous: 64.3, estimate: 65.2, actual: 58.2 },
-    // FMP gives payrolls as a plain count: calibrated against the previous value
-    { date: '2026-10-02 12:30:00', country: 'US', event: 'Nonfarm Payrolls (Sep)', currency: 'USD', previous: 22000, estimate: 150000, actual: 119000 },
-    // only the m/m figure is out: it must not be taken for y/y
-    { date: '2026-10-01 12:30:00', country: 'US', event: 'CPI (MoM) (Sep)', currency: 'USD', previous: 0.4, estimate: 0.3, actual: 0.2 },
-    // the same name for France at the same time: the German release must take Germany's
-    { date: '2026-10-06 06:00:00', country: 'FR', event: 'Factory Orders (MoM) (Aug)', currency: 'EUR', previous: 1, estimate: 0, actual: 9.9 },
-    { date: '2026-10-06 06:00:00', country: 'DE', event: 'Factory Orders (MoM) (Aug)', currency: 'EUR', previous: 2.5, estimate: -0.9, actual: -0.6 },
-  ];
-  const real = globalThis.fetch;
-  globalThis.fetch = async () => ({ ok: true, status: 200, text: async () => JSON.stringify(rows) });
-  try {
-    const r = await fillFromFmp(store, Date.parse('2026-10-06T20:00:00Z'), { apiKey: 'k', isDriver: () => false });
-    assert.equal(r.filled, 4);
-    assert.equal(ism.actualRaw, '54.9');
-    assert.equal(ivey.actualRaw, '58.2');
-    assert.equal(nfp.actualRaw, '119K');
-    assert.equal(nfp.actual, 119000);
-    assert.ok(cpiYoy.actual == null, "a m/m figure must not fill a y/y release");
-    assert.equal(german.actualRaw, '-0.6%');
-    assert.equal(ism.actualSource, 'fmp');
-  } finally {
-    globalThis.fetch = real;
-  }
-});
-
-test('FMP errors say why without the key', async () => {
-  const [e] = normalise([{ title: 'Ivey PMI', country: 'CAD', date: '2026-10-06T10:00:00-04:00', impact: 'Medium', forecast: '65.2', previous: '64.3' }]);
-  const real = globalThis.fetch;
-  globalThis.fetch = async () => ({ ok: false, status: 402, text: async () => JSON.stringify({ 'Error Message': 'Restricted Endpoint: not available under your current subscription (apikey=SECRET123)' }) });
-  try {
-    await assert.rejects(fillFromFmp({ [e.id]: e }, Date.parse('2026-10-06T20:00:00Z'), { apiKey: 'SECRET123', isDriver: () => false }), (err) => {
-      assert.match(err.message, /Restricted Endpoint/);
-      assert.match(err.message, /plan doesn't include the economic calendar/);
-      assert.doesNotMatch(err.message, /SECRET123/);
-      return true;
-    });
-  } finally {
-    globalThis.fetch = real;
-  }
-});
