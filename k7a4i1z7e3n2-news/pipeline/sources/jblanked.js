@@ -1,6 +1,7 @@
 // Released values from JBlanked's News API (needs JBLANKED_API_KEY), which relays ForexFactory's
-// calendar with its actual values. Free, so it's asked before Apify: one request a run covers every
-// release still waiting, matched by currency, name and time, and written in the feed's own format.
+// calendar with its actual values. Free, so it's asked before Apify: one request a run for this
+// week's calendar covers the releases still waiting, matched by currency, name and time, and written
+// in the feed's own format.
 
 import { JBLANKED } from '../config.js';
 import { parseValue, unitOf } from '../lib/parse.js';
@@ -8,7 +9,6 @@ import { log } from '../lib/store.js';
 import { needsLookup, plausible } from './actuals.js';
 
 const HOUR = 3600 * 1000;
-const DAY = 24 * HOUR;
 const MULT = { '': 1, '%': 1, K: 1e3, M: 1e6, B: 1e9, T: 1e12 };
 
 const norm = (s) => String(s ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
@@ -58,10 +58,9 @@ export async function fillFromJBlanked(store, nowMs, { apiKey, isDriver }) {
   const out = { tried: todo.length, filled: 0, results: 0, error: null };
   if (!todo.length) return out;
 
-  const day = (ms) => new Date(ms).toISOString().slice(0, 10);
-  const from = day(Math.min(...todo.map((e) => Date.parse(e.time))) - DAY);
-  const to = day(nowMs + DAY);
-  const res = await fetch(`${JBLANKED.base}/news/api/${JBLANKED.source}/calendar/range/?from=${from}&to=${to}`, {
+  // the free key covers "today" and "this week" (a date range needs paid credits), so one request
+  // for the week covers what's waiting; anything older is left to Apify and the feed
+  const res = await fetch(`${JBLANKED.base}/news/api/${JBLANKED.source}/calendar/week/`, {
     headers: { Authorization: `Api-Key ${apiKey}`, 'Content-Type': 'application/json' },
     signal: AbortSignal.timeout(30_000),
   });

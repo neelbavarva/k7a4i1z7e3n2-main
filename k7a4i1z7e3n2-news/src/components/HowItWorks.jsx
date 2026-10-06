@@ -238,10 +238,13 @@ export default function HowItWorks({ meta }) {
                     </td>
                     <td data-label="Used for">Released values, relayed from ForexFactory's calendar.</td>
                     <td data-label="How it's called">
-                      <code className="block">jblanked.com/news/api/{JBLANKED.source}/calendar/range/</code>
-                      <span className="muted small">One request a run, from the oldest waiting release to tomorrow.</span>
+                      <code className="block">jblanked.com/news/api/{JBLANKED.source}/calendar/week/</code>
+                      <span className="muted small">One request a run, for this week's calendar.</span>
                     </td>
-                    <td data-label="Limits">Free key. A small independent service: when it's down, Apify takes over.</td>
+                    <td data-label="Limits">
+                      Free key covers today and this week (a date range needs paid credits). A small independent service:
+                      when it's down, Apify takes over.
+                    </td>
                   </tr>
                   <tr>
                     <td data-label="Service">
@@ -344,7 +347,7 @@ export default function HowItWorks({ meta }) {
               </li>
               <li>
                 <b>JBlanked's calendar API.</b> A free service that relays ForexFactory's calendar with actual values. One
-                request a run covers every release still waiting (High and Medium, plus anything a commodity or index counts
+                request a run for this week's calendar covers the releases still waiting (High and Medium, plus anything a commodity or index counts
                 on its own), matched by currency and name within {JBLANKED.matchHours} hours. A plain number is scaled
                 against the forecast both calendars carry and written in the feed's own unit and decimals.
               </li>
