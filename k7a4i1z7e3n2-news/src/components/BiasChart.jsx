@@ -32,7 +32,6 @@ export default function BiasChart({ data, byId }) {
   const gap = since > from ? Math.min(since, now) : null;
 
   const { rows, markers, priceRows, ticks } = useMemo(() => {
-    const priceMap = new Map(data.prices.map((p) => [p.t, p.c]));
     const evByHour = new Map();
     for (const e of data.events) {
       if (e.skip && e.impact !== 'High') continue;
@@ -59,7 +58,8 @@ export default function BiasChart({ data, byId }) {
     const markers = [...evByHour.entries()]
       .filter(([t]) => t >= from && t <= to)
       .map(([t, evs]) => ({ t, y: -94, high: evs.some((e) => e.impact === 'High'), events: evs }));
-    const priceRows = rows.filter((r) => priceMap.has(r.t)).map((r) => ({ t: r.t, price: priceMap.get(r.t) }));
+    // prices have their own history (Twelve Data keeps 30 days), so they aren't cut where the scores start
+    const priceRows = data.prices.filter((p) => p.t >= from && p.t <= to).map((p) => ({ t: p.t, price: p.c }));
     const step = days <= 7 ? 1 : days <= 14 ? 2 : 4;
     const ticks = [];
     const first = Math.ceil(from / DAY) * DAY;
