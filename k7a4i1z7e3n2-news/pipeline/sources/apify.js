@@ -142,10 +142,11 @@ export async function fillFromApify(store, nowMs, { token }) {
   }
   // say what came back, so a release that never matches can be put right
   if (missed.length) {
+    // the raw items, trimmed: their own field names show what the scraper sends
     const seen = items
-      .slice(0, 12)
-      .map((it) => `${it.currency} "${it.title}" @ ${it.dateline ? new Date(Number(it.dateline) * 1000).toISOString() : it.datetimeISO} actual=${JSON.stringify(it.actual)}`)
-      .join('; ');
+      .slice(0, 6)
+      .map((it) => JSON.stringify(it).slice(0, 400))
+      .join(' | ');
     log(`actuals: Apify had no match for ${missed.map((e) => `${e.currency} "${e.title}" @ ${e.time}`).join(', ')}. It returned: ${seen || 'nothing'}`);
   }
   return out;
