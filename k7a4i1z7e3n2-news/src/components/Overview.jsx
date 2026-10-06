@@ -5,10 +5,17 @@ import MarketIcon from './MarketIcon.jsx';
 import Sections from './Sections.jsx';
 
 const GROUPS = [
-  { key: 'bull', title: 'Bullish', test: (s) => s >= 15, sort: (a, b) => b.score - a.score, empty: 'No pair leans bullish right now.' },
-  { key: 'flat', title: 'Balanced', test: (s) => s > -15 && s < 15, sort: (a, b) => b.score - a.score, empty: 'No balanced pairs right now.' },
-  { key: 'bear', title: 'Bearish', test: (s) => s <= -15, sort: (a, b) => a.score - b.score, empty: 'No pair leans bearish right now.' },
+  { key: 'bull', title: 'Bullish', test: (s) => s >= 15, sort: (a, b) => b.score - a.score, empty: 'No market leans bullish right now', hint: 'A market shows up here once its score reaches\u00a0+15.' },
+  { key: 'flat', title: 'Balanced', test: (s) => s > -15 && s < 15, sort: (a, b) => b.score - a.score, empty: 'No market is balanced right now', hint: 'Every market leans one way; a market shows up here while its score is between −15 and\u00a0+15.' },
+  { key: 'bear', title: 'Bearish', test: (s) => s <= -15, sort: (a, b) => a.score - b.score, empty: 'No market leans bearish right now', hint: 'A market shows up here once its score falls to\u00a0−15.' },
 ];
+
+// a small mark for each empty group: up, level, down
+const EMPTY_ICON = {
+  bull: <path d="M2 11.5 6 7.5l3 2.5 5-5.5M10.5 4.5H14V8" />,
+  flat: <path d="M2.5 6h11M2.5 10h11" />,
+  bear: <path d="M2 4.5 6 8.5l3-2.5 5 5.5M10.5 11.5H14V8" />,
+};
 
 export default function Overview({ meta }) {
   const [query, setQuery] = useState('');
@@ -49,11 +56,6 @@ export default function Overview({ meta }) {
         <h1 className="overview-title">Where fundamentals lean</h1>
         <Sections section="news" />
       </div>
-      <p className="overview-lede">
-        {meta.pairs.length} markets scored from −100 to +100 on recent economic surprises, and where that score is
-        heading in 7 days if upcoming releases match their forecasts. For forex, positive favours the first currency in
-        the pair; for metals, oil and indices, positive is bullish. Open a market to see why, and what's coming up.
-      </p>
 
       <div className="searchbar">
         <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -112,7 +114,15 @@ export default function Overview({ meta }) {
                 </ul>
               </div>
             ) : (
-              <p className="empty-note">{g.empty}</p>
+              <div className={`empty-card is-${g.key}`}>
+                <span className="empty-icon" aria-hidden="true">
+                  <svg viewBox="0 0 16 16">{EMPTY_ICON[g.key]}</svg>
+                </span>
+                <span className="empty-text">
+                  <b>{g.empty}</b>
+                  <span>{g.hint}</span>
+                </span>
+              </div>
             )}
           </section>
         ),

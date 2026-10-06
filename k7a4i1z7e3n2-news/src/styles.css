@@ -640,7 +640,7 @@ kbd {
 /* ---------- Overview ---------- */
 
 .overview {
-  padding-top: 28px;
+  padding-top: 0;
 }
 .overview-title {
   font-family: var(--serif);
@@ -674,13 +674,13 @@ kbd {
 }
 .searchbar input {
   width: 100%;
-  height: 46px;
+  height: 40px;
   font: inherit;
-  font-size: 15px;
+  font-size: 14px;
   color: var(--ink);
   background: var(--raised);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 10px;
   padding: 0 44px 0 42px;
   outline: none;
   box-shadow: var(--shadow);
@@ -1561,6 +1561,58 @@ tr.is-done > td.c-when {
   font-weight: 600;
   color: var(--ink2);
   margin: 18px 0 4px;
+}
+/* an empty group: a card saying so, and what would put a market there */
+.empty-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 10px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.empty-icon {
+  --tone: var(--muted);
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  color: color-mix(in srgb, var(--tone) 85%, var(--ink));
+  background: color-mix(in srgb, var(--tone) 9%, var(--raised));
+  border: 1px solid color-mix(in srgb, var(--tone) 24%, var(--raised));
+  border-radius: 9px;
+}
+.is-bull .empty-icon {
+  --tone: var(--bull);
+}
+.is-bear .empty-icon {
+  --tone: var(--bear);
+}
+.empty-icon svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.empty-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.empty-text b {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.empty-text span {
+  font-size: 12.5px;
+  color: var(--muted);
 }
 .empty-note {
   font-size: 13px;
@@ -2869,9 +2921,6 @@ code.block {
   .table-block {
     padding: 18px 16px;
   }
-  .overview {
-    padding-top: 28px;
-  }
   .topbar .btn kbd {
     display: none;
   }
@@ -3172,13 +3221,23 @@ code.block {
    The two halves: News (the bias scores) and the Economic calendar
    ========================================================================== */
 
-/* the page title, with the News / Economic calendar switch on its right */
+/* the page title, with the News / Economic calendar switch on its right. The row sits where the
+   other Kaizen apps put their top bar (16px under the status bar, as tall as their 34px buttons),
+   so in the split view the switch lines up with them; the same 16px follows below */
 .page-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 10px 16px;
+  padding-top: 16px;
+}
+.page-head .overview-title {
+  font-size: clamp(26px, 2.9vw, 33px);
+  line-height: 34px;
+}
+.overview .page-head {
+  margin-bottom: 16px;
 }
 .sections {
   display: inline-flex;
@@ -3193,7 +3252,7 @@ code.block {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 26px;
+  height: 28px;
   padding: 0 10px;
   border-radius: 7px;
   font-size: 12.5px;
@@ -3299,7 +3358,7 @@ code.block {
 /* ---------- Economic calendar ---------- */
 
 .cal-head {
-  margin-top: 26px;
+  margin-top: 0;
 }
 .cal-head .overview-lede {
   max-width: 780px;

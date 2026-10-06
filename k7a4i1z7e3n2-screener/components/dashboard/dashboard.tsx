@@ -636,11 +636,6 @@ export function Dashboard({
     const r = [...(data.find(c => c.country === code)?.records ?? [])].reverse().find(x => x.gdp !== null);
     return r ? `${compactCurrency(r.gdp)} GDP` : 'No data';
   };
-  const lede =
-    visible.length === 1
-      ? `${visible[0].name}, ${rangeStart}–${rangeEnd}: the size of the economy, the value of its stock market and the gap between them (the Buffett indicator), with AI venture capital and a library of past bubbles for context.`
-      : `${visible.length} markets side by side, ${rangeStart}–${rangeEnd}: the size of each economy, the value of its stock market and the gap between them (the Buffett indicator), with AI venture capital and a library of past bubbles for context.`;
-
   /* ── Render ── */
   return (
     <main id="main-content" className="page">
@@ -664,7 +659,6 @@ export function Dashboard({
               </button>
             )}
           </h1>
-          <p className="hero-sub">{lede}</p>
           <Timeframe
             period={period}
             periods={TIMEFRAMES}

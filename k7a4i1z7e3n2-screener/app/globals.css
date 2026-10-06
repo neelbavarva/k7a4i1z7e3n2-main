@@ -502,13 +502,6 @@ details[open] > summary .chev {
   border-color: var(--axis);
   color: var(--ink);
 }
-.hero-sub {
-  margin: 10px 0 0;
-  font-size: 15px;
-  color: var(--ink2);
-  max-width: 760px;
-}
-
 .controls {
   display: flex;
   align-items: center;
@@ -2537,9 +2530,6 @@ code.block {
   }
   .topbar .kbd-hint {
     display: none;
-  }
-  .hero-sub {
-    font-size: 14px;
   }
   .controls {
     flex-direction: column;
