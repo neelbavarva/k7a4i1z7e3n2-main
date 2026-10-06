@@ -112,7 +112,7 @@ h3 {
 .page {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 6px 32px 32px;
+  padding: 0 32px 32px;
 }
 
 .muted {
@@ -2862,7 +2862,7 @@ code.block {
 
 @media (max-width: 600px) {
   .page {
-    padding: 6px 16px 28px;
+    padding: 0 16px 28px;
   }
   .outlook,
   .chart-block,
