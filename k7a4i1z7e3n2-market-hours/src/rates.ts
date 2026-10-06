@@ -10,12 +10,12 @@ import { readStorage, writeStorage } from './hooks';
 import { RATE_CODES } from './instruments';
 import type { Instrument } from './instruments';
 
-const LIVE_URL = 'https://api.coinbase.com/v2/exchange-rates?currency=USD';
-const DAILY_URLS = [
+export const LIVE_URL = 'https://api.coinbase.com/v2/exchange-rates?currency=USD';
+export const DAILY_URLS = [
   'https://latest.currency-api.pages.dev/v1/currencies/usd.min.json',
   'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.min.json',
 ];
-const KEY = 'tj-mh-rates';
+export const RATES_KEY = 'tj-mh-rates';
 const LIVE_EVERY = 60_000;
 const DAILY_EVERY = 60 * 60_000;
 const TIMEOUT = 8_000;
@@ -41,7 +41,7 @@ const EMPTY: RateTable = { rates: {}, liveAt: 0, dailyAt: 0, dailyDate: null };
 
 function loadCache(): RateTable {
   try {
-    const t = JSON.parse(readStorage(KEY) || 'null') as RateTable | null;
+    const t = JSON.parse(readStorage(RATES_KEY) || 'null') as RateTable | null;
     return t && typeof t.rates === 'object' ? t : EMPTY;
   } catch {
     return EMPTY;
@@ -142,7 +142,7 @@ export function useRates(active: boolean) {
     };
     setFailed(live.status === 'rejected');
     setTable(next);
-    writeStorage(KEY, JSON.stringify(next));
+    writeStorage(RATES_KEY, JSON.stringify(next));
   }, []);
 
   useEffect(() => {

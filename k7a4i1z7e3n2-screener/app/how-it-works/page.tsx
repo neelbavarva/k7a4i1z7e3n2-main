@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { DocLayout, SectionLink } from '@/components/doc/contents';
+import { FlowDiagram, HealthProvider, StatusPanel } from '@/components/doc/live-status';
 import { BUBBLE_LIBRARY, CHARTED_BUBBLES } from '@/lib/bubbles/library';
 import { isCountry } from '@/lib/markets';
 import {
@@ -29,6 +30,8 @@ export const metadata: Metadata = {
 
 const SECTIONS = [
   ['short', 'The short version'],
+  ['flow', 'How the data flows'],
+  ['live', 'Live status'],
   ['loading', 'How a page load works'],
   ['apis', 'Data sources and APIs'],
   ['markets', 'Markets'],
@@ -97,6 +100,7 @@ export default function HowItWorks() {
           </p>
         </header>
 
+        <HealthProvider>
         <DocLayout sections={SECTIONS}>
           {/* ------------------------------------------------------------------ */}
           <section id="short">
@@ -116,6 +120,43 @@ export default function HowItWorks() {
               It describes; it doesn’t forecast. There are no projections on the page, and no reading here is a fair-value
               target.
             </p>
+          </section>
+
+          {/* ------------------------------------------------------------------ */}
+          <section id="flow">
+            <h2>How the data flows</h2>
+            <p>
+              Every number comes from a public source; nothing is typed in by hand, and your browser never calls a data
+              provider. The data moves left to right:
+            </p>
+            <FlowDiagram />
+            <ol className="steps">
+              <li>
+                <b>Sources.</b> The World Bank’s Data360 API supplies GDP, growth and stock-market value for all{' '}
+                {RESEARCH_MARKETS.length} markets: {Object.keys(INDICATORS).length} indicators, one request each, {PAGE_SIZE}{' '}
+                rows a page. The OECD.AI venture-capital figures and the bubble library ship with the site.
+              </li>
+              <li>
+                <b>The server.</b> When a page is requested, Next.js on Vercel asks for every indicator in parallel (up to{' '}
+                {MAX_CONCURRENT} at a time), or takes them from its cache, which keeps each answer for {CACHE_HOURS} hours.
+                It joins them into one record per market per year and computes the Buffett indicator.
+              </li>
+              <li>
+                <b>Your browser.</b> The page arrives with all of that inside it. Switching views, ranges or markets happens
+                here, with no further requests; <b>Refresh</b> asks the server to build the page again.
+              </li>
+            </ol>
+          </section>
+
+          {/* ------------------------------------------------------------------ */}
+          <section id="live">
+            <h2>Live status</h2>
+            <p>
+              These checks run now, from your browser: the screener’s server asks the World Bank directly, rebuilds the
+              page’s data through its cache, and reads the AI and bubble sources, then reports how each went. The dots in the
+              diagram above follow the same results.
+            </p>
+            <StatusPanel />
           </section>
 
           {/* ------------------------------------------------------------------ */}
@@ -733,6 +774,7 @@ export default function HowItWorks() {
             <p className="muted">This is an educational research tool, not financial advice.</p>
           </section>
         </DocLayout>
+        </HealthProvider>
       </div>
 
       <footer className="footer">

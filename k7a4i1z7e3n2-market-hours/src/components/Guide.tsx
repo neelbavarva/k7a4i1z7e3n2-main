@@ -1,11 +1,14 @@
 import { SESSIONS, sessionStatus } from '../marketModel';
 import { cityOfZone, formatClock, formatGmtOffset, offsetMinutes, shiftDate, zonedParts, zonedWallToUtc } from '../marketTime';
 import { Contents, useActiveSection } from './doc';
+import { FlowDiagram, HealthProvider, StatusPanel } from './Health';
 
 const BASE = import.meta.env.BASE_URL;
 
 const SECTIONS = [
   ['short', 'The short version'],
+  ['data', 'How the data flows'],
+  ['live', 'Live status'],
   ['sessions', 'The four sessions'],
   ['overlaps', 'Overlaps'],
   ['when', 'When to trade'],
@@ -62,6 +65,7 @@ export default function Guide({ timezone, nowMs, is24Hour }: { timezone: string;
         </p>
       </header>
 
+      <HealthProvider>
       <div className="doc-layout">
         <aside className="toc" aria-label="On this page">
           <p className="toc-title">On this page</p>
@@ -86,6 +90,41 @@ export default function Guide({ timezone, nowMs, is24Hour }: { timezone: string;
               find the best prices and the clearest moves then, and the quietest, choppiest conditions in the gap after New York
               closes.
             </p>
+          </section>
+
+          <section id="data">
+            <h2>How the data flows</h2>
+            <p>
+              Market hours need no data feed at all: the session times are worked out in your browser from your clock and the
+              time-zone rules every browser carries, so they're right even offline. Only the position size calculator reads
+              outside data, for exchange rates.
+            </p>
+            <FlowDiagram />
+            <ol className="steps">
+              <li>
+                <b>Your device.</b> Each session is fixed to its city's local hours (8:00 to 17:00, 9:00 to 18:00 in Tokyo).
+                Your browser's time-zone database turns those into your time, daylight saving included, and the page
+                re-reads the clock every few seconds.
+              </li>
+              <li>
+                <b>Exchange rates.</b> When the calculator is open, it asks Coinbase for live rates once a minute, and a
+                daily feed (currency-api, with a jsDelivr mirror) once an hour for gold, silver and the few currencies
+                Coinbase lacks. Both are free, keyless and allow browsers, so there is no server in between.
+              </li>
+              <li>
+                <b>Your browser.</b> Live rates win, daily ones fill the gaps, and the last good set is saved in this browser,
+                so the calculator works straight away next time and carries on offline. Vercel only serves the app itself.
+              </li>
+            </ol>
+          </section>
+
+          <section id="live">
+            <h2>Live status</h2>
+            <p>
+              These checks run now, from your browser, against the real services: your clock and time zones, the site, both
+              rate feeds and the copy saved here. The dots in the diagram above follow the same results.
+            </p>
+            <StatusPanel />
           </section>
 
           <section id="sessions">
@@ -284,6 +323,7 @@ export default function Guide({ timezone, nowMs, is24Hour }: { timezone: string;
           </section>
         </div>
       </div>
+      </HealthProvider>
     </main>
   );
 }

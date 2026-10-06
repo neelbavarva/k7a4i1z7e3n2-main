@@ -11,14 +11,17 @@ import {
   RETENTION,
 } from '../../pipeline/config.js';
 import { CATEGORIES, LOWER_IS_BETTER, NO_SIGNAL, RATE_DECISION } from '../../pipeline/rules.js';
-import { COLLECT_REST_MINUTES, POLL_MINUTES, REFRESH_COOLDOWN_S, STALE_HOURS } from '../constants.js';
+import { CAL_CACHE_MINUTES, COLLECT_REST_MINUTES, POLL_MINUTES, REFRESH_COOLDOWN_S, STALE_HOURS } from '../constants.js';
 import { Contents, useActiveSection } from './Doc.jsx';
+import { DataFlow, LiveStatus, useHealth } from './Health.jsx';
 
 // Every number on this page is read from the pipeline's own settings (pipeline/config.js
 // and pipeline/rules.js), so the explanation can't drift from what the site computes.
 
 const SECTIONS = [
   ['short', 'The short version'],
+  ['flow', 'How the data flows'],
+  ['status', 'Live status'],
   ['pipeline', 'The hourly pipeline'],
   ['apis', 'Data sources and APIs'],
   ['calendar', '1. Calendar'],
@@ -55,6 +58,7 @@ const catName = { growth: 'growth', labour: 'jobs', inflation: 'inflation', rate
 
 export default function HowItWorks({ meta }) {
   const active = useActiveSection(SECTIONS);
+  const health = useHealth();
   const K = MODEL.K;
   const W = MODEL.impactWeight;
   const lead = MODEL.expectationLeadHours;
@@ -110,11 +114,56 @@ export default function HowItWorks({ meta }) {
           </section>
 
           {/* ------------------------------------------------------------------ */}
+          <section id="flow">
+            <h2>How the data flows</h2>
+            <p>
+              Nothing on the site is typed in by hand, and your browser never calls a data provider or holds an API key. The
+              data moves in one direction, left to right:
+            </p>
+            <DataFlow checks={health.checks} />
+            <ol className="steps">
+              <li>
+                <b>Sources.</b> ForexFactory publishes the week's economic calendar as a JSON feed. Gemini, with Google
+                Search, looks up the released value of each release that counts once it's out. Twelve Data supplies hourly
+                prices. Each needs nothing from you; the two keys live in GitHub Secrets.
+              </li>
+              <li>
+                <b>The hourly job.</b> GitHub Actions runs <code>pipeline/run.js</code> every hour at :07 UTC, and right away
+                when someone presses <b>Refresh</b>. It fetches all three sources, scores every market for every hour,
+                commits what it learned to the repository's <code>data/</code> folder (the site's only database), then
+                builds the site and deploys it with the fresh JSON.
+              </li>
+              <li>
+                <b>Vercel.</b> Serves the site and the JSON as static files, plus two small functions:{' '}
+                <code>/api/calendar</code> passes the live calendar feed to the Calendar page (browsers can't read it
+                directly) and keeps each answer {CAL_CACHE_MINUTES} minutes; <code>/api/refresh</code> starts the job or
+                reports how it's doing.
+              </li>
+              <li>
+                <b>Your browser.</b> Loads <code>meta.json</code> for the list and one market's file when you open it,
+                checks for a newer <code>meta.json</code> every {POLL_MINUTES} minutes, and reloads the open page when one
+                arrives.
+              </li>
+            </ol>
+          </section>
+
+          {/* ------------------------------------------------------------------ */}
+          <section id="status">
+            <h2>Live status</h2>
+            <p>
+              These checks run now, from your browser, against the live site: the files and the two functions are fetched
+              for real, and the job's sources are read from the report the last hourly run wrote into{' '}
+              <code>meta.json</code>. The coloured dots in the diagram above follow the same results.
+            </p>
+            <LiveStatus health={health} />
+          </section>
+
+          {/* ------------------------------------------------------------------ */}
           <section id="pipeline">
             <h2>The hourly pipeline</h2>
             <p>
-              There is no server behind this site. A Node.js job runs once an hour on GitHub Actions, writes the results as
-              static JSON files, and the website reads those files. Each run does five steps, in this order:
+              A Node.js job runs once an hour on GitHub Actions (and whenever someone presses Refresh), writes the results
+              as static JSON files, and Vercel serves them to the website. Each run does five steps, in this order:
             </p>
             <ol className="steps">
               <li>

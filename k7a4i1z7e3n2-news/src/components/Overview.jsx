@@ -5,17 +5,35 @@ import MarketIcon from './MarketIcon.jsx';
 import Sections from './Sections.jsx';
 
 const GROUPS = [
-  { key: 'bull', title: 'Bullish', test: (s) => s >= 15, sort: (a, b) => b.score - a.score, empty: 'No market leans bullish right now', hint: 'A market shows up here once its score reaches\u00a0+15.' },
-  { key: 'flat', title: 'Balanced', test: (s) => s > -15 && s < 15, sort: (a, b) => b.score - a.score, empty: 'No market is balanced right now', hint: 'Every market leans one way; a market shows up here while its score is between −15 and\u00a0+15.' },
-  { key: 'bear', title: 'Bearish', test: (s) => s <= -15, sort: (a, b) => a.score - b.score, empty: 'No market leans bearish right now', hint: 'A market shows up here once its score falls to\u00a0−15.' },
+  { key: 'bull', title: 'Bullish', range: 'Score +15 and up', zone: [15, 100], test: (s) => s >= 15, sort: (a, b) => b.score - a.score, empty: 'No market leans bullish right now' },
+  { key: 'flat', title: 'Balanced', range: 'Score between −15 and +15', zone: [-15, 15], test: (s) => s > -15 && s < 15, sort: (a, b) => b.score - a.score, empty: 'No market is balanced right now' },
+  { key: 'bear', title: 'Bearish', range: 'Score −15 and down', zone: [-100, -15], test: (s) => s <= -15, sort: (a, b) => a.score - b.score, empty: 'No market leans bearish right now' },
 ];
 
-// a small mark for each empty group: up, level, down
-const EMPTY_ICON = {
+// each group's mark: up, level, down
+const TONE_ICON = {
   bull: <path d="M2 11.5 6 7.5l3 2.5 5-5.5M10.5 4.5H14V8" />,
   flat: <path d="M2.5 6h11M2.5 10h11" />,
   bear: <path d="M2 4.5 6 8.5l3-2.5 5 5.5M10.5 11.5H14V8" />,
 };
+
+// each asset class's mark
+const KIND_ICON = {
+  all: (
+    <>
+      <rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1.2" />
+      <rect x="9" y="2.5" width="4.5" height="4.5" rx="1.2" />
+      <rect x="2.5" y="9" width="4.5" height="4.5" rx="1.2" />
+      <rect x="9" y="9" width="4.5" height="4.5" rx="1.2" />
+    </>
+  ),
+  fx: <path d="M2.5 5.5h10M10 3l2.5 2.5L10 8M13.5 10.5h-10M6 8l-2.5 2.5L6 13" />,
+  metal: <path d="M1.8 12.5h12.4l-1.9-4.8H3.7zM4.6 7.7l1.2-3.2h4.4l1.2 3.2" />,
+  energy: <path d="M8 2.2s4.2 4.4 4.2 7.6a4.2 4.2 0 0 1-8.4 0C3.8 6.6 8 2.2 8 2.2z" />,
+  index: <path d="M2 13.5h12M2.5 10.5l3.2-3.3 2.6 2.2 5.2-5.4M10.5 4H13.5V7" />,
+};
+
+const sideOf = (s) => (s >= 15 ? 'bull' : s <= -15 ? 'bear' : 'flat');
 
 export default function Overview({ meta }) {
   const [query, setQuery] = useState('');
@@ -25,6 +43,14 @@ export default function Overview({ meta }) {
   const kindOf = (p) => p.kind ?? 'fx';
   const pairs = meta.pairs.filter((p) => (kind === 'all' || kindOf(p) === kind) && matchesMarket(p, q));
   const counts = Object.fromEntries(KINDS.map((k) => [k.key, meta.pairs.filter((p) => k.key === 'all' || kindOf(p) === k.key).length]));
+  // how each asset class splits between bullish, balanced and bearish, for the bar under its tab
+  const mixes = Object.fromEntries(
+    KINDS.map((k) => {
+      const m = { bull: 0, flat: 0, bear: 0 };
+      meta.pairs.forEach((p) => (k.key === 'all' || kindOf(p) === k.key) && m[sideOf(p.score)]++);
+      return [k.key, m];
+    }),
+  );
   const groups = GROUPS.map((g) => ({ ...g, rows: pairs.filter((p) => g.test(p.score)).sort(g.sort) }));
   const ordered = groups.flatMap((g) => g.rows);
 
@@ -75,12 +101,24 @@ export default function Overview({ meta }) {
         />
         {!query && <kbd aria-hidden="true">/</kbd>}
       </div>
-      <div className="seg kinds" role="group" aria-label="Asset class">
-        {KINDS.map((k) => (
-          <button key={k.key} type="button" aria-pressed={kind === k.key} onClick={() => setKind(k.key)}>
-            {k.label} <span className="seg-count">{counts[k.key]}</span>
-          </button>
-        ))}
+      <div className="kinds" role="group" aria-label="Asset class">
+        {KINDS.map((k) => {
+          const mix = mixes[k.key];
+          return (
+            <button key={k.key} type="button" className="kind" aria-pressed={kind === k.key} onClick={() => setKind(k.key)}>
+              <span className="kind-top">
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                  {KIND_ICON[k.key]}
+                </svg>
+                <span className="kind-label">{k.label}</span>
+                <span className="kind-count">{counts[k.key]}</span>
+              </span>
+              <span className="kind-mix" title={`${mix.bull} bullish · ${mix.flat} balanced · ${mix.bear} bearish`}>
+                {['bull', 'flat', 'bear'].map((t) => mix[t] > 0 && <i key={t} className={`is-${t}`} style={{ flexGrow: mix[t] }} />)}
+              </span>
+            </button>
+          );
+        })}
       </div>
       <p className={`search-hint${q ? ' on' : ''}`} aria-live="polite">
         {q
@@ -93,9 +131,14 @@ export default function Overview({ meta }) {
       {groups.map((g) =>
         (q || kind !== 'all') && !g.rows.length ? null : (
           <section key={g.key} className="group" aria-labelledby={`g-${g.key}`}>
-            <h2 id={`g-${g.key}`}>
-              {g.title} <span className="count">{g.rows.length}</span>
-            </h2>
+            <header className={`group-head is-${g.key}`}>
+              <span className="g-tone" aria-hidden="true">
+                <svg viewBox="0 0 16 16">{TONE_ICON[g.key]}</svg>
+              </span>
+              <h2 id={`g-${g.key}`}>{g.title}</h2>
+              <span className="g-count">{g.rows.length}</span>
+              <span className="g-range">{g.range}</span>
+            </header>
             {g.rows.length ? (
               <div className="rows-card">
                 <div className="row-headings" aria-hidden="true">
@@ -114,20 +157,54 @@ export default function Overview({ meta }) {
                 </ul>
               </div>
             ) : (
-              <div className={`empty-card is-${g.key}`}>
-                <span className="empty-icon" aria-hidden="true">
-                  <svg viewBox="0 0 16 16">{EMPTY_ICON[g.key]}</svg>
-                </span>
-                <span className="empty-text">
-                  <b>{g.empty}</b>
-                  <span>{g.hint}</span>
-                </span>
-              </div>
+              <EmptyGroup g={g} pairs={pairs} />
             )}
           </section>
         ),
       )}
     </main>
+  );
+}
+
+/**
+ * An empty group: says so, and shows on a −100…+100 scale where the group's zone is and which
+ * market is closest to entering it.
+ */
+function EmptyGroup({ g, pairs }) {
+  const [lo, hi] = g.zone;
+  const near =
+    g.key === 'bull'
+      ? pairs.reduce((a, p) => (!a || p.score > a.score ? p : a), null)
+      : g.key === 'bear'
+        ? pairs.reduce((a, p) => (!a || p.score < a.score ? p : a), null)
+        : pairs.reduce((a, p) => (!a || Math.abs(p.score) < Math.abs(a.score) ? p : a), null);
+  const at = (v) => `${50 + v / 2}%`;
+  const score = near ? Math.round(near.score) : null;
+  const gap = near ? (g.key === 'bull' ? 15 - score : g.key === 'bear' ? score + 15 : Math.abs(score) - 14) : null;
+  return (
+    <div className={`empty-card is-${g.key}`}>
+      <div className="empty-text">
+        <b>{g.empty}</b>
+        {near && (
+          <span>
+            Closest is <a href={`${import.meta.env.BASE_URL}#/${near.id}`}>{near.symbol}</a> at {signed(score)},{' '}
+            {gap} point{gap === 1 ? '' : 's'} {g.key === 'flat' ? 'outside the band' : 'short'}.
+          </span>
+        )}
+      </div>
+      <div className="empty-gauge" aria-hidden="true">
+        <div className="eg-track">
+          <i className="eg-zone" style={{ left: at(lo), width: `${(hi - lo) / 2}%` }} />
+          <i className="eg-mid" />
+          {near && <i className="eg-dot" style={{ left: at(score) }} />}
+        </div>
+        <div className="eg-scale">
+          <span>−100</span>
+          <span>0</span>
+          <span>+100</span>
+        </div>
+      </div>
+    </div>
   );
 }
 
