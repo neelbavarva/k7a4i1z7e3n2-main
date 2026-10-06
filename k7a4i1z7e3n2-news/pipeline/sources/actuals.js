@@ -1,6 +1,6 @@
 import { ACTUALS } from '../config.js';
 import { parseValue, unitOf } from '../lib/parse.js';
-import { log, sleep } from '../lib/store.js';
+import { log } from '../lib/store.js';
 
 const MIN = 60 * 1000;
 const DAY = 86400 * 1000;
@@ -91,8 +91,8 @@ function splitCsv(line) {
 const matters = (e) => !e.skip && (e.impact === 'High' || e.impact === 'Medium');
 
 /**
- * Events that still need an actual value and are worth an AI lookup: High/Medium
- * releases, plus anything a market's driver profile counts (isDriver), such as
+ * Events that still need an actual value and are worth looking up from a released-values source:
+ * High/Medium releases, plus anything a market's driver profile counts (isDriver), such as
  * weekly crude inventories or China's factory PMIs.
  */
 export function needsLookup(store, nowMs, isDriver = () => false) {
@@ -103,7 +103,6 @@ export function needsLookup(store, nowMs, isDriver = () => false) {
         (matters(e) || isDriver(e)) &&
         e.actual == null &&
         e.forecast != null &&
-        (e.attempts ?? 0) < ACTUALS.maxAttempts &&
         t < nowMs - ACTUALS.minutesAfterRelease * MIN &&
         t > nowMs - ACTUALS.lookbackDays * DAY
       );
@@ -111,125 +110,11 @@ export function needsLookup(store, nowMs, isDriver = () => false) {
     .sort((a, b) => (b.impact === 'High') - (a.impact === 'High') || Date.parse(b.time) - Date.parse(a.time));
 }
 
-/** Rejects answers that are clearly not the same kind of number as the forecast. */
+/** Rejects values that are clearly not the same kind of number as the forecast. */
 export function plausible(e, raw) {
   const v = parseValue(raw);
   if (v == null) return false;
   if (unitOf(raw) !== unitOf(e.forecastRaw)) return false;
   const scale = Math.max(Math.abs(e.forecast), Math.abs(e.previous ?? 0), 1e-9);
   return Math.abs(v - e.forecast) <= 10 * scale + 1;
-}
-
-/**
- * Source 3 (automatic, needs GEMINI_API_KEY): asks Gemini with Google Search
- * grounding for the released value.
- */
-export async function fillFromGemini(store, nowMs, { apiKey, model = ACTUALS.geminiModel, isDriver }) {
-  const todo = needsLookup(store, nowMs, isDriver).slice(0, ACTUALS.maxPerRun);
-  let filled = 0;
-  let error = null;
-  for (const [i, e] of todo.entries()) {
-    if (i > 0) await sleep(ACTUALS.delayMs);
-    try {
-      const ans = await askGemini(e, { apiKey, model });
-      // only an answer counts as a try; an outage or a retired model shouldn't use them up
-      e.attempts = (e.attempts ?? 0) + 1;
-      if (ans.found && ans.actual_raw && plausible(e, ans.actual_raw)) {
-        setActual(e, ans.actual_raw, 'gemini', ans.source_url || null);
-        filled++;
-        log(`actuals: ${e.currency} ${e.title} = ${ans.actual_raw}`);
-      } else {
-        log(`actuals: no usable answer for ${e.currency} ${e.title} (attempt ${e.attempts})`);
-      }
-    } catch (err) {
-      log(`actuals: Gemini error for ${e.currency} ${e.title}: ${err.message}`);
-      error = err.message.split('\n')[0].slice(0, 260);
-      if (/no Gemini model has quota/.test(err.message)) break;
-    }
-  }
-  return { tried: todo.length, filled, error, model: modelInUse ?? model };
-}
-
-/**
- * Google's error bodies are long JSON; keep what says why: the message's first sentence, and for a
- * quota error which quota it was, its limit, and when to try again.
- */
-function explain(body) {
-  try {
-    const err = JSON.parse(body).error ?? {};
-    const parts = [String(err.message ?? '').split(/\. |\n/)[0]];
-    for (const d of err.details ?? []) {
-      for (const v of d.violations ?? []) {
-        if (v.quotaId) parts.push(`quota ${v.quotaId}${v.quotaValue != null ? `, limit ${v.quotaValue}` : ''}`);
-      }
-      if (d.retryDelay) parts.push(`retry after ${d.retryDelay}`);
-    }
-    return parts.filter(Boolean).join('; ');
-  } catch {
-    return body.slice(0, 200);
-  }
-}
-
-// Google retires model versions; when it does, its 404 names the replacement ("use
-// models/gemini-x-flash"), so follow that once and keep using it for the rest of the run.
-let modelInUse = null;
-// a model whose quota is used up (or that a free plan doesn't include) is skipped for the rest of
-// the run, and the next one tried; when none is left, the run stops asking
-const exhausted = new Set();
-async function callGemini(prompt, { apiKey, model }) {
-  const order = [...new Set([modelInUse ?? model, ...ACTUALS.geminiFallbacks])];
-  for (let hop = 0; hop < order.length + 2; hop++) {
-    const m = modelInUse ?? order.find((x) => !exhausted.has(x));
-    if (!m) throw new Error(`HTTP 429: no Gemini model has quota left on this key (tried ${[...exhausted].join(', ')})`);
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        tools: [{ google_search: {} }],
-        generationConfig: { temperature: 0 },
-      }),
-    });
-    if (res.ok) {
-      modelInUse = m;
-      return res;
-    }
-    const body = await res.text();
-    const next = res.status === 404 && body.match(/use models\/([\w.-]+)/)?.[1];
-    if (next && next !== m && !exhausted.has(next)) {
-      log(`actuals: Gemini model ${m} is retired; using ${next}`);
-      modelInUse = next;
-      continue;
-    }
-    if (res.status === 429 || res.status === 404) {
-      exhausted.add(m);
-      if (modelInUse === m) modelInUse = null;
-      const left = order.find((x) => !exhausted.has(x));
-      if (left) {
-        log(`actuals: Gemini ${m}: ${explain(body)}; trying ${left}`);
-        continue;
-      }
-    }
-    throw new Error(`HTTP ${res.status}: ${explain(body)} (model ${m})`);
-  }
-  throw new Error('Gemini model lookup went round in circles');
-}
-
-async function askGemini(e, { apiKey, model }) {
-  const prompt = [
-    `Find the officially released ACTUAL value for the economic indicator "${e.title}" for currency ${e.currency},`,
-    `released at ${e.time} (UTC). The consensus forecast was ${e.forecastRaw}${e.previousRaw ? ` and the previous value was ${e.previousRaw}` : ''}.`,
-    'Reply with JSON only, no prose:',
-    '{"found": true|false, "actual_raw": "value in the same format as the forecast, e.g. 0.3% or 150K", "source_url": "url"}',
-    'If the value is not yet published or you are not sure, reply {"found": false}.',
-  ].join(' ');
-  const res = await callGemini(prompt, { apiKey, model });
-  const data = await res.json();
-  const cand = data.candidates?.[0];
-  const text = (cand?.content?.parts ?? []).map((p) => p.text ?? '').join('');
-  const json = text.match(/\{[\s\S]*\}/);
-  if (!json) return { found: false };
-  const ans = JSON.parse(json[0]);
-  if (!ans.source_url) ans.source_url = cand?.groundingMetadata?.groundingChunks?.[0]?.web?.uri ?? null;
-  return ans;
 }

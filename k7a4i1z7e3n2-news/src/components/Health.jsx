@@ -95,17 +95,14 @@ async function runChecks() {
         };
 
     const values = m.counts ? `${m.counts.withActual} of ${m.counts.released} released have a value` : '';
-    const g = r.actuals.gemini;
-    checks.actuals = !g
-      ? noReport
-      : g.skipped
-        ? { state: LOCAL ? 'off' : 'warn', detail: `Skipped: no GEMINI_API_KEY${LOCAL ? ' on this machine' : ''}. Only values the feed reveals are filled · ${values}` }
-        : g.error && !g.filled
-          ? { state: 'fail', detail: `Gemini (${g.model}) failed: ${g.error}` }
-          : {
-              state: g.tried && !g.filled ? 'warn' : 'ok',
-              detail: `${g.tried ? `Looked up ${g.tried}, filled ${g.filled}` : 'Nothing waiting to look up'} with ${g.model} · ${values}`,
-            };
+    const a = r.actuals;
+    const all = m.counts && m.counts.withActual >= m.counts.released;
+    checks.actuals = {
+      state: all ? 'ok' : 'warn',
+      detail: `${a.feed} filled from the feed and ${a.overrides} from the manual file this run · ${values}${
+        all ? '' : '. No released-values API is connected yet, so the rest wait for their next listing in the feed'
+      }`,
+    };
 
     const p = r.prices;
     checks.prices = !p
@@ -128,7 +125,7 @@ const TRIGGER = { schedule: 'the hourly schedule', workflow_dispatch: 'Refresh',
 // the checks, in the order the data flows
 const CHECKS = [
   { id: 'feed', title: 'Calendar feed', what: `ForexFactory, fetched by the last ${LOCAL ? 'local run of the job' : 'hourly job'}` },
-  { id: 'actuals', title: 'Released values', what: `Gemini web lookup, in the last ${LOCAL ? 'local run of the job' : 'hourly job'}` },
+  { id: 'actuals', title: 'Released values', what: `The feed's own "previous" figures and the manual file, in the last ${LOCAL ? 'local run of the job' : 'hourly job'}` },
   { id: 'prices', title: 'Prices', what: `Twelve Data, in the last ${LOCAL ? 'local run of the job' : 'hourly job'}` },
   { id: 'job', title: 'Hourly job', what: 'GitHub Actions, asked through /api/refresh' },
   { id: 'files', title: 'Published scores', what: LOCAL ? 'data/meta.json, your local copy' : 'data/meta.json on Vercel' },
@@ -138,8 +135,7 @@ const CHECKS = [
 
 // which checks light up each box in the diagram
 const NODE_CHECKS = {
-  ff: ['feed', 'live'],
-  gemini: ['actuals'],
+  ff: ['feed', 'live', 'actuals'],
   twelve: ['prices'],
   actions: ['job'],
   files: ['files', 'pair'],
@@ -209,8 +205,7 @@ export function DataFlow({ checks }) {
     <div className="flow" role="img" aria-label="Sources feed the hourly GitHub job, which publishes JSON to Vercel, which your browser reads">
       <div className="fl-col">
         <span className="fl-label">1 · Sources</span>
-        <Node id="ff" name="ForexFactory" sub="Weekly calendar feed" />
-        <Node id="gemini" name="Gemini" sub="Released values, by web lookup" />
+        <Node id="ff" name="ForexFactory" sub="Weekly calendar: times, forecasts, previous values" />
         <Node id="twelve" name="Twelve Data" sub="Hourly prices" />
       </div>
       <Arrow />

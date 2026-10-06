@@ -1,5 +1,4 @@
 import {
-  ACTUALS,
   CALENDAR_URLS,
   CURRENCIES,
   INSTRUMENTS,
@@ -123,9 +122,9 @@ export default function HowItWorks({ meta }) {
             <DataFlow checks={health.checks} />
             <ol className="steps">
               <li>
-                <b>Sources.</b> ForexFactory publishes the week's economic calendar as a JSON feed, with forecasts but no
-                released values. Gemini, with Google Search, looks up the released value of each release that counts once
-                it's out. Twelve Data supplies hourly prices. Each needs nothing from you; the two keys live in GitHub
+                <b>Sources.</b> ForexFactory publishes the week's economic calendar as a JSON feed: times, forecasts and
+                previous values. Released values come from the feed itself (each release's next listing carries it as
+                “previous”) or from a hand-edited file. Twelve Data supplies hourly prices; its key lives in GitHub
                 Secrets.
               </li>
               <li>
@@ -173,7 +172,7 @@ export default function HowItWorks({ meta }) {
               </li>
               <li>
                 <b>Released values.</b> Fill in the actual numbers for releases that have come out: from the calendar feed
-                itself, from an AI web lookup, or from a hand-edited file.
+                itself or from a hand-edited file.
               </li>
               <li>
                 <b>Prices.</b> Download hourly prices for {Object.keys(PRICE_LEGS).length} dollar pairs and{' '}
@@ -226,23 +225,6 @@ export default function HowItWorks({ meta }) {
                       <span className="muted small">This week is required; next week is optional (it appears late in the week).</span>
                     </td>
                     <td data-label="Limits">One week at a time, and no actual values, which is why step 2 exists.</td>
-                  </tr>
-                  <tr>
-                    <td data-label="Service">
-                      <b>Google Gemini API</b>
-                      <div className="muted small">
-                        <code>GEMINI_API_KEY</code>
-                      </div>
-                    </td>
-                    <td data-label="Used for">Looking up the actual released value of a release, with a source link.</td>
-                    <td data-label="How it's called">
-                      Model <code>{ACTUALS.geminiModel}</code> with Google Search grounding, asked to reply with JSON only: found
-                      or not, the value in the forecast's format, and the source URL.
-                    </td>
-                    <td data-label="Limits">
-                      Up to {ACTUALS.maxPerRun} lookups a run, {ACTUALS.delayMs / 1000} s apart, {ACTUALS.maxAttempts}{' '}
-                      attempts per release.
-                    </td>
                   </tr>
                   <tr>
                     <td data-label="Service">
@@ -316,19 +298,12 @@ export default function HowItWorks({ meta }) {
           {/* ------------------------------------------------------------------ */}
           <section id="actuals">
             <h2>2. Released values</h2>
-            <p>The calendar feed never contains actual values, so three sources fill them in, tried in this order each run:</p>
+            <p>The calendar feed never lists a release's own actual value, so two sources fill them in, tried in this order each run:</p>
             <ol className="steps">
               <li>
                 <b>The feed's own “previous” figure.</b> When an indicator's next release appears on the calendar, its
                 “previous” value is the official (possibly revised) result of the last one. It's used once the release is at
-                least an hour old and the units match. Being the official figure, it replaces a value found by the AI
-                lookup.
-              </li>
-              <li>
-                <b>AI web lookup (Gemini).</b> For releases that matter and still have no value: High and Medium impact
-                releases, plus anything a commodity or index counts on its own (weekly US crude inventories, China's PMIs).
-                Tried from {ACTUALS.minutesAfterRelease} minutes after the release until {ACTUALS.lookbackDays} days after
-                it, High impact and newest first.
+                least an hour old and the units match.
               </li>
               <li>
                 <b>Manual file.</b> <code>data/actuals_overrides.csv</code>, with columns{' '}
@@ -336,15 +311,9 @@ export default function HowItWorks({ meta }) {
                 corrected by hand.
               </li>
             </ol>
-            <p>Every AI answer must pass a plausibility check before it's accepted:</p>
-            <F>
-              same unit as the forecast (%, K, M, B…)
-              <br />
-              and |value − forecast| ≤ 10 × max(|forecast|, |previous|) + 1
-            </F>
             <p>
-              The check rejects answers that are clearly a different number (the wrong month, a level instead of a change),
-              not ones that are merely surprising. A release still waiting for its value keeps its expected change for up to{' '}
+              Monthly figures therefore arrive about a month late, when the next release is listed, and weekly ones a week
+              late. A release still waiting for its value keeps its expected change for up to{' '}
               {MODEL.provisionalDays} days and is marked “expected” in the tables.
             </p>
           </section>
@@ -977,11 +946,6 @@ export default function HowItWorks({ meta }) {
                       'Range',
                       `${MODEL.band.base} + up to ${MODEL.band.cap}`,
                       `Base half-width plus risk bumps of ${MODEL.band.perWeight} × weight, ${MODEL.band.widthHours} h wide.`,
-                    ],
-                    [
-                      'AI lookups',
-                      `${ACTUALS.maxPerRun} a run`,
-                      `From ${ACTUALS.minutesAfterRelease} min to ${ACTUALS.lookbackDays} days after a release, ${ACTUALS.maxAttempts} tries each.`,
                     ],
                     ['Stored releases', `${RETENTION.eventsDays} days`, 'Release history kept for learning surprise sizes.'],
                     ['Stored prices', `${RETENTION.pricesDays} days`, 'Hourly price history kept.'],

@@ -83,7 +83,7 @@ test('calendar merge keeps actuals and drops rescheduled events', () => {
   ]);
   assert.equal(fresh.length, 1, 'non-tracked currencies are dropped');
   assert.equal(fresh[0].time, '2026-09-30T01:30:00.000Z', 'times are stored in UTC');
-  const store = { [fresh[0].id]: { ...fresh[0], actual: 4.3, actualRaw: '4.3%', actualSource: 'gemini' }, ghost: { ...fresh[0], id: 'ghost', actual: null } };
+  const store = { [fresh[0].id]: { ...fresh[0], actual: 4.3, actualRaw: '4.3%', actualSource: 'manual' }, ghost: { ...fresh[0], id: 'ghost', actual: null } };
   mergeCalendar(store, fresh, now);
   assert.equal(store[fresh[0].id].actual, 4.3);
   assert.equal(store.ghost, undefined);

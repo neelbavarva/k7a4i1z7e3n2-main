@@ -51,8 +51,6 @@ jobs:
       - name: Run the data pipeline
         env:
           TWELVE_DATA_KEY: ${{ secrets.TWELVE_DATA_KEY }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
         run: npm run pipeline
 
       - name: Save pipeline state (data/) back to the repo

@@ -12,7 +12,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "pipeline": "node pipeline/run.js",
-    "pipeline:offline": "node pipeline/run.js --fixture --skip-ai --skip-prices",
+    "pipeline:offline": "node pipeline/run.js --fixture --skip-prices",
     "demo": "node pipeline/demo.js",
     "test": "node --test \"pipeline/test/*.test.js\""
   },

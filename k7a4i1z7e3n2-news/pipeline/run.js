@@ -4,18 +4,14 @@
 //   node pipeline/run.js                 live run (what GitHub Actions does)
 //   node pipeline/run.js --fixture       use the saved sample calendar, no network for it
 //   node pipeline/run.js --skip-prices   don't call Twelve Data
-//   node pipeline/run.js --skip-ai       don't call Gemini
 //
-// Environment: TWELVE_DATA_KEY, GEMINI_API_KEY, GEMINI_MODEL (all optional; steps
-// without a key are skipped and the site still updates).
+// Environment: TWELVE_DATA_KEY (optional; without it prices are skipped and the site still updates).
 
 import { join } from 'node:path';
 import { fetchCalendar, normalise, mergeCalendar } from './sources/calendar.js';
-import { fillFromFeedPrevious, applyOverrides, fillFromGemini } from './sources/actuals.js';
+import { fillFromFeedPrevious, applyOverrides } from './sources/actuals.js';
 import { syncPrices, loadLegs, makePriceSource } from './sources/prices.js';
 import { writeOutputs } from './lib/output.js';
-import { effectOf } from './lib/score.js';
-import { INSTRUMENTS } from './config.js';
 import { DATA_DIR, ROOT, readJson, writeJson, readText, log } from './lib/store.js';
 
 const args = new Set(process.argv.slice(2));
@@ -29,7 +25,7 @@ async function main() {
   const report = {
     trigger: process.env.GITHUB_EVENT_NAME || 'local',
     calendar: { files: [], added: 0, updated: 0, removed: 0, error: null },
-    actuals: { feed: 0, gemini: null, overrides: 0 },
+    actuals: { feed: 0, overrides: 0 },
     prices: null,
   };
 
@@ -46,22 +42,9 @@ async function main() {
     log(`calendar: ${err.message}; continuing with ${Object.keys(events).length} stored events`);
   }
 
-  // 2. Actual values: feed "previous" -> Gemini -> manual CSV (manual always wins)
+  // 2. Actual values: feed "previous" -> manual CSV (manual always wins)
   report.actuals.feed = fillFromFeedPrevious(events, nowMs);
   log(`actuals: ${report.actuals.feed} filled from the feed`);
-  // releases that only matter to a commodity or index (e.g. crude inventories) still get looked up
-  const isDriver = (e) => INSTRUMENTS.some((p) => effectOf(p, e)?.override);
-
-  const geminiKey = process.env.GEMINI_API_KEY;
-  if (geminiKey && !args.has('--skip-ai')) {
-    const r = await fillFromGemini(events, nowMs, { apiKey: geminiKey, model: process.env.GEMINI_MODEL || undefined, isDriver });
-    log(`actuals: Gemini filled ${r.filled}/${r.tried}`);
-    report.actuals.gemini = r;
-    sources.actuals.push('gemini');
-  } else {
-    log('actuals: Gemini skipped (no GEMINI_API_KEY)');
-    report.actuals.gemini = { skipped: 'no GEMINI_API_KEY' };
-  }
   const overrides = await readText(join(DATA_DIR, 'actuals_overrides.csv'));
   report.actuals.overrides = applyOverrides(events, overrides);
   log(`actuals: ${report.actuals.overrides} manual overrides applied`);

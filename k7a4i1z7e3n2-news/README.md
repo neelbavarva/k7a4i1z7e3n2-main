@@ -12,7 +12,7 @@ GitHub Actions (hourly)                         Vercel
 │ pipeline/run.js                      │        │ React + Vite site     │
 │  1. ForexFactory calendar ──┐        │  build │ reads public/data/*.  │
 │  2. actual values           ├─ data/ ├───────▶│ json only; no keys,   │
-│     (feed, Gemini, CSV)     │ (state)│        │ no API calls          │
+│     (feed, CSV)             │ (state)│        │ no API calls          │
 │  3. Twelve Data prices ─────┘        │        └───────────────────────┘
 │  4. score → public/data/*.json       │
 └──────────────────────────────────────┘
@@ -43,10 +43,10 @@ Other commands:
 To run the real pipeline locally with keys:
 
 ```bash
-TWELVE_DATA_KEY=xxx GEMINI_API_KEY=yyy npm run pipeline
+TWELVE_DATA_KEY=xxx npm run pipeline
 ```
 
-Both keys are optional. Without them, prices and AI lookups are skipped and everything else still works.
+The key is optional. Without it, prices are skipped and everything else still works.
 
 ## Deploy (Vercel, updated hourly by GitHub Actions)
 
@@ -58,8 +58,6 @@ The hourly job is `.github/workflows/news-update.yml` at the **root of the monor
    - `VERCEL_ORG_ID`: `orgId` from `.vercel/project.json`
    - `VERCEL_NEWS_PROJECT_ID`: `projectId` from `.vercel/project.json`
    - `TWELVE_DATA_KEY` (optional): free key from twelvedata.com (prices for the lower chart). 14 series are downloaded an hour (336 credits a day, inside the free 800): the 7 USD pairs, from which every FX cross is calculated (EUR/GBP = EUR/USD ÷ GBP/USD), plus one symbol per instrument. Indices use their tracking funds (SPY, QQQ, DIA). Silver, copper and oil try spot first (XAG/USD, XCU/USD, WTI/USD) and fall back to SLV, CPER and USO if your plan doesn't include spot; `data/prices/sources.json` records which one is used.
-   - `GEMINI_API_KEY` (recommended): key from Google AI Studio; looks up released values (the calendar feed has none). The key's Google project needs quota for the model (a free plan may have none: turn on billing, or set `GEMINI_MODEL` to a model your plan covers)
-   - Optional variable `GEMINI_MODEL` if you want a model other than `gemini-3.8-flash` (if Google retires a model, the job switches to the replacement its error names)
 3. **Make Refresh collect new data:** create a fine-grained GitHub token (github.com/settings/personal-access-tokens) for this repository only, with **Actions: Read and write**, and add it to the Vercel project as `GITHUB_DISPATCH_TOKEN` (from this folder: `vercel env add GITHUB_DISPATCH_TOKEN production`, then redeploy, or let the next hourly run do it). Optional overrides: `NEWS_REPO`, `NEWS_WORKFLOW`, `NEWS_REF`.
 4. **Actions → News - update data and deploy → Run workflow** for the first run. After that it runs every hour at :07, and on every push that touches this folder.
 
@@ -81,7 +79,7 @@ The hourly job is `.github/workflows/news-update.yml` at the **root of the monor
 | Nasdaq 100 | NAS100 | Fed rates (−1.5), US inflation (−1.3), US growth (+0.8), US jobs (+0.3) |
 | Dow Jones | US30 | Fed rates (−0.9), US inflation (−0.8), US growth (+1.2), US jobs (+0.6) |
 
-Releases are sorted into growth, labour, inflation and rates by title (`categoryOf` in `pipeline/lib/score.js`). A `weight` on a rule lets a Low-impact calendar item count, such as weekly crude inventories or China's PMIs, and those also get Gemini lookups for their actual values. China (CNY) calendar events are kept for these profiles only; FX pairs ignore them. To add a market, add an entry to `INSTRUMENTS` with its drivers and price symbols; the site picks it up automatically.
+Releases are sorted into growth, labour, inflation and rates by title (`categoryOf` in `pipeline/lib/score.js`). A `weight` on a rule lets a Low-impact calendar item count, such as weekly crude inventories or China's PMIs, and those are waited on for their actual values like High and Medium releases. China (CNY) calendar events are kept for these profiles only; FX pairs ignore them. To add a market, add an entry to `INSTRUMENTS` with its drivers and price symbols; the site picks it up automatically.
 
 The home page (`#/all`) groups every pair into bullish, balanced and bearish, with a currency filter. Each pair has its own page at `#/EURGBP`, `#/XAUUSD` and so on.
 
@@ -138,7 +136,7 @@ All tunables live in `pipeline/config.js`.
 
 ## Where actual values come from
 
-The ForexFactory feed has forecasts and previous values but **no actual values**. The pipeline fills them from three sources, in priority order:
+The ForexFactory feed has forecasts and previous values but **no actual values**. The pipeline fills them from two sources, in priority order (a paid released-values API is planned as a third):
 
 1. **Manual:** `data/actuals_overrides.csv`, edited directly on GitHub. Always wins.
    ```csv
@@ -147,9 +145,6 @@ The ForexFactory feed has forecasts and previous values but **no actual values**
    ```
    `date` is the release date in UTC, and `title` must match the calendar exactly.
 2. **Feed:** for recurring indicators, the next listing's "previous" figure is the official value. This is free and automatic, but only arrives when the next release appears in the feed (next week for weekly data, the release week for monthly data).
-3. **Gemini:** 20+ minutes after each Medium/High release, Gemini with Google Search grounding is asked for the value. An answer is accepted only if it has the same unit as the forecast and a plausible size. The source link shows in the "Recent surprises" table. At most 10 lookups and 3 attempts per event per run.
-
-Spot-check AI-filled values now and then. A wrong High-impact actual moves the score for days.
 
 ## Project layout
 

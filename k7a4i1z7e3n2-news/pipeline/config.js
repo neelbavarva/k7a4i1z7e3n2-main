@@ -168,12 +168,6 @@ export const RETENTION = {
 };
 
 export const ACTUALS = {
-  geminiModel: 'gemini-3.8-flash', // override with the GEMINI_MODEL environment variable
-  minutesAfterRelease: 20,
-  maxAttempts: 3,
-  maxPerRun: 10,
-  lookbackDays: 7,
-  delayMs: 5000,
-  // tried in turn when a model has no quota left on the key (a free plan may not include the newest)
-  geminiFallbacks: ['gemini-flash-latest', 'gemini-flash-lite-latest'],
+  minutesAfterRelease: 20, // a release counts as waiting for its value this long after it's out…
+  lookbackDays: 7, // …until this long after
 };
