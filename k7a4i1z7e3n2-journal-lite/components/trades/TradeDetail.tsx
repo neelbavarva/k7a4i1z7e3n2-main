@@ -10,6 +10,7 @@ import { riskError, TEXT_MAX } from '@/lib/validate';
 import type { Trade, TradeImage } from '@/lib/types';
 import { useJournal } from '../JournalContext';
 import { useToast } from '../ui/Toast';
+import Notes from '../ui/Notes';
 import Modal from '../ui/Modal';
 import MarketIcon, { PairText } from '../ui/MarketIcon';
 import { Marks, PaceSeg, PaceTag, TypeTag } from './bits';
@@ -320,13 +321,13 @@ function Body({
           <h3>Notes</h3>
           <span>Thesis and review</span>
         </div>
-        <textarea
-          className="textarea"
+        <Notes
           value={notes}
-          onChange={(e) => setNotes(e.target.value)}
+          onChange={setNotes}
           placeholder="What happened, what you’d repeat, what you wouldn’t"
-          maxLength={TEXT_MAX}
-          aria-label="Notes"
+          prompts={['What happened', 'Repeat', 'Avoid']}
+          max={TEXT_MAX}
+          label="Notes"
           disabled={busy}
         />
         {notes.trim() !== (t.description || '') && (

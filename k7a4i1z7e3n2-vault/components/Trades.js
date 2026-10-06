@@ -12,6 +12,7 @@ import { Breakdown, Performance } from "./StrategyAnalysis";
 import ChartViewer from "./k7/ChartViewer";
 import MarketIcon, { splitPair } from "./k7/MarketIcon";
 import Modal from "./k7/Modal";
+import Notes from "./k7/Notes";
 import PairPicker from "./k7/PairPicker";
 import SessionBar from "./k7/SessionBar";
 import Seg from "./k7/Seg";
@@ -538,11 +539,13 @@ function TradeDetail({ trade, onClose, onUpdated }) {
                         <fieldset className="bare form" disabled={submitting}>
                             <div className="field">
                                 <label htmlFor="ct-pnl">Result (USD)</label>
-                                <div className="input-affix">
-                                    <span aria-hidden="true">$</span>
+                                <div className="pf">
+                                    <span className="pf-affix" aria-hidden="true">
+                                        $
+                                    </span>
                                     <input
                                         id="ct-pnl"
-                                        className="input num-tab"
+                                        className="pf-input"
                                         inputMode="decimal"
                                         value={form.totalPnL}
                                         onChange={set("totalPnL")}
@@ -565,7 +568,7 @@ function TradeDetail({ trade, onClose, onUpdated }) {
                             </div>
                             <div className="field">
                                 <label htmlFor="ct-desc">Notes</label>
-                                <textarea id="ct-desc" className="textarea" value={form.description} onChange={set("description")} placeholder="What happened, what you'd repeat, what you wouldn't" />
+                                <Notes id="ct-desc" value={form.description} onChange={(v) => setForm((f) => ({ ...f, description: v }))} placeholder="What happened, what you'd repeat, what you wouldn't" prompts={["What happened", "Repeat", "Avoid"]} />
                             </div>
                         </fieldset>
                         <button type="submit" className={`btn btn-primary btn-block${submitting ? " is-busy" : ""}`} disabled={!pnlValid || submitting}>

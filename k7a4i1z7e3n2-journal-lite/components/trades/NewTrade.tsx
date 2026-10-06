@@ -1,7 +1,7 @@
 'use client';
 
 import { useLayoutEffect, useMemo, useState } from 'react';
-import { ChevronDown, Clock, History, Lock } from 'lucide-react';
+import { ChevronDown, Clock, History, Lock, Search } from 'lucide-react';
 import { createTrade, friendly, updateTrade } from '@/lib/api';
 import { dayKey, fmtDay, fmtTime, forexDay, localStamp, parseDay } from '@/lib/journal';
 import { FUND_HINT, fundPatch } from '@/lib/fundamentals';
@@ -20,6 +20,7 @@ import Seg from '../ui/Seg';
 import MarketIcon from '../ui/MarketIcon';
 import PairPicker from '../ui/PairPicker';
 import DateTimePicker from '../ui/DateTimePicker';
+import Notes from '../ui/Notes';
 import Dropzone from './Dropzone';
 import { PaceSeg } from './bits';
 
@@ -189,10 +190,11 @@ export default function NewTrade({ open, onClose }: { open: boolean; onClose: ()
                 aria-invalid={!!show('pair')}
                 data-autofocus
               >
-                {pair && <MarketIcon symbol={pair} size={18} />}
+                {pair ? <MarketIcon symbol={pair} size={18} /> : <Search className="pair-field-icon" aria-hidden="true" />}
                 <span id="nt-pair-value" className={`pair-field-text${pair ? '' : ' muted'}`}>
                   {pair || 'Choose a pair'}
                 </span>
+                {!pair && <span className="pair-field-hint">Type to search</span>}
                 <ChevronDown className="chev" aria-hidden="true" />
               </button>
               {show('pair') && <span className="form-error">{errors.pair}</span>}
@@ -204,27 +206,34 @@ export default function NewTrade({ open, onClose }: { open: boolean; onClose: ()
               Risk ratio
             </label>
             <div className="tk-field">
-              <div className="tk-inline">
-                <div className="input-affix tk-risk">
-                  <span aria-hidden="true">1 :</span>
-                  <input
-                    id="nt-risk"
-                    className="input num-tab"
-                    inputMode="decimal"
-                    value={risk}
-                    onChange={(e) => setRisk(e.target.value.replace(',', '.'))}
-                    placeholder="2.5"
-                    autoComplete="off"
-                    aria-invalid={!!show('risk')}
-                  />
-                </div>
-                <Seg
-                  label="Common risk ratios"
-                  className="r-seg"
-                  value={(R_PRESETS.find((v) => Number(v) === Number(risk)) ?? '') as string}
-                  onChange={setRisk}
-                  options={R_PRESETS.map((v) => ({ value: v, label: `1:${v}` }))}
+              <div className={`pf${show('risk') ? ' is-invalid' : ''}`}>
+                <span className="pf-affix" aria-hidden="true">
+                  1 :
+                </span>
+                <input
+                  id="nt-risk"
+                  className="pf-input"
+                  inputMode="decimal"
+                  value={risk}
+                  onChange={(e) => setRisk(e.target.value.replace(',', '.'))}
+                  placeholder="2.5"
+                  autoComplete="off"
+                  aria-invalid={!!show('risk')}
                 />
+                <div className="pf-picks" role="group" aria-label="Common risk ratios">
+                  {R_PRESETS.map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      aria-pressed={Number(v) === Number(risk)}
+                      aria-label={`1:${v}`}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => setRisk(v)}
+                    >
+                      {v}
+                    </button>
+                  ))}
+                </div>
               </div>
               {show('risk') ? <span className="form-error">{errors.risk}</span> : <span className="field-hint">A win pays this many R; a loss costs 1R.</span>}
             </div>
@@ -266,13 +275,13 @@ export default function NewTrade({ open, onClose }: { open: boolean; onClose: ()
               Notes
             </label>
             <div className="tk-field">
-              <textarea
+              <Notes
                 id="nt-notes"
-                className="textarea"
                 value={notes}
-                onChange={(e) => setNotes(e.target.value)}
+                onChange={setNotes}
                 placeholder="The setup, why you took it, where the stop and target sit"
-                maxLength={TEXT_MAX}
+                prompts={['Setup', 'Why', 'Stop', 'Target']}
+                max={TEXT_MAX}
               />
               {show('notes') && <span className="form-error">{errors.notes}</span>}
             </div>

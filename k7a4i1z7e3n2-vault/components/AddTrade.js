@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ExternalLink, Link2 } from "lucide-react";
+import { ChevronDown, ExternalLink, Link2, Search } from "lucide-react";
 import { toast } from "sonner";
 import { http } from "@/lib/http";
 import { TRADE_TYPES, grade } from "@/lib/format";
@@ -10,6 +10,7 @@ import TradeSymbols from "./TradeSymbols";
 import DatePicker from "./k7/DatePicker";
 import MarketIcon from "./k7/MarketIcon";
 import Modal from "./k7/Modal";
+import Notes from "./k7/Notes";
 import PairPicker from "./k7/PairPicker";
 import Seg from "./k7/Seg";
 
@@ -345,7 +346,7 @@ function TradeForm({ strategy, secondaryStrategy, onSaving, onDone }) {
                             onClick={() => setPickerOpen(true)}
                             aria-labelledby="nt-pair-label nt-pair-value"
                         >
-                            {tradeSymbol ? <MarketIcon symbol={tradeSymbol} size={18} /> : null}
+                            {tradeSymbol ? <MarketIcon symbol={tradeSymbol} size={18} /> : <Search className="pair-field-icon" aria-hidden="true" />}
                             <span id="nt-pair-value" className={`pair-field-text${tradeSymbol ? "" : " muted"}`}>
                                 {tradeSymbol || "Choose a pair"}
                             </span>
@@ -382,54 +383,54 @@ function TradeForm({ strategy, secondaryStrategy, onSaving, onDone }) {
                         </span>
                     </Row>
                     <Row label="Risk : reward" htmlFor="nt-rr">
-                        <div className="tk-inline">
-                            <div className="input-affix is-wide tk-rr">
-                                <span aria-hidden="true">1 :</span>
-                                <input
-                                    id="nt-rr"
-                                    className={`input num-tab${tried && !(rr > 0) ? " is-invalid" : ""}`}
-                                    inputMode="decimal"
-                                    value={riskRewardRatio}
-                                    // the "1 :" is already there, so a pasted "1:2.5" keeps just the 2.5
-                                    onChange={(e) => setRiskRewardRatio(e.target.value.replace(/^\s*1\s*:\s*/, ""))}
-                                    placeholder="2.5"
-                                    autoComplete="off"
-                                />
-                            </div>
-                            <Seg
-                                label="Common ratios"
-                                className="rr-seg"
-                                value={RR_PRESETS.find((v) => Number(v) === rr) ?? ""}
-                                onChange={setRiskRewardRatio}
-                                options={RR_PRESETS.map((v) => ({ value: v, label: `1:${v}` }))}
+                        <div className={`pf${tried && !(rr > 0) ? " is-invalid" : ""}`}>
+                            <span className="pf-affix" aria-hidden="true">
+                                1 :
+                            </span>
+                            <input
+                                id="nt-rr"
+                                className="pf-input"
+                                inputMode="decimal"
+                                value={riskRewardRatio}
+                                // the "1 :" is already there, so a pasted "1:2.5" keeps just the 2.5
+                                onChange={(e) => setRiskRewardRatio(e.target.value.replace(/^\s*1\s*:\s*/, ""))}
+                                placeholder="2.5"
+                                autoComplete="off"
                             />
+                            <div className="pf-picks" role="group" aria-label="Common ratios">
+                                {RR_PRESETS.map((v) => (
+                                    <button key={v} type="button" aria-pressed={Number(v) === rr} aria-label={`1:${v}`} onMouseDown={(e) => e.preventDefault()} onClick={() => setRiskRewardRatio(v)}>
+                                        {v}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     </Row>
                     {closed && (
                         <Row label="Result" htmlFor="nt-pnl" className="fade-in">
-                            <div className={`pnl-field${sign > 0 ? " is-win" : sign < 0 ? " is-loss" : ""}`}>
-                                <div className="input-affix">
-                                    <span aria-hidden="true">$</span>
-                                    <input
-                                        id="nt-pnl"
-                                        className={`input num-tab${tried && missing.includes("result") ? " is-invalid" : ""}`}
-                                        inputMode="decimal"
-                                        value={totalPnL}
-                                        onChange={(e) => setTotalPnL(e.target.value)}
-                                        placeholder="0.00"
-                                        autoComplete="off"
-                                    />
-                                </div>
-                                <Seg
-                                    label="Win or loss"
-                                    className="pnl-seg"
-                                    value={sign > 0 ? "win" : sign < 0 ? "loss" : ""}
-                                    onChange={setSign}
-                                    options={[
-                                        { value: "win", label: "Win" },
-                                        { value: "loss", label: "Loss" },
-                                    ]}
+                            <div className={`pf pnl-field${sign > 0 ? " is-win" : sign < 0 ? " is-loss" : ""}${tried && missing.includes("result") ? " is-invalid" : ""}`}>
+                                <span className="pf-affix" aria-hidden="true">
+                                    $
+                                </span>
+                                <input
+                                    id="nt-pnl"
+                                    className="pf-input"
+                                    inputMode="decimal"
+                                    value={totalPnL}
+                                    onChange={(e) => setTotalPnL(e.target.value)}
+                                    placeholder="0.00"
+                                    autoComplete="off"
                                 />
+                                <div className="pf-picks pnl-picks" role="group" aria-label="Win or loss">
+                                    {[
+                                        { value: "win", label: "Win", on: sign > 0 },
+                                        { value: "loss", label: "Loss", on: sign < 0 },
+                                    ].map((o) => (
+                                        <button key={o.value} type="button" aria-pressed={o.on} onMouseDown={(e) => e.preventDefault()} onClick={() => setSign(o.value)}>
+                                            {o.label}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                             <span className="field-hint">
                                 {Number.isFinite(pnl) && totalPnL.trim() && totalPnL.trim() !== "-"
@@ -479,7 +480,7 @@ function TradeForm({ strategy, secondaryStrategy, onSaving, onDone }) {
                         </Row>
                     )}
                     <Row label="Notes" htmlFor="nt-desc">
-                        <textarea id="nt-desc" className="textarea" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Why you took it" />
+                        <Notes id="nt-desc" value={description} onChange={setDescription} placeholder="Why you took it" prompts={["Setup", "Why", "Stop", "Target"]} />
                     </Row>
                 </div>
             </fieldset>
