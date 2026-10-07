@@ -42,3 +42,23 @@ No order routes: Kite only accepts API orders from a registered static IP.
 | `KITE_API_SECRET` | The app's API secret |
 | `KITE_USER_ID` | Your Zerodha client ID. Only this account can connect. |
 | `VAULT_URLS` | Optional. Comma-separated vault origins to return to. Defaults to `https://k7a4i1z7e3n2-vault.vercel.app`. Any `http://localhost` port is always allowed. |
+
+## Net worth (`/worth`, `/groww`, `/mt5`)
+
+The vault's **Trades → Net worth** page adds these up with Zerodha. All need the key and the vault session.
+
+| Route | What it does |
+|---|---|
+| `GET /worth/fx` | US dollar in rupees (ECB rate via Frankfurter, cached an hour). |
+| `GET, POST /worth/manual`, `PUT, DELETE /worth/manual/:id` | Entries typed in by hand: bank balances, deposits, cash, loans. |
+| `GET /groww/status`, `GET /groww/account` | Groww holdings (valued with delayed Yahoo Finance prices; Groww's free API has none), positions and funds. |
+| `GET /mt5/accounts` | Each MT5 account's balance, equity, margin and open positions, through MetaApi. |
+
+| Variable | Value |
+|---|---|
+| `GROWW_API_KEY`, `GROWW_API_SECRET` | From Groww Cloud. Approve the key there once a day; the first read after that gets the day's token. |
+| `METAAPI_TOKEN` | A MetaApi API token. |
+| `METAAPI_ACCOUNTS` | `Label:accountId` pairs, comma separated, e.g. `Exness:abc,FundingPips:def`. Funded prop accounts (FundingPips, or any pair ending `:prop`) are shown but not counted. |
+| `METAAPI_REGION` | The accounts' MetaApi region, e.g. `london` or `new-york` (default). |
+
+Add each MT5 account to MetaApi with its investor (read-only) password.

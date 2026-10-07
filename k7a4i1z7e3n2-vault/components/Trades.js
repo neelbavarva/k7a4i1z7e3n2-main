@@ -18,7 +18,7 @@ import SessionBar from "./k7/SessionBar";
 import Seg from "./k7/Seg";
 import { GradeChip, TfTag, TypeTag } from "./k7/TradeTags";
 import { useKey } from "./k7/hooks";
-import Zerodha from "./Zerodha";
+import NetWorth from "./NetWorth";
 import { hasHandoff } from "@/lib/kite";
 
 const TF_OPTIONS = [
@@ -29,16 +29,17 @@ const TF_OPTIONS = [
 
 const VIEWS = [
     { value: "journal", label: "Journal" },
-    { value: "zerodha", label: "Zerodha" },
+    { value: "worth", label: "Net worth" },
 ];
 
-/** Journal or Zerodha: remembered, except that coming back from the Kite login opens Zerodha. */
+/** Journal or net worth: remembered, except that coming back from the Kite login opens net worth. */
 function useTradesView() {
     const [view, setView] = useState(() => {
         if (typeof window === "undefined") return "journal";
-        if (hasHandoff()) return "zerodha";
+        if (hasHandoff()) return "worth";
         try {
-            return localStorage.getItem("tradesView") === "zerodha" ? "zerodha" : "journal";
+            const saved = localStorage.getItem("tradesView");
+            return saved === "worth" || saved === "zerodha" ? "worth" : "journal";
         } catch {
             return "journal";
         }
@@ -130,7 +131,7 @@ export default function Trades({ refreshKey = 0, onNew }) {
         <>
             <section className="overview">
                 <div className="overview-row">
-                    <h1 className="overview-title">{view === "zerodha" ? "Zerodha" : "Trade journal"}</h1>
+                    <h1 className="overview-title">{view === "worth" ? "Net worth" : "Trade journal"}</h1>
                     <div className="overview-actions">
                         <Seg className="trade-view" label="Trades view" options={VIEWS} value={view} onChange={setView} />
                         {view === "journal" && (
@@ -144,8 +145,8 @@ export default function Trades({ refreshKey = 0, onNew }) {
                 <hr className="rule" />
             </section>
 
-            {view === "zerodha" ? (
-                <Zerodha />
+            {view === "worth" ? (
+                <NetWorth />
             ) : (
                 <>
                     <SessionBar />

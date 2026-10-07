@@ -35,7 +35,8 @@ import { useCountUp } from "./k7/hooks";
 
 const SHOWS = ["Funds", "Positions", "Orders", "Charges", "Holdings", "Mutual funds", "GTT", "Alerts"];
 
-export default function Zerodha() {
+/** The Zerodha connection: the login hand-off, this device's session and the account it reads. */
+export function useZerodha() {
     const [phase, setPhase] = useState("loading"); // loading | unset | offline | connect | ready
     const [session, setSession] = useState(null); // { session, expiresAt, userName } or { demo: true }
     const [account, setAccount] = useState(null);
@@ -116,8 +117,21 @@ export default function Zerodha() {
         setBusy(false);
     };
 
+    /** Leaves the sample data for whatever was there before: a saved session, or the connect card. */
+    const exitPreview = useCallback(async () => {
+        setAccount(null);
+        const saved = loadSession();
+        if (saved) {
+            setSession(saved);
+            await load(saved);
+            return;
+        }
+        setSession(null);
+        await check();
+    }, [load, check]);
+
     const disconnect = async () => {
-        if (session?.demo) return toConnect();
+        if (session?.demo) return exitPreview();
         setBusy(true);
         try {
             await kitePost("/kite/logout", session.session);
@@ -135,6 +149,12 @@ export default function Zerodha() {
         load(s);
     };
 
+    return { phase, session, account, busy, refresh, disconnect, preview, exitPreview, check };
+}
+
+/** The Zerodha account in full, from useZerodha(). `onPreview` lets the page preview everything at once. */
+export default function Zerodha({ z, onPreview }) {
+    const { phase, session, account, busy, refresh, disconnect, preview, check } = z;
     if (phase === "loading") {
         return (
             <div className="skeleton" aria-busy="true" aria-label="Loading Zerodha">
@@ -144,12 +164,11 @@ export default function Zerodha() {
             </div>
         );
     }
-    if (phase !== "ready" || !account) return <Connect phase={phase} onPreview={preview} onRetry={check} />;
+    if (phase !== "ready" || !account) return <Connect phase={phase} onPreview={onPreview || preview} onRetry={check} />;
 
     return <Account account={account} session={session} busy={busy} onRefresh={refresh} onDisconnect={disconnect} />;
 }
 
-/** Before there's an account to show: connect, or what's missing on the server. */
 function Connect({ phase, onPreview, onRetry }) {
     const unset = phase === "unset";
     const offline = phase === "offline";
@@ -204,7 +223,7 @@ function ZerodhaMark() {
     );
 }
 
-function Rupees({ value, sign }) {
+export function Rupees({ value, sign }) {
     const v = useCountUp(value);
     return <>{inr(Math.round(v * 100) / 100, { sign })}</>;
 }
@@ -1006,7 +1025,7 @@ function Chart({ candles, intraday }) {
  * phone the `hide` columns drop out and `colsSm` takes over. The first `left` columns read
  * left to right, the rest line up on the right.
  */
-function Table({ label, cols, colsSm, hide = [], left = 1, head, rows, rowKey, render }) {
+export function Table({ label, cols, colsSm, hide = [], left = 1, head, rows, rowKey, render }) {
     const cls = (i) => `kt-cell${i >= left ? " kt-r" : ""}${hide.includes(i) ? " kt-hide-sm" : ""}`;
     return (
         <div className="rows-card kt-table" style={{ "--cols": cols, "--cols-sm": colsSm || cols }} role="table" aria-label={label}>
@@ -1032,7 +1051,7 @@ function Table({ label, cols, colsSm, hide = [], left = 1, head, rows, rowKey, r
     );
 }
 
-function Sym({ title, sub }) {
+export function Sym({ title, sub }) {
     return (
         <span className="kt-sym">
             <span className="row-title">{title}</span>
@@ -1041,7 +1060,7 @@ function Sym({ title, sub }) {
     );
 }
 
-function SideTag({ side }) {
+export function SideTag({ side }) {
     const buy = String(side).toUpperCase() === "BUY";
     return <span className={`kt-chip ${buy ? "buy" : "sell"}`}>{buy ? "Buy" : "Sell"}</span>;
 }
@@ -1056,7 +1075,7 @@ function State({ order }) {
     );
 }
 
-function Chip({ tone, title, children }) {
+export function Chip({ tone, title, children }) {
     return (
         <span className={`kt-chip ${tone}`} title={title}>
             {children}

@@ -5901,6 +5901,265 @@ fieldset.bare:disabled {
   }
 }
 
+/* ---------- Net worth (components/NetWorth.js) ---------- */
+
+.nw {
+  --cat-stocks: var(--bull);
+  --cat-funds: var(--ok);
+  --cat-cash: #7a6fd0;
+  --cat-forex: var(--medium);
+  --cat-bank: #2f8f8a;
+  --cat-other: var(--muted);
+  --cat-loans: var(--bear);
+}
+.nw > .kt-bar {
+  margin-bottom: 0;
+}
+.nw-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  margin-top: 22px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.nw-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 20px 22px 16px;
+}
+.nw-num {
+  margin-top: 6px;
+  font-family: var(--serif);
+  font-size: clamp(38px, 5vw, 54px);
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.nw-split {
+  display: flex;
+  gap: 2px;
+  height: 10px;
+  margin-top: 18px;
+  border-radius: 99px;
+  overflow: hidden;
+}
+.nw-split span {
+  flex-basis: 0;
+  min-width: 4px;
+}
+.nw-foot {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.nw-foot .linkish {
+  font-size: 12px;
+}
+.nw-cats {
+  display: grid;
+  align-content: start;
+  margin: 0;
+  padding: 10px 0;
+  list-style: none;
+  border-left: 1px solid var(--grid);
+}
+.nw-cat {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto 3.4rem;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 20px;
+  font-size: 13px;
+}
+.nw-cat + .nw-cat {
+  border-top: 1px solid var(--grid);
+}
+.nw-cat i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+.nw-cat span {
+  color: var(--ink2);
+}
+.nw-cat b {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.nw-cat small {
+  font-size: 11.5px;
+  color: var(--muted);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.nw-cat-empty {
+  padding: 18px 20px;
+  font-size: 13px;
+  color: var(--muted);
+}
+/* each kind: a flat tint of its colour, the same in the bar and the key */
+.cat-stocks { --cc: var(--cat-stocks); }
+.cat-funds { --cc: var(--cat-funds); }
+.cat-cash { --cc: var(--cat-cash); }
+.cat-forex { --cc: var(--cat-forex); }
+.cat-bank { --cc: var(--cat-bank); }
+.cat-other { --cc: var(--cat-other); }
+.cat-loans { --cc: var(--cat-loans); }
+.nw-split span,
+.nw-cat i {
+  background: color-mix(in srgb, var(--cc) 62%, var(--raised));
+}
+
+.nw-refresh {
+  margin-left: auto;
+}
+.nw-row {
+  grid-template-columns: minmax(0, 1fr) auto 16px;
+}
+.nw-row[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--bull) 5%, var(--raised));
+}
+.nw-row[aria-pressed='true'] .row-go {
+  color: var(--bull-ink);
+}
+.nw-mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  font-family: var(--serif);
+  font-size: 15px;
+  color: var(--ink2);
+  background: var(--page);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+}
+.nw-mark.tone-ok {
+  color: color-mix(in srgb, var(--ok) 80%, var(--ink));
+  background: color-mix(in srgb, var(--ok) 8%, var(--raised));
+  border-color: color-mix(in srgb, var(--ok) 28%, var(--line));
+}
+.nw-mark.tone-warn {
+  color: color-mix(in srgb, var(--medium) 70%, var(--ink));
+  background: color-mix(in srgb, var(--medium) 8%, var(--raised));
+  border-color: color-mix(in srgb, var(--medium) 30%, var(--line));
+}
+.nw-kind {
+  margin-left: 6px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.nw-value {
+  font-size: 14px;
+  font-weight: 600;
+}
+.nw-value s {
+  color: var(--muted);
+  font-weight: 500;
+}
+.nw-detail .group-head h2 {
+  font-size: 21px;
+}
+.nw-detail > .kt > .kt-bar:first-child,
+.nw-detail .kt-bar {
+  margin-top: 10px;
+}
+.nw-setup {
+  margin-top: 10px;
+  padding: 30px 24px 26px;
+}
+.nw-setup h2 {
+  margin-top: 0;
+  font-size: 21px;
+}
+.nw-fine {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.nw-prop {
+  margin-top: 10px;
+}
+
+/* typed-in entries */
+.nw-manual-head {
+  margin-top: 10px;
+  justify-content: space-between;
+}
+.nw-manual-head .group-note {
+  margin-left: 0;
+}
+.nw-entry {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+.nw-entry-actions {
+  display: flex;
+  gap: 2px;
+}
+.nw-entry-actions .btn-icon {
+  width: 28px;
+}
+.nw-form {
+  margin-top: 10px;
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.nw-editing .nw-form {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: var(--raised);
+}
+.nw-form-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 14px;
+}
+.nw-span {
+  grid-column: 1 / -1;
+}
+.nw-form .seg {
+  justify-self: start;
+}
+.nw-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+@media (max-width: 900px) {
+  .nw-hero {
+    grid-template-columns: 1fr;
+  }
+  .nw-cats {
+    border-left: 0;
+    border-top: 1px solid var(--grid);
+  }
+}
+@media (max-width: 640px) {
+  .nw-main {
+    padding: 16px 16px 14px;
+  }
+  .nw-cat {
+    padding: 8px 16px;
+  }
+  .nw-kind {
+    display: none;
+  }
+  .nw-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ---------- Responsive ---------- */
 
 @media (max-width: 1000px) {
