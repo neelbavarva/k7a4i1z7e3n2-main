@@ -42,21 +42,7 @@ export function demoMt5() {
                     { id: "2", symbol: "EURUSD", type: "POSITION_TYPE_SELL", volume: 0.2, openPrice: 1.0912, currentPrice: 1.0918, profit: -12, swap: 0 },
                 ],
                 error: null,
-            },
-            {
-                id: "mt5-5512345",
-                login: "5512345",
-                source: "myfxbook",
-                live: false,
-                updatedAt: new Date(Date.now() - 6 * 60e3).toISOString(),
-                label: "FundingPips",
-                server: "FundingPips-Live",
-                prop: true,
-                counted: false,
-                info: { name: "Demo Trader", login: 5512345, broker: "FundingPips", server: "FundingPips-Live", platform: "mt5", currency: "USD", balance: 10412.5, equity: 10388.1, margin: 220, freeMargin: 10168.1, leverage: 100, marginLevel: 4721.8 },
-                positions: [{ id: "3", symbol: "GBPJPY", type: "POSITION_TYPE_BUY", volume: 0.3, openPrice: 196.42, currentPrice: 196.31, profit: -24.4, swap: 0 }],
-                error: null,
-            },
+            }
         ],
     };
 }

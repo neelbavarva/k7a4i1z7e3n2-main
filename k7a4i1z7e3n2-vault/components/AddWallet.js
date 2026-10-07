@@ -6,6 +6,7 @@ import Modal from "./k7/Modal";
 import { CoinIcon, NetworkIcon, NetworkStack, WalletIcon } from "./k7/CryptoIcons";
 import {
     CHAIN_INFO,
+    WALLETS,
     chainOf,
     connectExtension,
     connectPhone,
@@ -20,10 +21,10 @@ import {
     wcProjectId,
 } from "@/lib/wallets";
 
-// Adding a crypto wallet, in two steps. Pick the app from a list you can search. Then either
-// connect it (extension or phone) so its addresses arrive by themselves, or add coins one at a
-// time: search a coin, paste its receive address. Editing opens straight at the second step.
-// Only public addresses ever: nothing here asks a wallet to sign anything.
+// Adding a crypto wallet, laid out like the vault's add-card form: the wallet's card fills in at
+// the top as you go; under it, the wallet app (four tiles and a search of the rest, like the bank
+// picker), a quick connect where the app allows it, the coins (search one, paste its receive
+// address) and a name. Only public addresses ever: nothing here asks a wallet to sign anything.
 
 const isPhone = () => typeof navigator !== "undefined" && /Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -31,151 +32,79 @@ export { WalletIcon as WalletMark };
 
 export default function AddWallet({ open, onClose, initial, onSave, saving }) {
     return (
-        <Modal open={open} onClose={onClose} head={false} label="Add a crypto wallet" className="aw" busy={saving}>
-            {open && <Flow initial={initial} onClose={onClose} onSave={onSave} saving={saving} />}
+        <Modal
+            open={open}
+            onClose={onClose}
+            busy={saving}
+            title={initial ? `Edit ${initial.name}` : "Add a crypto wallet"}
+            sub="Read only: it sees public addresses, never your keys or recovery phrase."
+            className="manage aw"
+        >
+            <div className="modal-body">{open && <WalletForm initial={initial} onSave={onSave} saving={saving} />}</div>
         </Modal>
     );
 }
 
-function Flow({ initial, onClose, onSave, saving }) {
-    const [walletId, setWalletId] = useState(initial ? initial.kind || "other" : null);
+function WalletForm({ initial, onSave, saving }) {
+    const [walletId, setWalletId] = useState(initial?.kind || "trust");
     const [extensions, setExtensions] = useState([]);
-    useEffect(() => discoverExtensions((ext) => setExtensions((list) => [...list, ext])), []);
-    const extFor = (w) => extensions.find((e) => w.rdns.includes(e.rdns));
-
-    if (!walletId) return <PickWallet extFor={extFor} onPick={setWalletId} onClose={onClose} />;
-    return (
-        <SetUp
-            wallet={walletOf(walletId)}
-            ext={extFor(walletOf(walletId))}
-            extensions={extensions}
-            initial={initial}
-            saving={saving}
-            onBack={initial ? null : () => setWalletId(null)}
-            onClose={onClose}
-            onSave={onSave}
-        />
-    );
-}
-
-// ---------- step 1: which wallet ----------
-
-function PickWallet({ extFor, onPick, onClose }) {
-    const [q, setQ] = useState("");
-    const list = useMemo(() => {
-        const found = searchWallets(q);
-        // installed ones first, then the order of the list (most used first)
-        return [...found].sort((a, b) => Number(!extFor(a)) - Number(!extFor(b)));
-    }, [q, extFor]);
-
-    return (
-        <div className="aw-in">
-            <Head title="Add a crypto wallet" sub="Read only: it sees public addresses, never your keys or recovery phrase." onClose={onClose} />
-            <label className="aw-search">
-                <Search aria-hidden="true" />
-                <input
-                    value={q}
-                    onChange={(e) => setQ(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && list[0] && onPick(list[0].id)}
-                    placeholder="Search wallets"
-                    aria-label="Search wallets"
-                    autoFocus
-                    data-own-escape={q ? "" : undefined}
-                />
-            </label>
-            <ul className="aw-list" role="listbox" aria-label="Wallets">
-                {list.map((w, i) => {
-                    const ext = extFor(w);
-                    return (
-                        <li key={w.id} style={{ "--i": i }}>
-                            <button type="button" className="aw-row" onClick={() => onPick(w.id)}>
-                                <WalletIcon id={w.id} icon={ext?.icon} size={38} />
-                                <span className="aw-row-text">
-                                    <b>{w.name}</b>
-                                    {ext ? <small className="aw-on">Installed in this browser</small> : <small>{w.chains.map((c) => CHAIN_INFO[c].name.replace(" and EVM", "")).join(" · ")}</small>}
-                                </span>
-                                <span className="aw-row-nets">
-                                    <NetworkStack networks={w.chains.map((c) => CHAIN_INFO[c].networks[0])} size={16} />
-                                </span>
-                                <ChevronRight className="aw-go" aria-hidden="true" />
-                            </button>
-                        </li>
-                    );
-                })}
-                {!list.length && (
-                    <li className="aw-empty">
-                        No wallet called “{q}”.{" "}
-                        <button type="button" className="linkish" onClick={() => onPick("other")}>
-                            Add it as another wallet
-                        </button>
-                    </li>
-                )}
-            </ul>
-        </div>
-    );
-}
-
-function Head({ title, sub, onBack, onClose, children }) {
-    return (
-        <div className="aw-head">
-            {onBack && (
-                <button type="button" className="btn btn-ghost btn-icon" onClick={onBack} aria-label="Back">
-                    <ArrowLeft />
-                </button>
-            )}
-            {children || (
-                <div className="aw-title">
-                    <h2>{title}</h2>
-                    {sub && <p>{sub}</p>}
-                </div>
-            )}
-            <button type="button" className="btn btn-ghost btn-icon aw-close" onClick={onClose} aria-label="Close">
-                <X />
-            </button>
-        </div>
-    );
-}
-
-// ---------- step 2: its coins ----------
-
-function SetUp({ wallet, ext, extensions, initial, saving, onBack, onClose, onSave }) {
-    const [name, setName] = useState(initial?.name || wallet.name);
+    const [name, setName] = useState(initial?.name || "");
     const [addresses, setAddresses] = useState(initial ? initial.addresses.map((a) => ({ address: a.address, chain: a.chain })) : []);
     const [adding, setAdding] = useState(!initial);
-    const exts = ext ? [ext] : wallet.id === "other" ? extensions : [];
+    useEffect(() => discoverExtensions((ext) => setExtensions((list) => [...list, ext])), []);
 
+    const wallet = walletOf(walletId);
+    const extFor = (w) => extensions.find((e) => w.rdns.includes(e.rdns));
+    const ext = extFor(wallet);
+    const exts = ext ? [ext] : wallet.id === "other" ? extensions : [];
+    const covered = new Map(addresses.map((a) => [a.chain, a.address]));
     const got = (list) => {
         setAddresses((cur) => uniqueAddresses([...cur, ...list].map((a) => a.address)).filter((a) => a.chain));
         setAdding(false);
     };
-    const covered = new Map(addresses.map((a) => [a.chain, a.address]));
+    const title = name.trim() || wallet.name;
+    const coins = addresses.flatMap((a) => CHAIN_INFO[a.chain].coins.split(", "));
+
+    const submit = (e) => {
+        e.preventDefault();
+        if (addresses.length) onSave({ name: title, kind: wallet.id, addresses: addresses.map((a) => a.address) });
+    };
 
     return (
-        <div className="aw-in">
-            <Head onBack={onBack} onClose={onClose}>
-                <div className="aw-ident">
-                    <WalletIcon id={wallet.id} icon={ext?.icon} size={46} />
-                    <div className="aw-ident-text">
-                        <input className="aw-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={40} aria-label="Wallet name" />
-                        <p>{initial ? "Edit its coins and name" : "Add its coins: connect it, or paste a receive address"}</p>
-                    </div>
-                </div>
-            </Head>
+        <form className="form" onSubmit={submit}>
+            <div className="bal-preview" aria-hidden="true">
+                <WalletIcon id={wallet.id} icon={ext?.icon} size={44} />
+                <span className="bal-preview-text">
+                    <b>{title}</b>
+                    <small>{coins.length ? [...new Set(coins)].slice(0, 6).join(" · ") : "Add its coins below"}</small>
+                </span>
+                {addresses.length > 0 && (
+                    <span className="acc-coins">
+                        {addresses.slice(0, 4).map((a) => (
+                            <CoinIcon key={a.address} token={CHAIN_INFO[a.chain].token} size={24} />
+                        ))}
+                    </span>
+                )}
+            </div>
+
+            <div className="field">
+                <span className="field-label">Wallet</span>
+                <WalletPicker value={walletId} onChange={setWalletId} extFor={extFor} />
+            </div>
 
             {(exts.length > 0 || (wallet.phone && wcProjectId)) && <Connect wallet={wallet} exts={exts} onGot={got} />}
 
-            <section className="aw-coins">
-                <div className="aw-coins-head">
-                    <h3>Coins</h3>
-                    <span className="count">{addresses.length ? `${addresses.length} ${addresses.length === 1 ? "address" : "addresses"}` : ""}</span>
-                </div>
-                {addresses.length > 0 ? (
+            <div className="field">
+                <span className="field-label">
+                    Coins{addresses.length ? <span className="field-note">{`${addresses.length} ${addresses.length === 1 ? "address" : "addresses"}`}</span> : null}
+                </span>
+                {addresses.length > 0 && (
                     <ul className="aw-addrs">
                         {addresses.map((a) => {
                             const info = CHAIN_INFO[a.chain];
                             return (
                                 <li key={a.address}>
-                                    <CoinIcon token={info.token} size={34} />
+                                    <CoinIcon token={info.token} size={32} />
                                     <span className="aw-addr-text">
                                         <b>{info.name}</b>
                                         <small>
@@ -193,10 +122,7 @@ function SetUp({ wallet, ext, extensions, initial, saving, onBack, onClose, onSa
                             );
                         })}
                     </ul>
-                ) : (
-                    !adding && <p className="aw-none">No coins yet.</p>
                 )}
-
                 {adding ? (
                     <CoinPicker covered={covered} onAdd={(a) => got([a])} onCancel={addresses.length ? () => setAdding(false) : null} />
                 ) : (
@@ -205,15 +131,129 @@ function SetUp({ wallet, ext, extensions, initial, saving, onBack, onClose, onSa
                         Add a coin
                     </button>
                 )}
-            </section>
+            </div>
 
-            <div className="aw-foot">
-                <span className="muted">Public addresses only. Nothing is ever signed.</span>
-                <button type="button" className="btn btn-primary" onClick={() => onSave({ name: name.trim() || wallet.name, kind: wallet.id, addresses: addresses.map((a) => a.address) })} disabled={saving || !addresses.length}>
-                    {saving ? <Loader2 className="spin" aria-hidden="true" /> : <Check aria-hidden="true" />}
-                    {initial ? "Save" : "Add wallet"}
+            <div className="field">
+                <label htmlFor="aw-name" className="field-label">
+                    Name
+                </label>
+                <input id="aw-name" className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder={wallet.name} maxLength={40} />
+            </div>
+
+            <hr className="rule form-rule" />
+            <button type="submit" className="btn btn-primary btn-block" disabled={saving || !addresses.length}>
+                {saving ? <Loader2 className="spin" aria-hidden="true" /> : null}
+                {initial ? "Save wallet" : addresses.length ? "Add wallet" : "Add a coin to continue"}
+            </button>
+            <p className="aw-fine">Public addresses only. Nothing is ever signed.</p>
+        </form>
+    );
+}
+
+const TILES = ["trust", "metamask", "phantom", "coinbase"];
+
+/** The wallet app: four tiles, and the rest behind a search, the way the bank picker works. */
+function WalletPicker({ value, onChange, extFor }) {
+    const [open, setOpen] = useState(false);
+    const [q, setQ] = useState("");
+    const [active, setActive] = useState(0);
+    const wrap = useRef(null);
+    // installed ones lead the tiles
+    const installed = WALLETS.filter((w) => extFor(w)).map((w) => w.id);
+    const tiles = [...new Set([...installed, ...TILES])].slice(0, 4);
+    const fromMore = !tiles.includes(value);
+    const list = useMemo(() => searchWallets(q), [q]);
+
+    useEffect(() => {
+        if (!open) return;
+        const away = (e) => !wrap.current?.contains(e.target) && setOpen(false);
+        document.addEventListener("pointerdown", away);
+        return () => document.removeEventListener("pointerdown", away);
+    }, [open]);
+
+    const choose = (id) => {
+        if (!id) return;
+        onChange(id);
+        setOpen(false);
+        setQ("");
+        setActive(0);
+    };
+    const onKey = (e) => {
+        if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+            e.preventDefault();
+            setActive((a) => Math.min(list.length - 1, Math.max(0, a + (e.key === "ArrowDown" ? 1 : -1))));
+        } else if (e.key === "Enter") {
+            e.preventDefault();
+            choose(list[active]?.id);
+        } else if (e.key === "Escape") {
+            setOpen(false);
+        }
+    };
+    const more = walletOf(value);
+
+    return (
+        <div className="bank-picker" ref={wrap}>
+            <div className="bank-tiles" role="group" aria-label="Wallet">
+                {tiles.map((id) => {
+                    const w = walletOf(id);
+                    return (
+                        <button key={id} type="button" aria-pressed={value === id} className="bank-option" style={{ "--tint": w.color }} onClick={() => choose(id)} title={extFor(w) ? `${w.name}: installed here` : w.name}>
+                            <WalletIcon id={id} icon={extFor(w)?.icon} size={26} />
+                            <span className="bank-option-label">{w.name.replace(" Wallet", "")}</span>
+                        </button>
+                    );
+                })}
+                <button type="button" aria-pressed={fromMore} aria-expanded={open} className={`bank-option is-more${open ? " is-open" : ""}`} style={fromMore ? { "--tint": more.color } : undefined} onClick={() => setOpen((o) => !o)}>
+                    {fromMore ? (
+                        <WalletIcon id={value} size={26} />
+                    ) : (
+                        <span className="bank-more-icon" aria-hidden="true">
+                            <Search />
+                        </span>
+                    )}
+                    <span className="bank-option-label">{fromMore ? more.name.replace(" Wallet", "") : `${WALLETS.length - tiles.length} more`}</span>
                 </button>
             </div>
+            {open && (
+                <div className="bank-browser pop-down" data-own-escape>
+                    <div className="bank-search">
+                        <Search aria-hidden="true" />
+                        <input autoFocus value={q} onChange={(e) => (setQ(e.target.value), setActive(0))} onKeyDown={onKey} placeholder={`Search ${WALLETS.length} wallets`} aria-label="Search wallets" autoComplete="off" spellCheck="false" />
+                        <kbd aria-hidden="true">esc</kbd>
+                    </div>
+                    <div className="bank-list" role="listbox" aria-label="Wallets">
+                        <div className="bank-items is-results">
+                            {list.map((w, i) => (
+                                <div
+                                    key={w.id}
+                                    role="option"
+                                    aria-selected={i === active}
+                                    className={`bank-item${i === active ? " is-active" : ""}`}
+                                    onPointerMove={() => setActive(i)}
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    onClick={() => choose(w.id)}
+                                >
+                                    <WalletIcon id={w.id} icon={extFor(w)?.icon} size={24} />
+                                    <span className="bank-item-name">{w.name}</span>
+                                    <span className="bank-item-group">{extFor(w) ? "Installed" : w.chains.map((c) => CHAIN_INFO[c].name.replace(" and EVM", "")).join(", ")}</span>
+                                    {value === w.id && <Check className="bank-item-check" aria-hidden="true" />}
+                                </div>
+                            ))}
+                            {!list.length && (
+                                <div className="bank-item is-custom" onClick={() => choose("other")} role="option" aria-selected="false">
+                                    <span className="bank-add" aria-hidden="true">
+                                        <Plus />
+                                    </span>
+                                    <span className="bank-item-name">
+                                        Use another wallet for “<b>{q}</b>”
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    <p className="bank-foot">↑ ↓ to move, Enter to pick. Not listed? Pick “Another wallet”.</p>
+                </div>
+            )}
         </div>
     );
 }

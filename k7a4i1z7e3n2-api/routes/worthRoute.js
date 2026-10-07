@@ -23,8 +23,9 @@ const fields = [
     body("amount").isFloat({ min: 0, max: 1e12 }).toFloat(),
     body("currency").isIn(["INR", "USD"]),
     body("note").optional().isString().trim().isLength({ max: 120 }),
+    body("bank").optional().isString().trim().isLength({ max: 40 }),
 ];
-const pick = (b) => ({ name: b.name, kind: b.kind, amount: b.amount, currency: b.currency, note: b.note || "" });
+const pick = (b) => ({ name: b.name, kind: b.kind, amount: b.amount, currency: b.currency, note: b.note || "", bank: b.bank || "" });
 const invalid = (req, res, message = "Check the name, kind, amount and currency") => {
     const errors = validationResult(req);
     if (errors.isEmpty()) return false;

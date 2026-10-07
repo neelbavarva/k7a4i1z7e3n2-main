@@ -26,7 +26,9 @@ describe("net worth", () => {
         expect(perUnit("USC", 90)).toBe(0.9);
         expect(perUnit("INR", 90)).toBe(1);
         expect(perUnit("EUR", 90)).toBe(null);
-        const [own, prop] = demoMt5().accounts.map((a) => mt5Worth(a, 100));
+        const [mine] = demoMt5().accounts;
+        const funded = { ...mine, prop: true, counted: false, info: { ...mine.info, equity: 10388.1 } };
+        const [own, prop] = [mine, funded].map((a) => mt5Worth(a, 100));
         expect(own.total).toBeCloseTo(253684);
         expect(own.counted).toBe(true);
         expect(prop.total).toBe(0);

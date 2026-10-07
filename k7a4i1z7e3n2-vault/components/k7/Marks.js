@@ -12,7 +12,6 @@ const BRANDS = {
     zerodha: { src: "/brands/zerodha.svg", name: "Zerodha" },
     groww: { src: "/brands/groww.png", name: "Groww" },
     exness: { src: "/brands/exness.png", name: "Exness" },
-    fundingpips: { src: "/brands/fundingpips.png", name: "FundingPips", full: true },
 };
 
 /** Which broker a name, server or company belongs to, if it's one with a logo here. */

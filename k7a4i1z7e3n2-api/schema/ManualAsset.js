@@ -9,6 +9,7 @@ const manualAssetSchema = new mongoose.Schema(
         amount: { type: Number, required: true },
         currency: { type: String, enum: ["INR", "USD"], default: "INR" },
         note: { type: String, trim: true, maxlength: 120, default: "" },
+        bank: { type: String, trim: true, maxlength: 40, default: "" }, // a bank id from the vault's list, or a name typed in
     },
     { timestamps: true, versionKey: false }
 );
