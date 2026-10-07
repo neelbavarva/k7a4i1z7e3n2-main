@@ -27,6 +27,20 @@ fake("../schema/GrowwSession", {
     findByIdAndUpdate: (id, u) => ({ lean: async () => (growwDoc = { _id: id, ...(growwDoc || {}), ...u.$set }) }),
 });
 
+// daily snapshots in memory
+const snaps = new Map();
+fake("../schema/WorthSnapshot", {
+    findByIdAndUpdate: (id, u) => ({
+        lean: async () => {
+            snaps.set(id, { _id: id, ...(snaps.get(id) || {}), ...u.$set });
+            return copy(snaps.get(id));
+        },
+    }),
+    find: (q) => ({
+        sort: () => ({ lean: async () => [...snaps.values()].filter((d) => d._id >= q._id.$gte).sort((a, b) => a._id.localeCompare(b._id)).map(copy) }),
+    }),
+});
+
 // hand-typed entries in memory
 let manual = [];
 let nextId = 1;
@@ -279,4 +293,20 @@ test("MT5: remembers a name and whether an account counts, by login", async () =
     const fp = (await accounts())["7700001"];
     assert.equal(fp.label, "FundingPips 10k");
     assert.equal(fp.counted, true);
+});
+
+test("keeps one net worth snapshot a day, and hands back the recent ones in order", async () => {
+    snaps.set("2020-01-01", { _id: "2020-01-01", total: 1, parts: {} }); // too old to come back
+    snaps.set("2026-10-01", { _id: "2026-10-01", total: 900000, parts: { stocks: 1 } });
+    assert.equal((await req("/worth/history", { method: "POST", body: { total: 1000000.123, parts: { stocks: 600000, crypto: 400000, junk: 5 }, sources: 4 } })).status, 200);
+    assert.equal((await req("/worth/history", { method: "POST", body: { total: 1200000, parts: { stocks: 800000 } } })).status, 200); // same day: replaced
+    assert.equal((await req("/worth/history", { method: "POST", body: { total: "lots" } })).status, 400);
+    const list = await (await req("/worth/history?days=3650")).json();
+    const today = list[list.length - 1];
+    assert.equal(today.total, 1200000);
+    assert.equal(today.parts.junk, undefined);
+    assert.ok(list.every((d, i) => !i || list[i - 1].date < d.date));
+    assert.ok(!list.some((d) => d.date === "2020-01-01") || list.length > 2);
+    const recent = await (await req("/worth/history?days=30")).json();
+    assert.ok(!recent.some((d) => d.date === "2020-01-01"));
 });

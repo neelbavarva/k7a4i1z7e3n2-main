@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const { body, param, validationResult } = require("express-validator");
 const ManualAsset = require("../schema/ManualAsset");
+const WorthSnapshot = require("../schema/WorthSnapshot");
 const { apiKeyMiddleware } = require("../middleware");
 const market = require("../market");
 
@@ -24,10 +25,10 @@ const fields = [
     body("note").optional().isString().trim().isLength({ max: 120 }),
 ];
 const pick = (b) => ({ name: b.name, kind: b.kind, amount: b.amount, currency: b.currency, note: b.note || "" });
-const invalid = (req, res) => {
+const invalid = (req, res, message = "Check the name, kind, amount and currency") => {
     const errors = validationResult(req);
     if (errors.isEmpty()) return false;
-    res.status(400).json({ code: "input", message: "Check the name, kind, amount and currency" });
+    res.status(400).json({ code: "input", message });
     return true;
 };
 
@@ -65,6 +66,49 @@ router.delete("/manual/:id", apiKeyMiddleware, [param("id").isMongoId()], async 
         const doc = await ManualAsset.findByIdAndDelete(req.params.id).lean();
         if (!doc) return res.status(404).json({ message: "Not found" });
         res.json({ ok: true });
+    } catch {
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
+// ---------- history: one snapshot a day ----------
+
+const indiaDate = (ms = Date.now()) => new Date(ms + 5.5 * 36e5).toISOString().slice(0, 10);
+const PART_KEYS = ["stocks", "funds", "cash", "forex", "crypto", "bank", "other", "loans"];
+
+/** Today's total, sent by the vault once it has added everything up. */
+router.post(
+    "/history",
+    apiKeyMiddleware,
+    [body("total").isFloat({ min: -1e13, max: 1e13 }).toFloat(), body("parts").optional().isObject(), body("sources").optional().isInt({ min: 0, max: 100 }).toInt()],
+    async (req, res) => {
+        if (invalid(req, res, "Send a total")) return;
+        const parts = {};
+        for (const k of PART_KEYS) {
+            const v = Number(req.body.parts?.[k]);
+            if (Number.isFinite(v)) parts[k] = Math.round(v * 100) / 100;
+        }
+        try {
+            const doc = await WorthSnapshot.findByIdAndUpdate(
+                indiaDate(),
+                { $set: { total: Math.round(req.body.total * 100) / 100, parts, sources: req.body.sources ?? null } },
+                { upsert: true, new: true }
+            ).lean();
+            res.json({ date: doc._id, total: doc.total });
+        } catch {
+            res.status(500).json({ message: "Server error" });
+        }
+    }
+);
+
+/** The last `days` snapshots, oldest first. */
+router.get("/history", apiKeyMiddleware, async (req, res) => {
+    const days = Math.min(Math.max(parseInt(req.query.days, 10) || 365, 1), 3650);
+    try {
+        const docs = await WorthSnapshot.find({ _id: { $gte: indiaDate(Date.now() - days * 864e5) } })
+            .sort({ _id: 1 })
+            .lean();
+        res.json(docs.map((d) => ({ date: d._id, total: d.total, parts: d.parts || {} })));
     } catch {
         res.status(500).json({ message: "Server error" });
     }

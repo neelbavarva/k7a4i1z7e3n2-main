@@ -7,6 +7,7 @@ const mongoose = require("mongoose");
 const cryptoWalletSchema = new mongoose.Schema(
     {
         name: { type: String, required: true, trim: true, maxlength: 40 },
+        kind: { type: String, trim: true, maxlength: 24, default: "" }, // which app: trust, metamask, phantom…
         addresses: {
             type: [{ _id: false, chain: { type: String, enum: ["evm", "btc", "tron", "sol"] }, address: { type: String, trim: true } }],
             default: [],

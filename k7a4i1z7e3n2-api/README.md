@@ -80,6 +80,7 @@ from the address format. Balances are cached five minutes, prices five minutes.
 |---|---|
 | `GET /crypto/wallets` | Every wallet with its coins and values (`?fresh=1` to skip the balance cache). |
 | `POST /crypto/wallets` | `{ name, addresses }` adds a wallet; `addresses` is a list or one pasted block (lines, spaces or commas). |
-| `PUT /crypto/wallets/:id`, `DELETE /crypto/wallets/:id` | Rename a wallet or replace its addresses; remove one. |
+| `PUT /crypto/wallets/:id`, `DELETE /crypto/wallets/:id` | Rename a wallet, change its app (`kind`) or replace its addresses; remove one. |
+| `GET /worth/history?days=365`, `POST /worth/history` | The net worth total once a day (India date), for the history line; the vault sends today's after a visit. |
 
 Optional: `COINGECKO_KEY` (a free CoinGecko demo key) and `TRONGRID_KEY`, if the keyless limits ever bite.

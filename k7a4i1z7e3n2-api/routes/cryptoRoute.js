@@ -86,6 +86,7 @@ router.get("/wallets", apiKeyMiddleware, async (req, res) => {
                 return {
                     _id: w._id,
                     name: w.name,
+                    kind: w.kind || "",
                     createdAt: w.createdAt,
                     addresses,
                     holdings,
@@ -102,27 +103,29 @@ router.get("/wallets", apiKeyMiddleware, async (req, res) => {
 });
 
 const nameRule = body("name").isString().trim().isLength({ min: 1, max: 40 });
+const kindRule = body("kind").optional().isString().trim().matches(/^[a-z0-9-]{0,24}$/);
 
 /** A wallet from a name and its addresses (a list, or one pasted block). */
-router.post("/wallets", apiKeyMiddleware, [nameRule], async (req, res) => {
+router.post("/wallets", apiKeyMiddleware, [nameRule, kindRule], async (req, res) => {
     if (failed(req, res, "Give the wallet a name")) return;
     try {
         await syncIndexes();
         const raw = req.body.addresses ?? req.body.address;
         const { list, error, code } = await checkAddresses(raw);
         if (error) return res.status(code === "exists" ? 409 : 400).json({ code: code || "address", message: error });
-        res.status(201).json(await CryptoWallet.create({ name: req.body.name.trim(), addresses: list }));
+        res.status(201).json(await CryptoWallet.create({ name: req.body.name.trim(), kind: req.body.kind || "", addresses: list }));
     } catch {
         res.status(500).json({ message: "Server error" });
     }
 });
 
 /** Rename a wallet, or replace its list of addresses. */
-router.put("/wallets/:id", apiKeyMiddleware, [param("id").isMongoId(), nameRule.optional()], async (req, res) => {
+router.put("/wallets/:id", apiKeyMiddleware, [param("id").isMongoId(), nameRule.optional(), kindRule], async (req, res) => {
     if (failed(req, res, "Check the name")) return;
     try {
         const set = {};
         if (req.body.name !== undefined) set.name = req.body.name.trim();
+        if (req.body.kind !== undefined) set.kind = req.body.kind;
         if (req.body.addresses !== undefined) {
             const { list, error, code } = await checkAddresses(req.body.addresses, req.params.id);
             if (error) return res.status(code === "exists" ? 409 : 400).json({ code: code || "address", message: error });

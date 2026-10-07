@@ -1,15 +1,16 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { ChevronRight, Pencil, Plus, RefreshCw, Trash2, X } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Pencil, Plus, RefreshCw, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { http } from "@/lib/http";
-import { hasHandoff } from "@/lib/kite";
-import { inr, num, pct } from "@/lib/kite";
+import { hasHandoff, inr, num, pct } from "@/lib/kite";
 import { sideOf } from "@/lib/format";
 import { CATS, combine, cryptoWorth, growwWorth, manualWorth, mt5Worth, perUnit, zerodhaWorth } from "@/lib/worth";
-import { demoCrypto, demoFx, demoGroww, demoManual, demoMt5 } from "@/lib/worthDemo";
+import { demoCrypto, demoFx, demoGroww, demoHistory, demoManual, demoMt5 } from "@/lib/worthDemo";
+import { CHAIN_SHORT, chainOf, shortAddress, walletOf } from "@/lib/wallets";
 import Zerodha, { Rupees, SideTag, Sym, Table, useZerodha } from "./Zerodha";
+import AddWallet, { WalletMark } from "./AddWallet";
 import Seg from "./k7/Seg";
 
 // Everything you own in one number: Zerodha, Groww, the MT5 forex accounts and what's typed in
@@ -50,6 +51,28 @@ function useSource(path, demo, sample) {
 }
 
 const PICK_KEY = "worthSource";
+const POSTED_KEY = "worthPosted";
+
+/** Rupees the short way for big totals: ₹21.86 L, ₹1.24 Cr. */
+const inrShort = (x) => {
+    const n = Math.abs(Number(x) || 0);
+    const sign = x < 0 ? "−" : "";
+    if (n >= 1e7) return `${sign}₹${(n / 1e7).toFixed(2)} Cr`;
+    if (n >= 1e5) return `${sign}₹${(n / 1e5).toFixed(2)} L`;
+    return `${sign}${inr(n, { whole: true })}`;
+};
+
+// brand-ish flat colours for the marks; only a tint and an initial, no logos
+const SOURCE_COLOR = { zerodha: "#387ED1", groww: "#00A67E", mt5: "#C9971C", prop: "#7C5CE0", manual: "#2F8F8A", crypto: "#D0782C" };
+
+function SourceMark({ source, size = 38 }) {
+    if (source.wallet) return <WalletMark id={source.wallet} size={size} />;
+    return (
+        <span className="wm" style={{ "--wc": source.color, "--ws": `${size}px` }} aria-hidden="true">
+            <span>{source.name.slice(0, 1)}</span>
+        </span>
+    );
+}
 
 export default function NetWorth() {
     const z = useZerodha();
@@ -59,7 +82,10 @@ export default function NetWorth() {
     const mt5 = useSource("/mt5/accounts", demo, demoMt5);
     const manual = useSource("/worth/manual", demo, demoManual);
     const wallets = useSource("/crypto/wallets", demo, demoCrypto);
+    const history = useSource("/worth/history?days=1825", demo, demoHistory);
     const rate = fx.data?.rate || null;
+    const [adding, setAdding] = useState(null); // null | "new" | a wallet being edited
+    const [savingWallet, setSavingWallet] = useState(false);
 
     const [pick, setPick] = useState(() => {
         if (typeof window === "undefined" || hasHandoff()) return "zerodha";
@@ -77,89 +103,138 @@ export default function NetWorth() {
         }
     }, [pick]);
 
-    const sources = (() => {
-        const list = [];
-        const zw = z.phase === "ready" && z.account ? zerodhaWorth(z.account) : null;
-        list.push({
-            id: "zerodha",
-            name: "Zerodha",
-            kind: "Stocks, F&O, Coin funds",
-            worth: zw,
-            status: zw ? `Holdings ${inr(zw.parts.stocks, { whole: true })} · cash ${inr(zw.parts.cash, { whole: true })}` : { loading: "Loading…", connect: "Connect for today", unset: "Not set up yet", offline: "Server didn’t answer" }[z.phase] || "",
-            tone: zw ? "ok" : z.phase === "loading" ? "" : "warn",
-        });
+    const ready = (s) => s.state === "ready" || s.state === "refreshing";
 
-        const gw = groww.state === "ready" || groww.state === "refreshing" ? (groww.data ? growwWorth(groww.data.sections) : null) : null;
-        list.push({
-            id: "groww",
-            name: "Groww",
-            kind: "Stocks and F&O",
-            worth: gw,
-            status: gw
-                ? `${groww.data.sections.holdings?.data?.length || 0} holdings · delayed prices${gw.unpriced ? ` · ${gw.unpriced} at cost` : ""}`
-                : { loading: "Loading…", unset: "Not set up yet", approve: "Approve the API key on Groww Cloud for today", error: groww.message }[groww.state],
-            tone: gw ? "ok" : groww.state === "loading" ? "" : "warn",
-        });
+    // ---- every source as a tile ----
+    const sources = [];
+    const zw = z.phase === "ready" && z.account ? zerodhaWorth(z.account) : null;
+    sources.push({
+        id: "zerodha",
+        name: "Zerodha",
+        kind: "Stocks, F&O, Coin funds",
+        color: SOURCE_COLOR.zerodha,
+        worth: zw,
+        status: zw ? `Holdings ${inrShort(zw.parts.stocks)} · cash ${inrShort(zw.parts.cash)}` : { loading: "Loading…", connect: "Connect for today", unset: "Not set up yet", offline: "Server didn’t answer" }[z.phase] || "",
+        tone: zw ? "ok" : z.phase === "loading" ? "" : "warn",
+    });
 
-        if (mt5.data?.accounts?.length) {
-            for (const a of mt5.data.accounts) {
-                const w = mt5Worth(a, rate);
-                list.push({
-                    id: `mt5:${a.id || a.label}`,
-                    name: a.label,
-                    kind: w.counted ? "MT5 forex" : "MT5 · not counted",
-                    worth: w.counted ? w : null,
-                    shown: w.value,
-                    account: a,
-                    status: a.error
-                        ? a.error
-                        : `${a.info?.currency === "USC" ? `${num(a.info.equity)} US¢` : usd(a.info?.equity)} equity · ${a.positions.length} open · ${a.source === "addon" ? (a.live ? "live" : "add-on offline") : a.source === "myfxbook" ? "Myfxbook" : "MetaApi"}${w.counted ? "" : " · not counted"}`,
-                    tone: a.error ? "warn" : w.counted ? "ok" : "",
-                });
-            }
-        } else {
-            list.push({
-                id: "mt5",
-                name: "MT5 accounts",
-                kind: "Exness, FundingPips",
-                worth: null,
-                status: { loading: "Loading…", unset: "Not set up yet", error: mt5.message }[mt5.state] || "No accounts on MetaApi yet",
-                tone: mt5.state === "loading" ? "" : "warn",
+    const gw = ready(groww) && groww.data ? growwWorth(groww.data.sections) : null;
+    sources.push({
+        id: "groww",
+        name: "Groww",
+        kind: "Stocks and F&O",
+        color: SOURCE_COLOR.groww,
+        worth: gw,
+        status: gw
+            ? `${groww.data.sections.holdings?.data?.length || 0} holdings · delayed prices`
+            : { loading: "Loading…", unset: "Not set up yet", approve: "Approve today on Groww Cloud", error: groww.message }[groww.state],
+        tone: gw ? "ok" : groww.state === "loading" ? "" : "warn",
+    });
+
+    if (mt5.data?.accounts?.length) {
+        for (const a of mt5.data.accounts) {
+            const w = mt5Worth(a, rate);
+            sources.push({
+                id: `mt5:${a.id || a.label}`,
+                name: a.label,
+                kind: w.counted ? "MT5 forex" : "MT5 · funded, not counted",
+                color: w.counted ? SOURCE_COLOR.mt5 : SOURCE_COLOR.prop,
+                worth: w.counted ? w : null,
+                shown: w.value,
+                account: a,
+                status: a.error
+                    ? a.error
+                    : `${a.info?.currency === "USC" ? `${num(a.info.equity)} US¢` : usd(a.info?.equity)} · ${a.positions.length} open · ${a.source === "addon" ? (a.live ? "live" : "add-on offline") : a.source === "myfxbook" ? "Myfxbook" : "MetaApi"}`,
+                tone: a.error ? "warn" : a.source === "addon" && a.live ? "live" : "ok",
             });
         }
+    } else {
+        sources.push({
+            id: "mt5",
+            name: "MT5 accounts",
+            kind: "Exness, FundingPips",
+            color: SOURCE_COLOR.mt5,
+            worth: null,
+            status: { loading: "Loading…", unset: "Not set up yet", error: mt5.message }[mt5.state] || "No accounts yet",
+            tone: mt5.state === "loading" ? "" : "warn",
+        });
+    }
 
-        const ws = wallets.data?.wallets || [];
-        const cw = wallets.state === "ready" || wallets.state === "refreshing" ? cryptoWorth(wallets.data) : null;
-        const coins = [...new Set(ws.flatMap((w) => (w.holdings || []).map((h) => h.symbol)))];
-        list.push({
+    const walletList = wallets.data?.wallets || [];
+    if (walletList.length) {
+        for (const w of walletList) {
+            const coins = [...new Set((w.holdings || []).map((h) => h.symbol))];
+            sources.push({
+                id: `crypto:${w._id}`,
+                name: w.name,
+                kind: `Crypto · ${(w.addresses || []).map((a) => CHAIN_SHORT[a.chain]).join(", ")}`,
+                wallet: w.kind || "other",
+                worth: cryptoWorth({ wallets: [w] }),
+                status: w.error ? "Some chains didn’t answer" : coins.length ? coins.slice(0, 4).join(", ") + (coins.length > 4 ? "…" : "") : "Nothing on these addresses yet",
+                tone: w.error ? "warn" : "ok",
+                cryptoWallet: w,
+            });
+        }
+    } else {
+        sources.push({
             id: "crypto",
             name: "Crypto wallets",
-            kind: "Trust Wallet and others, by address",
-            worth: cw,
-            status: cw
-                ? ws.length
-                    ? `${ws.length} ${ws.length === 1 ? "wallet" : "wallets"}${coins.length ? ` · ${coins.slice(0, 4).join(", ")}${coins.length > 4 ? "…" : ""}` : ""}${ws.some((w) => w.error) ? " · some chains didn’t answer" : ""}`
-                    : "Add a wallet by its public address"
-                : { loading: "Loading…", error: wallets.message, unset: "Server didn’t answer" }[wallets.state],
-            tone: cw && ws.length ? (ws.some((w) => w.error) ? "warn" : "ok") : "",
+            kind: "Trust Wallet, MetaMask, Phantom…",
+            color: SOURCE_COLOR.crypto,
+            worth: ready(wallets) ? cryptoWorth(wallets.data) : null,
+            status: { loading: "Loading…", error: wallets.message, unset: "Server didn’t answer" }[wallets.state] || "Add a wallet: no keys, read only",
+            tone: "",
         });
+    }
 
-        const entries = manual.data || [];
-        const mw = manual.state === "ready" || manual.state === "refreshing" ? manualWorth(entries, rate) : null;
-        list.push({
-            id: "manual",
-            name: "Bank and cash",
-            kind: "Typed in by hand",
-            worth: mw,
-            status: mw ? (entries.length ? `${entries.length} ${entries.length === 1 ? "entry" : "entries"}${entries.some((e) => e.kind === "loan") ? ", loans taken off" : ""}` : "Add HDFC, SBI and anything else") : { loading: "Loading…", error: manual.message, unset: "Server didn’t answer" }[manual.state],
-            tone: mw && entries.length ? "ok" : "",
-        });
-        return list;
-    })();
+    const entries = manual.data || [];
+    const mw = ready(manual) ? manualWorth(entries, rate) : null;
+    sources.push({
+        id: "manual",
+        name: "Bank and cash",
+        kind: "Typed in by hand",
+        color: SOURCE_COLOR.manual,
+        worth: mw,
+        status: mw ? (entries.length ? `${entries.length} ${entries.length === 1 ? "entry" : "entries"}${entries.some((e) => e.kind === "loan") ? ", loans taken off" : ""}` : "Add HDFC, SBI and the rest") : { loading: "Loading…", error: manual.message, unset: "Server didn’t answer" }[manual.state],
+        tone: mw && entries.length ? "ok" : "",
+    });
 
     const totals = combine(sources.map((s) => s.worth));
-    const counted = sources.filter((s) => s.worth).length;
+    const counted = sources.filter((s) => s.worth && s.worth.total).length;
     const current = sources.find((s) => s.id === pick) || sources[0];
+    const settled = z.phase !== "loading" && [fx, groww, mt5, manual, wallets].every((s) => s.state !== "loading" && s.state !== "refreshing");
+
+    // ---- today's point on the history line, sent once things have settled ----
+    useEffect(() => {
+        if (demo || !settled || !counted) return;
+        let last = null;
+        try {
+            last = JSON.parse(localStorage.getItem(POSTED_KEY) || "null");
+        } catch {
+            // nothing remembered
+        }
+        const fresh = last && Date.now() - last.at < 30 * 60 * 1000 && Math.abs(last.total - totals.total) < Math.max(1, Math.abs(totals.total) * 0.002);
+        if (fresh) return;
+        http("/worth/history", { method: "POST", body: { total: totals.total, parts: totals.parts, sources: counted } })
+            .then(() => {
+                try {
+                    localStorage.setItem(POSTED_KEY, JSON.stringify({ at: Date.now(), total: totals.total }));
+                } catch {
+                    // storage blocked
+                }
+            })
+            .catch(() => {});
+    }, [demo, settled, counted, totals.total, totals.parts]);
+
+    const points = useMemo(() => {
+        const list = [...(history.data || [])];
+        const today = new Date(Date.now() + 5.5 * 36e5).toISOString().slice(0, 10);
+        if (settled && counted) {
+            if (list.length && list[list.length - 1].date === today) list[list.length - 1] = { ...list[list.length - 1], total: totals.total };
+            else list.push({ date: today, total: totals.total });
+        }
+        return list;
+    }, [history.data, settled, counted, totals.total]);
 
     const preview = () => z.preview();
     const exitPreview = () => z.exitPreview();
@@ -170,6 +245,47 @@ export default function NetWorth() {
         mt5.reload();
         manual.reload();
         wallets.reload();
+    };
+
+    const saveWallet = async (fields) => {
+        setSavingWallet(true);
+        try {
+            const editing = adding && adding !== "new" ? adding : null;
+            if (demo) {
+                const addresses = fields.addresses.map((address) => ({ address, chain: chainOf(address), holdings: [], inr: 0, usd: 0, error: null }));
+                const id = editing?._id || `d${Date.now()}`;
+                wallets.setData((d) => ({
+                    ...d,
+                    wallets: editing
+                        ? d.wallets.map((w) => (w._id === editing._id ? { ...w, ...fields, addresses } : w))
+                        : [...d.wallets, { _id: id, ...fields, addresses, holdings: [], inr: 0, usd: 0, error: null }],
+                }));
+                setPick(`crypto:${id}`);
+            } else if (editing) {
+                await http(`/crypto/wallets/${editing._id}`, { method: "PUT", body: fields });
+                wallets.reload();
+            } else {
+                const doc = await http("/crypto/wallets", { method: "POST", body: fields });
+                setPick(`crypto:${doc._id}`);
+                wallets.reload();
+            }
+            toast.success(editing ? "Wallet saved" : "Wallet added", { description: "Reading its balances from the chains." });
+            setAdding(null);
+        } catch (err) {
+            toast.error("Didn’t save", { description: err.detail || "Try again in a moment." });
+        } finally {
+            setSavingWallet(false);
+        }
+    };
+
+    const removeWallet = async (w) => {
+        try {
+            if (!demo) await http(`/crypto/wallets/${w._id}`, { method: "DELETE" });
+            wallets.setData((d) => ({ ...d, wallets: d.wallets.filter((x) => x._id !== w._id) }));
+            setPick("zerodha");
+        } catch {
+            toast.error("Didn’t remove it", { description: "Try again in a moment." });
+        }
     };
 
     return (
@@ -187,123 +303,263 @@ export default function NetWorth() {
                 </div>
             )}
 
-            <section className="nw-hero" aria-labelledby="nw-total">
-                <div className="nw-main">
-                    <span className="perf-label" id="nw-total">
-                        Net worth
-                    </span>
-                    <span className="nw-num">
-                        <Rupees value={totals.total} />
-                    </span>
-                    <span className="perf-sub">
-                        {rate ? (
-                            <>
-                                {usd(totals.total / rate)} <span className="muted">at ₹{num(rate)} a dollar</span>
-                            </>
-                        ) : (
-                            <span className="muted">Dollar rate unavailable; dollar accounts aren’t counted</span>
-                        )}
-                    </span>
-                    {totals.day ? (
-                        <span className="perf-sub">
-                            Stocks today <b className={sideOf(totals.day)}>{inr(totals.day, { sign: true, whole: true })}</b>
-                        </span>
-                    ) : null}
-                    <Split parts={totals.parts} gross={totals.gross} />
-                    <span className="nw-foot">
-                        From {counted} of {sources.length} sources
-                        {!demo && counted < sources.length ? (
-                            <>
-                                {" "}
-                                <span className="muted">·</span>{" "}
-                                <button type="button" className="linkish" onClick={preview}>
-                                    preview with sample data
-                                </button>
-                            </>
-                        ) : null}
-                    </span>
+            <Hero totals={totals} rate={rate} points={points} counted={counted} sources={sources.length} demo={demo} onPreview={preview} />
+
+            <section className="group" aria-labelledby="nw-sources">
+                <div className="group-head nw-tiles-head">
+                    <h2 id="nw-sources">Accounts</h2>
+                    <span className="count">{sources.length}</span>
+                    <div className="nw-tiles-actions">
+                        <button type="button" className="btn btn-sm" onClick={() => setAdding("new")}>
+                            <Plus aria-hidden="true" />
+                            <span className="btn-label">Crypto wallet</span>
+                        </button>
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={refreshAll} title="Refresh everything">
+                            <RefreshCw aria-hidden="true" />
+                            <span className="btn-label">Refresh</span>
+                        </button>
+                    </div>
                 </div>
-                <ul className="nw-cats" aria-label="By kind">
-                    {CATS.filter((c) => totals.parts[c.key]).map((c) => (
-                        <li key={c.key} className={`nw-cat cat-${c.key}`}>
-                            <i aria-hidden="true" />
-                            <span>{c.label}</span>
-                            <b className={c.key === "loans" ? "down" : ""}>
-                                {c.key === "loans" ? "−" : ""}
-                                {inr(totals.parts[c.key], { whole: true })}
-                            </b>
-                            <small>{totals.gross ? pct((totals.parts[c.key] / totals.gross) * 100, { sign: false }) : ""}</small>
-                        </li>
-                    ))}
-                    {!CATS.some((c) => totals.parts[c.key]) && <li className="nw-cat-empty">Nothing counted yet. Connect a source below.</li>}
+                <ul className="nw-tiles stagger">
+                    {sources.map((s, i) => {
+                        const value = s.worth ? s.worth.total : s.shown;
+                        const share = s.worth && totals.gross ? Math.max(0, (s.worth.total / totals.gross) * 100) : 0;
+                        return (
+                            <li key={s.id} style={{ "--i": i }}>
+                                <button type="button" className="nw-tile" aria-pressed={current.id === s.id} onClick={() => setPick(s.id)}>
+                                    <span className="nw-tile-top">
+                                        <SourceMark source={s} />
+                                        <span className="nw-tile-name">
+                                            <b>{s.name}</b>
+                                            <small>{s.kind}</small>
+                                        </span>
+                                        <i className={`nw-dot tone-${s.tone || "none"}`} aria-hidden="true" />
+                                    </span>
+                                    <span className={`nw-tile-value${value == null ? " muted" : ""}${s.worth ? "" : " is-off"}`}>
+                                        {value == null ? "—" : s.worth ? inrShort(value) : <s title="Not counted">{inrShort(value)}</s>}
+                                        {s.worth && share >= 0.5 ? <small>{pct(share, { sign: false })}</small> : null}
+                                    </span>
+                                    <span className="nw-tile-bar" aria-hidden="true">
+                                        <i style={{ width: `${Math.min(100, share)}%`, background: s.color || walletOf(s.wallet).color }} />
+                                    </span>
+                                    <span className="nw-tile-status">{s.status}</span>
+                                </button>
+                            </li>
+                        );
+                    })}
+                    <li style={{ "--i": sources.length }}>
+                        <button type="button" className="nw-tile nw-tile-add" onClick={() => setAdding("new")}>
+                            <span className="nw-add-icon">
+                                <Plus aria-hidden="true" />
+                            </span>
+                            <b>Add a crypto wallet</b>
+                            <small>Trust Wallet, MetaMask, Phantom… read only</small>
+                        </button>
+                    </li>
                 </ul>
             </section>
 
-            <section className="group" aria-labelledby="nw-sources">
-                <div className="group-head">
-                    <h2 id="nw-sources">Accounts</h2>
-                    <span className="count">{sources.length}</span>
-                    <button type="button" className="btn btn-ghost btn-sm nw-refresh" onClick={refreshAll} title="Refresh everything">
-                        <RefreshCw aria-hidden="true" />
-                        <span className="btn-label">Refresh</span>
-                    </button>
-                </div>
-                <div className="rows-card">
-                    <ul className="rows stagger">
-                        {sources.map((s, i) => (
-                            <li key={s.id} style={{ "--i": i }}>
-                                <button type="button" className="row-btn nw-row" aria-pressed={current.id === s.id} onClick={() => setPick(s.id)}>
-                                    <span className="row-main">
-                                        <span className={`nw-mark tone-${s.tone || "none"}`} aria-hidden="true">
-                                            {s.name.slice(0, 1)}
-                                        </span>
-                                        <span className="row-text">
-                                            <span className="row-title">
-                                                {s.name} <span className="nw-kind">{s.kind}</span>
-                                            </span>
-                                            <span className="row-sub">{s.status}</span>
-                                        </span>
-                                    </span>
-                                    <span className={`row-num nw-value${s.worth || s.shown != null ? "" : " muted"}`}>
-                                        {s.worth ? inr(s.worth.total, { whole: true }) : s.shown != null ? <s title="Not counted">{inr(s.shown, { whole: true })}</s> : "—"}
-                                    </span>
-                                    <ChevronRight className="row-go" aria-hidden="true" />
-                                </button>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-            </section>
-
             <section className="group nw-detail" aria-labelledby="nw-detail">
-                <div className="group-head">
-                    <h2 id="nw-detail">{current.name}</h2>
-                    <span className="group-note">{current.kind}</span>
+                <div className="nw-detail-head">
+                    <SourceMark source={current} size={44} />
+                    <div>
+                        <h2 id="nw-detail">{current.name}</h2>
+                        <p>{current.kind}</p>
+                    </div>
+                    {current.worth ? <span className="nw-detail-value">{inr(current.worth.total, { whole: true })}</span> : null}
                 </div>
                 {current.id === "zerodha" ? (
                     <Zerodha z={z} onPreview={preview} />
                 ) : current.id === "groww" ? (
                     <GrowwPanel src={groww} onPreview={preview} />
-                ) : current.id === "crypto" ? (
-                    <CryptoPanel src={wallets} demo={demo} />
+                ) : current.id.startsWith("crypto") ? (
+                    <WalletPanel wallet={current.cryptoWallet} src={wallets} onAdd={() => setAdding("new")} onEdit={(w) => setAdding(w)} onRemove={removeWallet} />
                 ) : current.id.startsWith("mt5") ? (
                     <Mt5Panel src={mt5} account={current.account} rate={rate} demo={demo} onPreview={preview} />
                 ) : (
                     <ManualPanel src={manual} demo={demo} rate={rate} />
                 )}
             </section>
+
+            <AddWallet open={Boolean(adding)} initial={adding && adding !== "new" ? adding : null} onClose={() => !savingWallet && setAdding(null)} onSave={saveWallet} saving={savingWallet} />
         </div>
     );
 }
 
-/** The total split by kind, as one flat bar. */
-function Split({ parts, gross }) {
-    if (!gross) return null;
+// ---------- the top: total, history, split ----------
+
+const RANGES = [
+    { value: "1M", label: "1M", days: 31 },
+    { value: "3M", label: "3M", days: 92 },
+    { value: "1Y", label: "1Y", days: 366 },
+    { value: "all", label: "All", days: Infinity },
+];
+
+function Hero({ totals, rate, points, counted, sources, demo, onPreview }) {
+    const [range, setRange] = useState("3M");
+    const days = RANGES.find((r) => r.value === range).days;
+    // counted back from the latest point (today's), so rendering stays pure
+    const lastDate = points[points.length - 1]?.date;
+    const from = Number.isFinite(days) && lastDate ? new Date(Date.parse(`${lastDate}T00:00:00Z`) - days * 864e5).toISOString().slice(0, 10) : "";
+    const shown = points.filter((p) => p.date >= from);
+    const first = shown[0];
+    const change = first && shown.length > 1 ? totals.total - first.total : null;
+
     return (
-        <div className="nw-split" aria-hidden="true">
-            {CATS.filter((c) => c.key !== "loans" && parts[c.key] > 0).map((c) => (
-                <span key={c.key} className={`cat-${c.key}`} style={{ flexGrow: parts[c.key] }} title={c.label} />
-            ))}
+        <section className="nw-hero" aria-labelledby="nw-total">
+            <div className="nw-main">
+                <span className="perf-label" id="nw-total">
+                    Net worth
+                </span>
+                <span className="nw-num">
+                    <Rupees value={totals.total} />
+                </span>
+                <div className="nw-pills">
+                    {rate ? (
+                        <span className="nw-pill">
+                            {usd(totals.total / rate)} <span className="muted">· ₹{num(rate)}/$</span>
+                        </span>
+                    ) : null}
+                    {change != null && (
+                        <span className={`nw-pill tone-${sideOf(change)}`}>
+                            {change >= 0 ? "+" : "−"}
+                            {inrShort(Math.abs(change)).replace("−", "")} {first.total ? `(${pct((change / Math.abs(first.total)) * 100)})` : ""}
+                            <span className="muted"> · {range === "all" ? "all time" : range}</span>
+                        </span>
+                    )}
+                    {totals.day ? (
+                        <span className={`nw-pill tone-${sideOf(totals.day)}`}>
+                            {inr(totals.day, { sign: true, whole: true })} <span className="muted">stocks today</span>
+                        </span>
+                    ) : null}
+                </div>
+                <History points={shown} range={range} setRange={setRange} />
+                <span className="nw-foot">
+                    From {counted} of {sources} sources
+                    {!demo && counted < sources ? (
+                        <>
+                            {" "}
+                            <span className="muted">·</span>{" "}
+                            <button type="button" className="linkish" onClick={onPreview}>
+                                preview with sample data
+                            </button>
+                        </>
+                    ) : null}
+                </span>
+            </div>
+            <Ring parts={totals.parts} gross={totals.gross} />
+        </section>
+    );
+}
+
+/** The total over time, one point a day. Point at it to read a day. */
+function History({ points, range, setRange }) {
+    const [at, setAt] = useState(null);
+    const plot = useRef(null);
+    const head = (
+        <div className="nw-hist-head">
+            <span className="perf-label">History</span>
+            <Seg label="Range" options={RANGES} value={range} onChange={setRange} />
+        </div>
+    );
+    if (points.length < 2) {
+        return (
+            <div className="nw-hist">
+                {head}
+                <div className="nw-hist-empty">
+                    <span className="nw-hist-line" aria-hidden="true" />
+                    <p>Your history starts today. A point is added each day you open this page.</p>
+                </div>
+            </div>
+        );
+    }
+    const values = points.map((p) => p.total);
+    const lo0 = Math.min(...values);
+    const hi0 = Math.max(...values);
+    const pad = (hi0 - lo0) * 0.12 || Math.abs(hi0) * 0.02 || 1;
+    const lo = lo0 - pad;
+    const hi = hi0 + pad;
+    const n = points.length - 1;
+    const X = (i) => (i / n) * 100;
+    const Y = (v) => ((hi - v) / (hi - lo)) * 100;
+    const line = values.map((v, i) => `${i ? "L" : "M"}${X(i).toFixed(3)} ${Y(v).toFixed(3)}`).join("");
+    const up = values[n] >= values[0];
+    const i = at == null ? n : at;
+    const p = points[i];
+    const move = (e) => {
+        const r = plot.current.getBoundingClientRect();
+        setAt(Math.round(Math.min(Math.max((e.clientX - r.left) / r.width, 0), 1) * n));
+    };
+    return (
+        <div className={`nw-hist ${up ? "is-up" : "is-down"}`}>
+            {head}
+            <div className="nw-hist-read">
+                <b>{inrShort(p.total)}</b>
+                <span className="muted">{new Date(`${p.date}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}</span>
+            </div>
+            <div className="nw-hist-plot" ref={plot} onPointerMove={move} onPointerLeave={() => setAt(null)}>
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                    <path className="nw-hist-area" d={`${line}L100 100L0 100Z`} />
+                    <path className="nw-hist-path" d={line} />
+                    {at != null && <line className="kt-cross" x1={X(at)} x2={X(at)} y1="0" y2="100" />}
+                </svg>
+                <span className="kt-dot" style={{ left: `${X(i)}%`, top: `${Y(p.total)}%` }} aria-hidden="true" />
+            </div>
+        </div>
+    );
+}
+
+/** The split by kind as a ring, the biggest share in the middle, and the list beside it. */
+function Ring({ parts, gross }) {
+    const cats = CATS.filter((c) => c.key !== "loans" && parts[c.key] > 0).sort((a, b) => parts[b.key] - parts[a.key]);
+    const [hover, setHover] = useState(null);
+    const r = 42;
+    const C = 2 * Math.PI * r;
+    const gap = cats.length > 1 ? 1.2 : 0; // a hairline between slices
+    // where each slice starts around the ring
+    const starts = cats.reduce((acc, c, i) => [...acc, i ? acc[i - 1] + (parts[cats[i - 1].key] / gross) * C : 0], []);
+    const lead = cats.find((c) => c.key === hover) || cats[0];
+    return (
+        <div className="nw-ring-wrap">
+            {gross ? (
+                <div className="nw-ring">
+                    <svg viewBox="0 0 100 100" aria-hidden="true">
+                        <circle cx="50" cy="50" r={r} className="nw-ring-track" />
+                        {cats.map((c, i) => (
+                            <circle
+                                key={c.key}
+                                cx="50"
+                                cy="50"
+                                r={r}
+                                className={`nw-ring-slice cat-${c.key}${hover && hover !== c.key ? " is-dim" : ""}`}
+                                strokeDasharray={`${Math.max(0, (parts[c.key] / gross) * C - gap)} ${C}`}
+                                strokeDashoffset={-starts[i]}
+                                onPointerEnter={() => setHover(c.key)}
+                                onPointerLeave={() => setHover(null)}
+                            />
+                        ))}
+                    </svg>
+                    {lead && (
+                        <span className="nw-ring-mid">
+                            <b>{pct((parts[lead.key] / gross) * 100, { sign: false })}</b>
+                            <small>{lead.label}</small>
+                        </span>
+                    )}
+                </div>
+            ) : null}
+            <ul className="nw-cats" aria-label="By kind">
+                {CATS.filter((c) => parts[c.key]).map((c) => (
+                    <li key={c.key} className={`nw-cat cat-${c.key}${hover === c.key ? " is-on" : ""}`} onPointerEnter={() => setHover(c.key)} onPointerLeave={() => setHover(null)}>
+                        <i aria-hidden="true" />
+                        <span>{c.label}</span>
+                        <b className={c.key === "loans" ? "down" : ""}>
+                            {c.key === "loans" ? "−" : ""}
+                            {inrShort(parts[c.key])}
+                        </b>
+                    </li>
+                ))}
+                {!CATS.some((c) => parts[c.key]) && <li className="nw-cat-empty">Nothing counted yet. Connect an account below.</li>}
+            </ul>
         </div>
     );
 }
@@ -627,89 +883,10 @@ function AccountSettings({ src, account, demo }) {
 
 // ---------- Crypto wallets ----------
 
-const CHAIN_SHORT = { evm: "EVM", btc: "Bitcoin", tron: "Tron", sol: "Solana" };
-const CHAIN_LONG = { evm: "Ethereum, BNB Chain, Polygon, Arbitrum, Base, Optimism", btc: "Bitcoin", tron: "Tron", sol: "Solana" };
-
-/** The same rules as the server: which chain an address is on, from its format. */
-function chainOf(address) {
-    const a = address.trim();
-    if (/^0x[0-9a-fA-F]{40}$/.test(a)) return "evm";
-    if (/^bc1[02-9ac-hj-np-z]{11,71}$/.test(a)) return "btc";
-    if (/^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(a)) return "tron";
-    if (/^[13][1-9A-HJ-NP-Za-km-z]{25,34}$/.test(a)) return "btc";
-    if (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a)) return "sol";
-    return null;
-}
-
-/** A pasted block of addresses, split on lines, spaces or commas, each with its chain. */
-const parseAddresses = (text) => [...new Set(text.split(/[\s,;]+/).map((a) => a.trim()).filter(Boolean))].map((address) => ({ address, chain: chainOf(address) }));
-
-const short = (a) => (a.length > 16 ? `${a.slice(0, 8)}…${a.slice(-6)}` : a);
 const amount = (x) => (x >= 1000 ? num(x, 2) : x >= 1 ? num(x, 4) : num(x, 8));
 
-/** Name a wallet and paste all its addresses at once; used for adding and for editing. */
-function WalletForm({ initial, onSave, onCancel, saving }) {
-    const [name, setName] = useState(initial?.name || "");
-    const [text, setText] = useState(initial ? initial.addresses.map((a) => a.address).join("\n") : "");
-    const parsed = parseAddresses(text);
-    const bad = parsed.filter((a) => !a.chain);
-    const ok = name.trim() && parsed.length && !bad.length;
-    return (
-        <form
-            className="nw-form"
-            onSubmit={(e) => {
-                e.preventDefault();
-                if (ok) onSave({ name: name.trim(), addresses: parsed.map((a) => a.address) });
-            }}
-        >
-            <div className="nw-wallet-form">
-                <div className="field">
-                    <label htmlFor="cw-name">Name</label>
-                    <input id="cw-name" className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Trust Wallet" maxLength={40} autoFocus />
-                </div>
-                <div className="field">
-                    <label htmlFor="cw-addresses">Addresses</label>
-                    <textarea
-                        id="cw-addresses"
-                        className="textarea nw-mono"
-                        value={text}
-                        onChange={(e) => setText(e.target.value)}
-                        placeholder={"Paste each coin’s receive address, one per line:\n0x…  (one covers ETH, BNB, Polygon and more)\nbc1…\nT…\nSolana address"}
-                        spellCheck={false}
-                        autoComplete="off"
-                        rows={5}
-                    />
-                    <span className="field-hint">In Trust Wallet: tap a coin → Receive → copy. One 0x address covers every EVM chain. Never your recovery phrase.</span>
-                </div>
-            </div>
-            {parsed.length > 0 && (
-                <ul className="nw-found" aria-label="Addresses found">
-                    {parsed.map((a) => (
-                        <li key={a.address} className={a.chain ? "" : "is-bad"} title={a.chain ? CHAIN_LONG[a.chain] : "Not a Bitcoin, EVM, Tron or Solana address"}>
-                            <b>{a.chain ? CHAIN_SHORT[a.chain] : "Unknown"}</b>
-                            <span className="nw-mono">{short(a.address)}</span>
-                        </li>
-                    ))}
-                </ul>
-            )}
-            <div className="nw-form-actions">
-                {bad.length > 0 && <span className="nw-form-err">{bad.length === 1 ? "One address isn’t recognised" : `${bad.length} addresses aren’t recognised`}</span>}
-                <button type="button" className="btn btn-ghost" onClick={onCancel}>
-                    Cancel
-                </button>
-                <button type="submit" className="btn btn-primary" disabled={saving || !ok}>
-                    {initial ? "Save" : `Add${parsed.length > 1 ? ` ${parsed.length} addresses` : ""}`}
-                </button>
-            </div>
-        </form>
-    );
-}
-
-function CryptoPanel({ src, demo }) {
-    const [editing, setEditing] = useState(null); // null | "new" | a wallet's _id
-    const [saving, setSaving] = useState(false);
-    const list = src.data?.wallets || [];
-
+/** One crypto wallet: its addresses, and every coin across them. */
+function WalletPanel({ wallet, src, onAdd, onEdit, onRemove }) {
     if (src.state === "loading") return <div className="sk sk-rows" aria-busy="true" />;
     if (src.state === "error" || src.state === "unset")
         return (
@@ -717,122 +894,72 @@ function CryptoPanel({ src, demo }) {
                 {src.message}
             </Setup>
         );
+    if (!wallet)
+        return (
+            <div className="kt-connect nw-setup nw-crypto-empty">
+                <h2>Bring in your crypto</h2>
+                <p>Pick your wallet app and connect it: its public addresses come in by themselves, and every coin on them is counted at today’s price. No keys, no recovery phrase, nothing to sign.</p>
+                <div className="kt-connect-actions">
+                    <button type="button" className="btn btn-primary" onClick={onAdd}>
+                        <Plus aria-hidden="true" />
+                        Add a crypto wallet
+                    </button>
+                </div>
+            </div>
+        );
 
-    const save = async (fields) => {
-        setSaving(true);
-        try {
-            if (demo) {
-                const addresses = fields.addresses.map((address) => ({ address, chain: chainOf(address), holdings: [], inr: 0, usd: 0, error: null }));
-                src.setData((d) => ({
-                    ...d,
-                    wallets:
-                        editing === "new"
-                            ? [...d.wallets, { _id: `d${Date.now()}`, name: fields.name, addresses, holdings: [], inr: 0, usd: 0, error: null }]
-                            : d.wallets.map((w) => (w._id === editing ? { ...w, name: fields.name, addresses } : w)),
-                }));
-            } else if (editing === "new") {
-                await http("/crypto/wallets", { method: "POST", body: fields });
-                src.reload();
-            } else {
-                await http(`/crypto/wallets/${editing}`, { method: "PUT", body: fields });
-                src.reload();
-            }
-            setEditing(null);
-        } catch (err) {
-            toast.error("Didn’t save", { description: err.detail || "Try again in a moment." });
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    const remove = async (w) => {
-        try {
-            if (!demo) await http(`/crypto/wallets/${w._id}`, { method: "DELETE" });
-            src.setData((d) => ({ ...d, wallets: d.wallets.filter((x) => x._id !== w._id) }));
-        } catch {
-            toast.error("Didn’t remove it", { description: "Try again in a moment." });
-        }
-    };
-
-    const total = list.reduce((a, w) => a + (w.inr || 0), 0);
-    const totalUsd = list.reduce((a, w) => a + (w.usd || 0), 0);
-
+    const w = wallet;
     return (
         <div className="kt">
-            <div className="kt-sub-head nw-manual-head">
-                <span className="group-note">
-                    {list.length ? (
-                        <>
-                            {inr(total, { whole: true })} <span className="muted">· {usd(totalUsd)}</span>
-                        </>
-                    ) : (
-                        "Public addresses only: no keys or seed phrase, ever."
-                    )}
-                </span>
-                {editing !== "new" && (
-                    <button type="button" className="btn btn-sm" onClick={() => setEditing("new")}>
-                        <Plus aria-hidden="true" />
-                        Add wallet
+            <div className="nw-wallet-bar">
+                <ul className="nw-wallet-addrs" aria-label="Addresses">
+                    {(w.addresses || []).map((a) => (
+                        <li key={a.address} className={a.error ? "is-warn" : ""} title={`${a.address}${a.error ? `\n${a.error}` : ""}`}>
+                            <span className="aw-chain">{CHAIN_SHORT[a.chain]}</span>
+                            <span className="nw-mono">{shortAddress(a.address)}</span>
+                            <b>{inrShort(a.inr || 0)}</b>
+                        </li>
+                    ))}
+                </ul>
+                <div className="nw-wallet-actions">
+                    <button type="button" className="btn btn-sm" onClick={() => onEdit(w)}>
+                        <Pencil aria-hidden="true" />
+                        Edit
                     </button>
-                )}
+                    <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => onRemove(w)} aria-label={`Remove ${w.name}`} title="Remove">
+                        <Trash2 aria-hidden="true" />
+                    </button>
+                </div>
             </div>
             {src.data?.priceError && <p className="kt-note">Prices didn’t load ({src.data.priceError}), so values may be missing.</p>}
-            {editing === "new" && <WalletForm onSave={save} onCancel={() => setEditing(null)} saving={saving} />}
-
-            {list.map((w) =>
-                editing === w._id ? (
-                    <WalletForm key={w._id} initial={w} onSave={save} onCancel={() => setEditing(null)} saving={saving} />
-                ) : (
-                    <div key={w._id} className="nw-wallet">
-                        <div className="nw-wallet-head">
-                            <span className="nw-wallet-name">
-                                <b>{w.name}</b>
-                                {(w.addresses || []).map((a) => (
-                                    <span key={a.address} className="nw-addr" title={`${a.address}${a.error ? ` · ${a.error}` : ""}`}>
-                                        <span className={`kt-chip ${a.error ? "open" : "muted"}`}>{CHAIN_SHORT[a.chain]}</span>
-                                        <span className="nw-mono muted">{short(a.address)}</span>
-                                    </span>
-                                ))}
+            {w.error && <p className="kt-note">Some chains didn’t answer: {w.error}</p>}
+            {w.holdings?.length ? (
+                <Table
+                    label={`${w.name} coins`}
+                    cols="minmax(0, 1.3fr) 8rem 7rem 7.5rem 5rem"
+                    colsSm="minmax(0, 1fr) 7rem"
+                    hide={[1, 2, 4]}
+                    head={["Coin", "Amount", "Dollars", "Rupees", "24h"]}
+                    rows={w.holdings}
+                    rowKey={(h) => `${h.network}:${h.symbol}`}
+                    render={(h) => [
+                        <span key="s" className="nw-coin">
+                            <span className={`nw-coin-mark coin-${h.symbol.toLowerCase()}`} aria-hidden="true">
+                                {h.symbol.slice(0, 1)}
                             </span>
-                            <span className="nw-wallet-total">
-                                <b>{inr(w.inr || 0, { whole: true })}</b>
-                                <small>{usd(w.usd || 0)}</small>
-                            </span>
-                            <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => setEditing(w._id)} aria-label={`Edit ${w.name}`}>
-                                <Pencil aria-hidden="true" />
-                            </button>
-                            <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => remove(w)} aria-label={`Remove ${w.name}`}>
-                                <Trash2 aria-hidden="true" />
-                            </button>
-                        </div>
-                        {w.error && <p className="kt-note">Some chains didn’t answer: {w.error}</p>}
-                        {w.holdings?.length ? (
-                            <Table
-                                label={`${w.name} coins`}
-                                cols="minmax(0, 1.3fr) 8rem 7rem 7.5rem 5rem"
-                                colsSm="minmax(0, 1fr) 7rem"
-                                hide={[1, 2, 4]}
-                                head={["Coin", "Amount", "Dollars", "Rupees", "24h"]}
-                                rows={w.holdings}
-                                rowKey={(h) => `${h.network}:${h.symbol}`}
-                                render={(h) => [
-                                    <Sym key="s" title={h.symbol} sub={h.network} />,
-                                    <span key="a" className="kt-num">{amount(h.amount)}</span>,
-                                    <span key="u" className="kt-num">{h.usd != null ? usd(h.usd) : "—"}</span>,
-                                    <span key="i" className="kt-num">{h.inr != null ? inr(h.inr, { whole: true }) : "—"}</span>,
-                                    <span key="c" className={`kt-num ${sideOf(h.change24h)}`}>{/^USD[TC]$/.test(h.symbol) ? "—" : pct(h.change24h)}</span>,
-                                ]}
-                            />
-                        ) : (
-                            !w.error && <p className="empty-note">Nothing on these addresses yet, or only coins this page doesn’t read.</p>
-                        )}
-                    </div>
-                )
+                            <Sym title={h.symbol} sub={h.network} />
+                        </span>,
+                        <span key="a" className="kt-num">{amount(h.amount)}</span>,
+                        <span key="u" className="kt-num">{h.usd != null ? usd(h.usd) : "—"}</span>,
+                        <span key="i" className="kt-num">{h.inr != null ? inr(h.inr, { whole: true }) : "—"}</span>,
+                        <span key="c" className={`kt-num ${sideOf(h.change24h)}`}>{/^USD[TC]$/.test(h.symbol) ? "—" : pct(h.change24h)}</span>,
+                    ]}
+                />
+            ) : (
+                !w.error && <p className="empty-note">Nothing on these addresses yet, or only coins this page doesn’t read.</p>
             )}
-            {!list.length && editing !== "new" && <p className="empty-note">No wallets yet. Add one with its public addresses to count it.</p>}
             <p className="nw-fine">
-                Read from public blockchains: Bitcoin; Ethereum, BNB Chain, Polygon, Arbitrum, Base and Optimism (the main coin, USDT and USDC); Tron (TRX, USDT); Solana (SOL, USDT, USDC). Prices from
-                CoinGecko. Coins on an exchange aren’t in a wallet address.
+                Read from public chains: Bitcoin; Ethereum, BNB Chain, Polygon, Arbitrum, Base and Optimism (the main coin, USDT, USDC); Tron (TRX, USDT); Solana (SOL, USDT, USDC). Prices from CoinGecko.
             </p>
         </div>
     );
