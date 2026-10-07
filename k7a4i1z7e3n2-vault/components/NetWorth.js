@@ -1,15 +1,17 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { CandlestickChart, Landmark, Pencil, Plus, RefreshCw, Trash2, Wallet, X } from "lucide-react";
+import { Pencil, Plus, RefreshCw, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { http } from "@/lib/http";
 import { hasHandoff, inr, num, pct } from "@/lib/kite";
 import { sideOf } from "@/lib/format";
 import { CATS, combine, cryptoWorth, growwWorth, manualWorth, mt5Worth, perUnit, zerodhaWorth } from "@/lib/worth";
 import { demoCrypto, demoFx, demoGroww, demoHistory, demoManual, demoMt5 } from "@/lib/worthDemo";
-import { CHAIN_INFO, CHAIN_SHORT, NETWORK_KEY, chainOf, shortAddress, walletOf } from "@/lib/wallets";
-import { CoinIcon, NetworkStack, WalletIcon } from "./k7/CryptoIcons";
+import { CHAIN_INFO, CHAIN_SHORT, NETWORK_KEY, chainOf, shortAddress } from "@/lib/wallets";
+import { CoinIcon, NetworkStack } from "./k7/CryptoIcons";
+import { Mark, bankIn, brandFor } from "./k7/Marks";
+import { BANKS } from "@/lib/cards";
 import Zerodha, { Rupees, SideTag, Sym, Table, useZerodha } from "./Zerodha";
 import AddWallet from "./AddWallet";
 import Seg from "./k7/Seg";
@@ -66,15 +68,11 @@ const inrShort = (x) => {
 // brand-ish flat colours for the marks; only a tint and an initial, no logos
 const SOURCE_COLOR = { zerodha: "#387ED1", groww: "#00A67E", mt5: "#C9971C", prop: "#7C5CE0", manual: "#2F8F8A", crypto: "#D0782C" };
 
-/** An account's mark: a wallet's own icon, or a solid brand tile with an initial or a symbol. */
-function SourceMark({ source, size = 38 }) {
-    if (source.wallet) return <WalletIcon id={source.wallet} size={size} />;
-    const glyph = source.glyph === "bank" ? <Landmark /> : source.glyph === "forex" ? <CandlestickChart /> : source.glyph === "wallet" ? <Wallet /> : <span>{source.name.slice(0, 1)}</span>;
-    return (
-        <span className="bm" style={{ "--bc": source.color, "--bs": `${size}px` }} aria-hidden="true">
-            {glyph}
-        </span>
-    );
+const bankById = (id) => BANKS.find((b) => b.id === id);
+
+/** An account's mark, from its `mark` description (see components/k7/Marks.js). */
+function SourceMark({ source, size = 40 }) {
+    return <Mark mark={source.mark} size={size} />;
 }
 
 export default function NetWorth() {
@@ -116,6 +114,7 @@ export default function NetWorth() {
         name: "Zerodha",
         kind: "Stocks, F&O, Coin funds",
         color: SOURCE_COLOR.zerodha,
+        mark: { brand: "zerodha" },
         worth: zw,
         status: zw ? `Holdings ${inrShort(zw.parts.stocks)} · cash ${inrShort(zw.parts.cash)}` : { loading: "Loading…", connect: "Connect for today", unset: "Not set up yet", offline: "Server didn’t answer" }[z.phase] || "",
         tone: zw ? "ok" : z.phase === "loading" ? "" : "warn",
@@ -127,6 +126,7 @@ export default function NetWorth() {
         name: "Groww",
         kind: "Stocks and F&O",
         color: SOURCE_COLOR.groww,
+        mark: { brand: "groww" },
         worth: gw,
         status: gw
             ? `${groww.data.sections.holdings?.data?.length || 0} holdings · delayed prices`
@@ -142,6 +142,7 @@ export default function NetWorth() {
                 name: a.label,
                 kind: w.counted ? "MT5 forex" : "MT5 · funded, not counted",
                 color: w.counted ? SOURCE_COLOR.mt5 : SOURCE_COLOR.prop,
+                mark: brandFor(`${a.label} ${a.server} ${a.info?.broker}`) ? { brand: brandFor(`${a.label} ${a.server} ${a.info?.broker}`) } : { glyph: "forex" },
                 worth: w.counted ? w : null,
                 shown: w.value,
                 account: a,
@@ -154,7 +155,7 @@ export default function NetWorth() {
     } else {
         sources.push({
             id: "mt5",
-            glyph: "forex",
+            mark: { stack: [{ brand: "exness" }, { brand: "fundingpips" }] },
             name: "MT5 accounts",
             kind: "Exness, FundingPips",
             color: SOURCE_COLOR.mt5,
@@ -173,6 +174,7 @@ export default function NetWorth() {
                 name: w.name,
                 kind: `Crypto · ${(w.addresses || []).map((a) => CHAIN_SHORT[a.chain]).join(", ")}`,
                 wallet: w.kind || "other",
+                mark: { wallet: w.kind || "other" },
                 worth: cryptoWorth({ wallets: [w] }),
                 status: w.error ? "Some chains didn’t answer" : coins.length ? coins.slice(0, 4).join(", ") + (coins.length > 4 ? "…" : "") : "Nothing on these addresses yet",
                 tone: w.error ? "warn" : "ok",
@@ -182,7 +184,7 @@ export default function NetWorth() {
     } else {
         sources.push({
             id: "crypto",
-            glyph: "wallet",
+            mark: { stack: [{ wallet: "trust" }, { wallet: "metamask" }, { wallet: "phantom" }] },
             name: "Crypto wallets",
             kind: "Trust Wallet, MetaMask, Phantom…",
             color: SOURCE_COLOR.crypto,
@@ -196,7 +198,10 @@ export default function NetWorth() {
     const mw = ready(manual) ? manualWorth(entries, rate) : null;
     sources.push({
         id: "manual",
-        glyph: "bank",
+        mark: (() => {
+            const banks = [...new Set(entries.map((e) => bankIn(e.name)?.id).filter(Boolean))].map(bankById);
+            return { stack: (banks.length ? banks : ["hdfc", "sbi", "icici"].map(bankById)).filter(Boolean).map((bank) => ({ bank })) };
+        })(),
         name: "Bank and cash",
         kind: "Typed in by hand",
         color: SOURCE_COLOR.manual,
@@ -339,26 +344,25 @@ export default function NetWorth() {
                                             <b>{s.name}</b>
                                             <small>{s.kind}</small>
                                         </span>
+                                    </span>
+                                    <span className={`nw-tile-value${s.worth ? "" : " is-off"}`}>
+                                        {value == null ? <span className="nw-tile-none">Not connected</span> : s.worth ? inrShort(value) : <s title="Not counted">{inrShort(value)}</s>}
+                                    </span>
+                                    <span className="nw-tile-foot">
                                         <i className={`nw-dot tone-${s.tone || "none"}`} aria-hidden="true" />
+                                        <span className="nw-tile-status">{s.status}</span>
+                                        {s.worth && share >= 0.5 ? <span className="nw-tile-share">{pct(share, { sign: false })}</span> : null}
                                     </span>
-                                    <span className={`nw-tile-value${value == null ? " muted" : ""}${s.worth ? "" : " is-off"}`}>
-                                        {value == null ? "—" : s.worth ? inrShort(value) : <s title="Not counted">{inrShort(value)}</s>}
-                                        {s.worth && share >= 0.5 ? <small>{pct(share, { sign: false })}</small> : null}
-                                    </span>
-                                    <span className="nw-tile-bar" aria-hidden="true">
-                                        <i style={{ width: `${Math.min(100, share)}%`, background: s.color || walletOf(s.wallet).color }} />
-                                    </span>
-                                    <span className="nw-tile-status">{s.status}</span>
                                 </button>
                             </li>
                         );
                     })}
                     <li style={{ "--i": sources.length }}>
                         <button type="button" className="nw-tile nw-tile-add" onClick={() => setAdding("new")}>
-                            <span className="nw-add-icon">
-                                <Plus aria-hidden="true" />
-                            </span>
-                            <b>Add a crypto wallet</b>
+                            <Mark mark={{ stack: [{ wallet: "trust" }, { wallet: "metamask" }, { wallet: "phantom" }] }} size={40} />
+                            <b>
+                                <Plus aria-hidden="true" /> Add a crypto wallet
+                            </b>
                             <small>Trust Wallet, MetaMask, Phantom… read only</small>
                         </button>
                     </li>
@@ -367,7 +371,7 @@ export default function NetWorth() {
 
             <section className="group nw-detail" aria-labelledby="nw-detail">
                 <div className="nw-detail-head">
-                    <SourceMark source={current} size={44} />
+                    <SourceMark source={current} size={48} />
                     <div>
                         <h2 id="nw-detail">{current.name}</h2>
                         <p>{current.kind}</p>
@@ -903,6 +907,7 @@ function WalletPanel({ wallet, src, onAdd, onEdit, onRemove }) {
     if (!wallet)
         return (
             <div className="kt-connect nw-setup nw-crypto-empty">
+                <Mark mark={{ stack: [{ wallet: "trust" }, { wallet: "metamask" }, { wallet: "phantom" }] }} size={52} />
                 <h2>Bring in your crypto</h2>
                 <p>Pick your wallet app and connect it: its public addresses come in by themselves, and every coin on them is counted at today’s price. No keys, no recovery phrase, nothing to sign.</p>
                 <div className="kt-connect-actions">
