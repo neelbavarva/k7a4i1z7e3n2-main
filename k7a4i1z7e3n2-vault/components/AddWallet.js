@@ -197,13 +197,13 @@ function WalletPicker({ value, onChange, extFor }) {
                 {tiles.map((id) => {
                     const w = walletOf(id);
                     return (
-                        <button key={id} type="button" aria-pressed={value === id} className="bank-option" style={{ "--tint": w.color }} onClick={() => choose(id)} title={extFor(w) ? `${w.name}: installed here` : w.name}>
+                        <button key={id} type="button" aria-pressed={value === id} className="bank-option" onClick={() => choose(id)} title={extFor(w) ? `${w.name}: installed here` : w.name}>
                             <WalletIcon id={id} icon={extFor(w)?.icon} size={26} />
                             <span className="bank-option-label">{w.name.replace(" Wallet", "")}</span>
                         </button>
                     );
                 })}
-                <button type="button" aria-pressed={fromMore} aria-expanded={open} className={`bank-option is-more${open ? " is-open" : ""}`} style={fromMore ? { "--tint": more.color } : undefined} onClick={() => setOpen((o) => !o)}>
+                <button type="button" aria-pressed={fromMore} aria-expanded={open} className={`bank-option is-more${open ? " is-open" : ""}`} onClick={() => setOpen((o) => !o)}>
                     {fromMore ? (
                         <WalletIcon id={value} size={26} />
                     ) : (

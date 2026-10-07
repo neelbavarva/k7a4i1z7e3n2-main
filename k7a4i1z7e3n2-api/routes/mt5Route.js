@@ -246,6 +246,14 @@ router.get("/accounts", apiKeyMiddleware, async (req, res) => {
         else byLogin.get(key).also.push(a.source);
     }
 
+    // an account's own name, unless it's an email (prop firms name accounts after the login email):
+    // then the firm from the server ("FundingPips-SIM1" → "FundingPips") and the login
+    const labelOf = (a) => {
+        const name = String(a.name || "").trim();
+        if (name && !name.includes("@")) return name;
+        const firm = String(a.server || a.info?.broker || "").split(/[-\s_]/)[0];
+        return `${firm || "MT5"} ${a.login}`.trim();
+    };
     const rows = [...byLogin.values()];
     const settings = new Map((await Mt5Setting.find({ _id: { $in: rows.map((a) => `mt5-${a.login}`) } }).lean().catch(() => [])).map((s) => [s._id, s]));
     const accounts = rows.map((a) => {
@@ -253,7 +261,7 @@ router.get("/accounts", apiKeyMiddleware, async (req, res) => {
         const s = settings.get(id) || {};
         const looksProp = PROP.test(`${a.server || ""} ${a.name || ""} ${a.info?.broker || ""}`);
         const counted = s.counted == null ? !looksProp : s.counted;
-        return { ...a, id, label: s.label || a.name || `MT5 ${a.login}`, counted, prop: !counted };
+        return { ...a, id, label: s.label || labelOf(a), counted, prop: !counted };
     });
 
     const value = { fetchedAt: new Date().toISOString(), sources, accounts };

@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import "@fontsource-variable/instrument-sans";
 import "@fontsource/young-serif/400.css";
+// money is set in Literata: Young Serif's kin, with a real ₹ and even, tabular figures
+import "@fontsource-variable/literata/opsz.css";
 // bank cards set their own type, like printed cards: see .bank-card in globals.css
 import "@fontsource-variable/montserrat";
 import "@fontsource/share-tech-mono/400.css";

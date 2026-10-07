@@ -33,6 +33,8 @@
   --font: 'Instrument Sans Variable', 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --serif: 'Young Serif', 'Iowan Old Style', Georgia, serif;
   --mono: ui-monospace, 'SF Mono', Menlo, monospace;
+  /* money: Literata, Young Serif's kin with a real ₹ and tabular figures (app/layout.tsx) */
+  --figs: 'Literata Variable', 'Literata', Georgia, serif;
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
@@ -318,6 +320,13 @@ code {
 .btn-primary:hover {
   background: #2a302a;
   border-color: #2a302a;
+}
+/* not ready yet: a quiet face that still reads as the button to press, not a greyed-out slab */
+.btn-primary:disabled:not(.is-busy) {
+  opacity: 1;
+  color: var(--muted);
+  background: var(--grid);
+  border-color: var(--line);
 }
 .btn-primary kbd {
   color: rgba(255, 255, 255, 0.7);
@@ -7715,178 +7724,105 @@ fieldset.bare:disabled {
   box-shadow: 0 0 0 1.5px var(--raised);
 }
 
-/* ---------- Net worth marks and tiles, take three: real logos, quieter tiles ---------- */
+/* ---------- Net worth: marks, figures, the total, where it sits, the ledger ---------- */
 
-/* a broker's logo on a white app tile */
-.brm {
+/* An account's mark: its own logo in its own colours, bare, in a square box; each logo scaled
+   (--k) so they all look the same size whatever their shape */
+.mk {
+  flex: none;
   display: grid;
   place-items: center;
-  flex: none;
   width: var(--ms);
   height: var(--ms);
-  background: #fff;
-  border-radius: calc(var(--ms) * 0.28);
-  box-shadow:
-    inset 0 0 0 1px rgb(22 26 22 / 0.08),
-    0 1px 2px rgb(22 26 22 / 0.06),
-    0 4px 12px rgb(22 26 22 / 0.05);
-  overflow: hidden;
 }
-.brm img {
+.mk-logo {
+  display: grid;
+  place-items: center;
+  width: calc(100% * var(--k, 0.8));
+  height: calc(100% * var(--k, 0.8));
+}
+.mk-logo > svg,
+.mk-logo > img,
+.mk-logo > .logo {
   display: block;
-  width: 66%;
-  height: 66%;
-  object-fit: contain;
-}
-.brm.is-full img {
   width: 100%;
   height: 100%;
+  object-fit: contain;
 }
-.brm.is-glyph {
+.mk-glyph {
   color: var(--ink2);
-  background: var(--raised);
 }
-.brm > svg {
-  width: 46%;
-  height: 46%;
+.mk-glyph > svg {
+  stroke-width: 1.6;
 }
-.wi {
-  box-shadow:
-    inset 0 0 0 1px rgb(22 26 22 / 0.08),
-    0 1px 2px rgb(22 26 22 / 0.06),
-    0 4px 12px rgb(22 26 22 / 0.05);
+.mk-letter {
+  font-family: var(--serif);
+  font-size: calc(var(--ms, 32px) * 0.62);
+  line-height: 1;
 }
 .mstack {
   display: inline-flex;
   align-items: center;
+  gap: calc(var(--ms) * 0.12);
   flex: none;
 }
-.mstack-item {
-  position: relative;
-  display: flex;
-  border-radius: calc(var(--ms) * 0.3);
-  box-shadow: 0 0 0 2.5px var(--raised);
+
+/* Money: Literata's lining, tabular figures and its own rupee sign, a shade lighter, as are the
+   paise. Its optical sizes keep the big total crisp and the ledger's figures sturdy. */
+.fig {
+  font-family: var(--figs);
+  font-optical-sizing: auto;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
+  letter-spacing: -0.005em;
+  white-space: nowrap;
 }
-.mstack-item + .mstack-item {
-  margin-left: calc(var(--ms) * -0.32);
+.fig-cur {
+  margin-right: 0.05em;
+  font-weight: 500;
+  color: var(--ink2);
 }
-.mstack .bank-mark {
-  background: #fff;
+.fig-frac {
+  color: var(--ink2);
+}
+.fig-unit {
+  margin-left: 0.16em;
+  font-size: 0.66em;
+  font-weight: 600;
+  color: var(--ink2);
+}
+.fig.is-neg,
+.fig.is-neg .fig-cur,
+.fig.is-neg .fig-frac {
+  color: var(--bear-ink);
 }
 
-/* tiles: the logo and name, the value, then one quiet line */
-.nw-tiles {
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+/* the top: the date and tools on one line, the figure large under it, the history across */
+.hx {
+  margin-top: 22px;
+  padding-bottom: 8px;
+}
+.hx-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 12px;
+  min-height: 38px;
 }
-.nw-tile {
-  gap: 0;
-  padding: 18px 18px 0;
-  background: var(--raised);
-  border-radius: 16px;
-  box-shadow:
-    0 1px 2px rgb(22 26 22 / 0.04),
-    0 8px 24px rgb(22 26 22 / 0.04);
+.hx-eyebrow {
+  font-size: 11.5px;
+  font-weight: 650;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink2);
 }
-.nw-tile:hover {
-  border-color: color-mix(in srgb, var(--ink) 16%, var(--line));
-  box-shadow:
-    0 2px 4px rgb(22 26 22 / 0.05),
-    0 14px 32px rgb(22 26 22 / 0.08);
-}
-.nw-tile[aria-pressed='true'] {
-  background: var(--raised);
-  border-color: color-mix(in srgb, var(--ink) 55%, var(--line));
-  box-shadow:
-    0 0 0 3px color-mix(in srgb, var(--ink) 7%, transparent),
-    0 14px 32px rgb(22 26 22 / 0.08);
-}
-.nw-tile-top {
-  gap: 12px;
-}
-.nw-tile-name b {
-  font-size: 15px;
-  letter-spacing: -0.005em;
-}
-.nw-tile-name small {
-  margin-top: 1px;
-}
-.nw-tile-value {
-  display: block;
-  margin: 18px 0 16px;
-  font-size: 32px;
-  line-height: 1.05;
-  letter-spacing: -0.02em;
-}
-.nw-tile-none {
-  display: inline-block;
-  padding: 6px 0;
-  font-family: var(--font);
-  font-size: 13.5px;
-  letter-spacing: 0;
+.hx-eyebrow span {
   color: var(--muted);
 }
-.nw-tile-foot {
+.hx-tools {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin: auto -18px 0;
-  padding: 11px 18px 12px;
-  border-top: 1px solid var(--grid);
-}
-.nw-tile-foot .nw-tile-status {
-  flex: 1;
-  min-width: 0;
-  font-size: 12px;
-}
-.nw-tile-share {
-  flex: none;
-  padding: 2px 8px;
-  font-size: 11.5px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--ink2);
-  background: var(--page);
-  border: 1px solid var(--line);
-  border-radius: 99px;
-}
-.nw-tile-add {
-  gap: 10px;
-  min-height: 0;
-  padding: 18px;
-  background: transparent;
-  box-shadow: none;
-}
-.nw-tile-add b {
-  display: inline-flex;
-  align-items: center;
   gap: 6px;
-  margin-top: 4px;
-}
-.nw-tile-add b svg {
-  width: 14px;
-  height: 14px;
-}
-.nw-detail-head {
-  gap: 16px;
-}
-.nw-crypto-empty .mstack {
-  margin-bottom: 4px;
-}
-
-@media (max-width: 640px) {
-  .nw-tile-value {
-    font-size: 26px;
-    margin: 14px 0 12px;
-  }
-}
-
-/* ---------- Net worth: the total, where it sits, the ledger ---------- */
-
-/* the top: the figure set large, the facts under it, the history across the page */
-.hx {
-  margin-top: 26px;
-  padding-bottom: 8px;
 }
 .hx-top {
   display: flex;
@@ -7895,28 +7831,37 @@ fieldset.bare:disabled {
   gap: 16px 24px;
   flex-wrap: wrap;
 }
-.hx-eyebrow {
-  font-size: 11.5px;
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
 .hx-big {
-  margin-top: 8px;
-  font-family: var(--serif);
-  font-size: clamp(46px, 7.2vw, 86px);
-  line-height: 0.98;
-  letter-spacing: -0.035em;
-  font-variant-numeric: tabular-nums;
+  margin-top: 6px;
+  font-family: var(--figs);
+  font-size: clamp(52px, 7.4vw, 92px);
+  line-height: 1;
   color: var(--ink);
+}
+.fig-big {
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+/* the sign and the paise small and raised to the top of the digits, the way a price is set */
+.fig-big .fig-cur {
+  margin-right: 0.1em;
+  font-size: 0.48em;
+  font-weight: 500;
+  vertical-align: 0.74em;
+}
+.fig-big .fig-frac {
+  margin-left: 0.04em;
+  font-size: 0.42em;
+  font-weight: 600;
+  letter-spacing: 0;
+  vertical-align: 0.9em;
 }
 .hx-facts {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 20px;
-  margin-top: 14px;
+  margin-top: 16px;
   font-size: 13.5px;
   font-variant-numeric: tabular-nums;
 }
@@ -7955,12 +7900,6 @@ fieldset.bare:disabled {
 .hx-fact {
   color: var(--ink2);
 }
-.hx-tools {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding-bottom: 6px;
-}
 .hx-chart {
   --c: var(--bull);
   margin-top: 26px;
@@ -7974,15 +7913,12 @@ fieldset.bare:disabled {
   cursor: crosshair;
   touch-action: pan-y;
 }
-.hx-plot svg,
-.hx-chart.is-empty svg {
+.hx-plot svg {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   overflow: visible;
-}
-.hx-plot svg {
   animation: eq-in 0.9s var(--ease) both;
 }
 .hx-grid {
@@ -8055,37 +7991,73 @@ fieldset.bare:disabled {
   font-size: 11px;
   color: var(--muted);
 }
+/* day one: the month ahead as a ruler, today lit at its start */
 .hx-chart.is-empty {
-  position: relative;
-  display: grid;
-  place-items: center;
-  height: 150px;
-  border-top: 1px solid var(--grid);
-  border-bottom: 1px solid var(--grid);
+  margin-top: 34px;
 }
-.hx-ghost {
-  fill: none;
-  stroke: var(--axis);
-  stroke-width: 1.5;
-  stroke-dasharray: 3 5;
-  vector-effect: non-scaling-stroke;
+.hx-ruler {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  height: 30px;
+  border-bottom: 1px solid var(--line);
 }
-.hx-chart.is-empty p {
+.hx-ruler i {
+  width: 1px;
+  height: 6px;
+  background: var(--axis);
+}
+.hx-ruler i.is-week {
+  height: 12px;
+  background: color-mix(in srgb, var(--muted) 70%, var(--axis));
+}
+.hx-ruler i.is-today {
   position: relative;
-  padding: 4px 12px;
+  width: 2px;
+  height: 22px;
+  background: var(--bull);
+}
+.hx-ruler i.is-today::after {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: -3.5px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--raised);
+  border: 2.5px solid var(--bull);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--bull) 14%, transparent);
+}
+.hx-ruler-text {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 20px;
+  flex-wrap: wrap;
+  margin-top: 10px;
   font-size: 12.5px;
   color: var(--muted);
-  background: var(--page);
+}
+.hx-ruler-today b {
+  margin-right: 4px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.hx-ruler-val {
+  font-weight: 500;
+  color: var(--ink2);
 }
 .hx-foot {
-  margin-top: 12px;
+  margin-top: 14px;
   font-size: 12px;
   color: var(--muted);
 }
 
-/* where it sits: every account as a block sized by what it holds */
+/* where it sits: one quiet panel, like the screener's figures, split by hairlines into a block
+   for each account, sized by what it holds; the logos are the only colour */
 .pic {
-  margin-top: 34px;
+  margin-top: 40px;
 }
 .pic-head,
 .lg-head {
@@ -8095,33 +8067,19 @@ fieldset.bare:disabled {
   gap: 12px;
   flex-wrap: wrap;
 }
-.pic-key {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 16px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: 12px;
-  color: var(--ink2);
-}
-.pic-key li {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.pic-key i {
-  width: 9px;
-  height: 9px;
-  border-radius: 3px;
-  background: color-mix(in srgb, var(--gc) 45%, var(--raised));
-  border: 1px solid color-mix(in srgb, var(--gc) 60%, var(--line));
+.pic-sub {
+  font-size: 12.5px;
+  color: var(--muted);
 }
 .pic-map {
   position: relative;
-  height: 320px;
   margin-top: 14px;
-  margin-inline: -3px;
+  overflow: hidden;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  transition: height 0.4s var(--ease);
 }
 .pic-block {
   position: absolute;
@@ -8131,46 +8089,44 @@ fieldset.bare:disabled {
   text-align: left;
   background: none;
   border: 0;
+  /* the hairlines between blocks: each block's right and bottom edge */
+  box-shadow:
+    inset -1px 0 0 var(--grid),
+    inset 0 -1px 0 var(--grid);
   cursor: pointer;
   animation: pic-in 0.5s var(--ease) both;
-  animation-delay: calc(var(--i, 0) * 45ms);
-  transition: left 0.5s var(--ease), top 0.5s var(--ease), width 0.5s var(--ease), height 0.5s var(--ease);
+  animation-delay: calc(var(--i, 0) * 40ms);
+  transition:
+    left 0.5s var(--ease),
+    top 0.5s var(--ease),
+    width 0.5s var(--ease),
+    height 0.5s var(--ease),
+    background-color 0.15s;
 }
 @keyframes pic-in {
   from {
     opacity: 0;
-    transform: scale(0.96);
   }
+}
+.pic-block:hover {
+  background: var(--surface);
+}
+.pic-block.is-on {
+  background: color-mix(in srgb, var(--ink) 3%, var(--raised));
+}
+.pic-block:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -3px;
 }
 .pic-in {
   position: absolute;
-  inset: 3px;
+  inset: 0 1px 1px 0;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   gap: 8px;
-  padding: 14px;
+  padding: 16px 18px 15px;
   overflow: hidden;
-  background: color-mix(in srgb, var(--gc) 9%, var(--raised));
-  border: 1px solid color-mix(in srgb, var(--gc) 24%, var(--line));
-  border-radius: 12px;
-  transition: background-color 0.2s, border-color 0.2s, box-shadow 0.25s var(--ease), transform 0.25s var(--ease);
-}
-.pic-block:hover .pic-in {
-  background: color-mix(in srgb, var(--gc) 15%, var(--raised));
-  border-color: color-mix(in srgb, var(--gc) 42%, var(--line));
-  box-shadow: 0 8px 22px -12px color-mix(in srgb, var(--gc) 60%, transparent);
-}
-.pic-block.is-on .pic-in {
-  border-color: color-mix(in srgb, var(--gc) 75%, var(--ink));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--gc) 18%, transparent);
-}
-.pic-block:focus-visible {
-  outline: none;
-}
-.pic-block:focus-visible .pic-in {
-  outline: 2px solid var(--focus);
-  outline-offset: 1px;
 }
 .pic-top {
   display: flex;
@@ -8179,14 +8135,10 @@ fieldset.bare:disabled {
   gap: 8px;
 }
 .pic-share {
-  padding: 2px 8px;
-  font-size: 11.5px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
-  color: color-mix(in srgb, var(--gc) 75%, var(--ink));
-  background: color-mix(in srgb, var(--raised) 70%, transparent);
-  border: 1px solid color-mix(in srgb, var(--gc) 22%, var(--line));
-  border-radius: 99px;
+  color: var(--muted);
 }
 .pic-text {
   display: grid;
@@ -8195,52 +8147,89 @@ fieldset.bare:disabled {
 }
 .pic-text b {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--ink2);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .pic-val {
-  font-family: var(--serif);
   font-size: 26px;
-  line-height: 1.05;
-  letter-spacing: -0.02em;
-  color: color-mix(in srgb, var(--gc) 55%, var(--ink));
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+  font-weight: 600;
+  line-height: 1.12;
+  letter-spacing: -0.015em;
+  color: var(--ink);
 }
 .pic-note {
-  margin-top: 4px;
+  margin-top: 2px;
   font-size: 12px;
-  color: var(--ink2);
+  color: var(--muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.pic-block.is-mid .pic-in {
-  padding: 10px 11px;
+.pic-block.is-mid .pic-in,
+.pic-block.is-tight .pic-in {
+  padding: 12px 14px;
 }
-.pic-block.is-mid .pic-val {
+.pic-block.is-mid .pic-val,
+.pic-block.is-tight .pic-val {
   font-size: 17px;
+  letter-spacing: -0.02em;
 }
 .pic-block.is-mid .pic-text b {
   font-size: 12px;
+}
+.pic-block.is-tight .pic-in {
+  gap: 4px;
 }
 .pic-block.is-small .pic-in {
   align-items: center;
   justify-content: center;
   padding: 4px;
 }
+/* one account: a band, the logo and name on the left, the figure at the far end */
+.pic-block.is-one .pic-in {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 14px;
+  padding: 16px 22px;
+}
+.pic-block.is-one .pic-text {
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'name val'
+    'note val';
+  align-items: center;
+  column-gap: 16px;
+}
+.pic-block.is-one .pic-text b {
+  grid-area: name;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.pic-block.is-one .pic-note {
+  grid-area: note;
+  margin: 0;
+}
+.pic-block.is-one .pic-val {
+  grid-area: val;
+  font-size: 28px;
+}
 .pic-empty {
-  position: absolute;
-  inset: 3px;
   display: grid;
   place-content: center;
   gap: 4px;
+  height: 150px;
+  margin-top: 14px;
+  padding: 20px;
   text-align: center;
-  border: 1.5px dashed var(--axis);
-  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
 }
 .pic-empty p {
   font-family: var(--serif);
@@ -8252,10 +8241,10 @@ fieldset.bare:disabled {
   color: var(--muted);
 }
 
-/* the ledger: each group, its accounts, and the total under a double rule */
+/* the ledger: each group, its accounts, and the total under a hairline */
 .lg {
-  margin-top: 38px;
-  --lg-cols: 40px minmax(0, 1fr) 9.5rem 10rem;
+  margin-top: 42px;
+  --lg-cols: 38px minmax(0, 1fr) 9.5rem 10rem;
 }
 .lg-cols {
   display: grid;
@@ -8270,7 +8259,7 @@ fieldset.bare:disabled {
   text-align: right;
 }
 .lg-group {
-  margin-top: 22px;
+  margin-top: 24px;
 }
 .lg-group-head {
   display: flex;
@@ -8280,24 +8269,10 @@ fieldset.bare:disabled {
   border-bottom: 1px solid var(--line);
 }
 .lg-group-name {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
   font-size: 11.5px;
   font-weight: 650;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--ink2);
-}
-.lg-group-name i {
-  width: 9px;
-  height: 9px;
-  border-radius: 3px;
-  background: color-mix(in srgb, var(--gc) 45%, var(--raised));
-  border: 1px solid color-mix(in srgb, var(--gc) 60%, var(--line));
-}
-.lg-group-head .lg-amt {
-  font-size: 16px;
   color: var(--ink2);
 }
 .lg-rows {
@@ -8314,7 +8289,7 @@ fieldset.bare:disabled {
   align-items: center;
   gap: 16px;
   width: 100%;
-  padding: 12px 12px;
+  padding: 12px;
   font: inherit;
   color: inherit;
   text-align: left;
@@ -8328,8 +8303,10 @@ fieldset.bare:disabled {
   background: var(--surface);
 }
 .lg-row.is-on {
-  background: color-mix(in srgb, var(--gc) 6%, var(--raised));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gc) 30%, var(--line));
+  background: var(--raised);
+  box-shadow:
+    inset 0 0 0 1px var(--line),
+    0 1px 2px rgb(22 26 22 / 0.04);
 }
 .lg-row:focus-visible {
   outline-offset: -2px;
@@ -8388,7 +8365,7 @@ fieldset.bare:disabled {
 .lg-bar i {
   display: block;
   height: 100%;
-  background: color-mix(in srgb, var(--gc) 70%, var(--raised));
+  background: color-mix(in srgb, var(--ink) 55%, var(--raised));
   border-radius: 99px;
   transform-origin: left center;
   animation: grow-x 0.8s var(--ease) both;
@@ -8397,18 +8374,17 @@ fieldset.bare:disabled {
   text-align: right;
 }
 .lg-amt {
-  font-family: var(--serif);
-  font-size: 18px;
-  letter-spacing: -0.01em;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--ink);
 }
-.lg-amt small {
-  font-size: 0.66em;
-  color: var(--muted);
+.lg-group-head .lg-amt {
+  font-size: 13.5px;
+  color: var(--ink2);
 }
-.lg-amt.is-neg {
-  color: var(--bear-ink);
+.lg-group-head .lg-amt .fig-frac {
+  display: none;
 }
 .lg-row.is-off .lg-name b {
   color: var(--ink2);
@@ -8432,24 +8408,35 @@ fieldset.bare:disabled {
   font-weight: 500;
   color: var(--ink2);
 }
+.lg-add:hover .lg-name b {
+  color: var(--ink);
+}
 .lg-add-icon {
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   color: var(--ink2);
-  border: 1.5px dashed var(--axis);
-  border-radius: 10px;
-  transition: transform 0.25s var(--ease), border-color 0.15s, color 0.15s;
+  background: var(--raised);
+  border-radius: 11px;
+  box-shadow:
+    inset 0 0 0 1px var(--line),
+    0 1px 2px rgb(22 26 22 / 0.05);
+  transition: color 0.15s, box-shadow 0.15s;
 }
 .lg-add:hover .lg-add-icon {
   color: var(--ink);
-  border-color: var(--ink2);
-  transform: rotate(90deg);
+  box-shadow:
+    inset 0 0 0 1px var(--axis),
+    0 2px 6px rgb(22 26 22 / 0.07);
 }
 .lg-add-icon svg {
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
+  transition: transform 0.25s var(--ease);
+}
+.lg-add:hover .lg-add-icon svg {
+  transform: rotate(90deg);
 }
 .lg-wait {
   display: inline-block;
@@ -8477,23 +8464,64 @@ fieldset.bare:disabled {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin-top: 14px;
-  padding: 14px 12px 0;
-  border-top: 3px double var(--ink);
+  gap: 16px;
+  margin-top: 8px;
+  padding: 18px 12px 0;
+  border-top: 1px solid var(--axis);
 }
 .lg-total > span:first-child {
   font-family: var(--serif);
-  font-size: 21px;
+  font-size: 22px;
+  color: var(--ink);
 }
-.lg-total .lg-amt {
+.lg-total-amt {
   font-size: 28px;
-  letter-spacing: -0.02em;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  color: var(--ink);
 }
 .lg-foot {
-  margin-top: 10px;
+  margin-top: 12px;
   padding: 0 12px;
   font-size: 12px;
   color: var(--muted);
+}
+
+/* the open account's heading */
+/* the open account, set apart from the ledger above it */
+.nw-detail {
+  margin-top: 64px;
+}
+.nw-detail-head {
+  gap: 16px;
+}
+/* an empty section: a quiet row of its own, not loose grey text under a heading */
+.nw .empty-note {
+  margin-top: 12px;
+  padding: 14px 16px;
+  font-size: 13px;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--grid);
+  border-radius: 12px;
+}
+.nw-detail-value {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+}
+.nw-crypto-empty .mstack {
+  margin-bottom: 4px;
+}
+/* a wallet's addresses: the address in the site's figures, spaced a little, not a code font */
+.nw-wallet-addrs .nw-mono {
+  font-family: var(--font);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink2);
 }
 
 /* the dialogs: what you're adding, as one quiet line at the top */
@@ -8527,10 +8555,11 @@ fieldset.bare:disabled {
   white-space: nowrap;
 }
 .bal-preview-amt {
-  font-family: var(--serif);
-  font-size: 24px;
+  font-family: var(--figs);
+  font-size: 22px;
+  font-weight: 600;
   letter-spacing: -0.015em;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums lining-nums;
 }
 .bal-preview-amt.is-neg {
   color: var(--bear-ink);
@@ -8589,241 +8618,18 @@ fieldset.bare:disabled {
   .lg-cols {
     grid-template-columns: auto;
   }
-  .pic-map {
-    height: 380px;
+  .pic-block.is-one .pic-val {
+    font-size: 24px;
   }
-  .hx-tools {
-    width: 100%;
-    justify-content: space-between;
+  .lg-total-amt {
+    font-size: 24px;
   }
 }
-
-/* ---------- Net worth, refined: one tile for every mark, lining figures, calmer blocks ---------- */
-
-/* every mark on the same white tile as the vault's bank marks; each logo scaled to look the same size */
-.wi,
-.brm {
-  background: var(--raised);
-  border: 0;
-  border-radius: 28%;
-  box-shadow:
-    inset 0 0 0 1px var(--line),
-    0 1px 2px rgb(22 26 22 / 0.06);
-  overflow: hidden;
-}
-/* the wallets' plain logos sit inside a 24-unit box with room around them: drawn larger to match */
-.wi-svg {
-  width: 76%;
-  height: 76%;
-}
-.wi img {
-  width: 64%;
-  height: 64%;
-  object-fit: contain;
-}
-.wi > svg {
-  width: 48%;
-  height: 48%;
-  padding: 0;
-  background: none;
-}
-.brm img {
-  width: 60%;
-  height: 60%;
-}
-/* a filled round logo carries more weight than an outline: a touch smaller than its box suggests */
-.brm.is-round img {
-  width: 64%;
-  height: 64%;
-}
-.brm.is-glyph > svg {
-  width: 48%;
-  height: 48%;
-}
-.mstack-item {
-  border-radius: 28%;
-}
-/* bank symbols on this page match the brokers' and wallets' weight */
-.nw .bank-mark-sym {
-  width: 68%;
-  height: 68%;
-}
-
-/* money: lining, tabular figures; the rupee sign smaller and lighter, paise smaller again */
-.fig {
-  font-family: var(--font);
-  font-variant-numeric: tabular-nums lining-nums;
-  font-feature-settings: 'tnum' 1, 'lnum' 1;
-  white-space: nowrap;
-}
-.fig-cur {
-  margin-right: 0.06em;
-  font-weight: 400;
-  color: var(--ink2);
-}
-.fig-frac {
-  font-size: 0.72em;
-  color: var(--muted);
-}
-.fig-unit {
-  margin-left: 0.16em;
-  font-size: 0.6em;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--muted);
-}
-.fig.is-neg,
-.fig.is-neg .fig-cur {
-  color: var(--bear-ink);
-}
-.hx-big {
-  font-family: var(--font);
-  font-size: clamp(46px, 6.8vw, 82px);
-  line-height: 1;
-  letter-spacing: 0;
-}
-.fig-big {
-  font-weight: 600;
-  letter-spacing: -0.045em;
-  color: var(--ink);
-}
-.fig-big .fig-cur {
-  margin-right: 0.1em;
-  font-size: 0.5em;
-  font-weight: 400;
-  letter-spacing: 0;
-  vertical-align: 0.6em;
-  color: var(--ink2);
-}
-.fig-big .fig-frac {
-  margin-left: 0.04em;
-  font-size: 0.4em;
-  font-weight: 500;
-  letter-spacing: 0;
-  vertical-align: 0.84em;
-}
-
-/* where it sits: quieter blocks, the logo and share on top, the name and figure below */
-.pic-in {
-  padding: 16px;
-  background: color-mix(in srgb, var(--gc) 6%, var(--raised));
-  border: 1px solid color-mix(in srgb, var(--gc) 14%, var(--line));
-  border-radius: 14px;
-  box-shadow: 0 1px 2px rgb(22 26 22 / 0.03);
-}
-.pic-block:hover .pic-in {
-  background: color-mix(in srgb, var(--gc) 10%, var(--raised));
-  border-color: color-mix(in srgb, var(--gc) 28%, var(--line));
-  box-shadow: 0 10px 24px -14px color-mix(in srgb, var(--gc) 55%, transparent);
-}
-.pic-block.is-on .pic-in {
-  border-color: color-mix(in srgb, var(--gc) 50%, var(--line));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--gc) 14%, transparent);
-}
-.pic-top {
-  align-items: center;
-}
-.pic-share {
-  padding: 0;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--ink2);
-  background: none;
-  border: 0;
-}
-.pic-text {
-  gap: 3px;
-}
-.pic-text b {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--ink2);
-}
-.pic-val {
-  font-size: 27px;
-  font-weight: 600;
-  line-height: 1.1;
-  letter-spacing: -0.03em;
-  color: var(--ink);
-}
-.pic-val .fig-cur {
-  font-size: 0.7em;
-}
-.pic-val .fig-dec {
-  letter-spacing: -0.02em;
-}
-.pic-block.is-mid .pic-val {
-  font-size: 17px;
-  letter-spacing: -0.02em;
-}
-.pic-note {
-  margin-top: 2px;
-  color: var(--muted);
-}
-
-/* the ledger's figures */
-.lg-amt {
-  font-size: 15.5px;
-  font-weight: 500;
-  letter-spacing: -0.01em;
-  color: var(--ink);
-}
-.lg-group-head .lg-amt {
-  font-size: 13.5px;
-  color: var(--ink2);
-}
-.lg-group-head .lg-amt .fig-frac {
-  display: none;
-}
-
-/* the total: a soft panel, not a rule */
-.lg-total {
-  align-items: center;
-  margin-top: 18px;
-  padding: 18px 22px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  box-shadow: var(--shadow);
-}
-.lg-total > span:first-child {
-  font-family: var(--font);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink2);
-}
-.lg-total .lg-amt {
-  font-size: 28px;
-  font-weight: 600;
-  letter-spacing: -0.035em;
-}
-.lg-total .lg-amt .fig-cur {
-  font-size: 0.66em;
-}
-.lg-total .lg-amt .fig-frac {
-  font-size: 0.55em;
-}
-
-/* the open account's heading and the dialogs' previews */
-.nw-detail-value {
-  font-size: 24px;
-  font-weight: 600;
-  letter-spacing: -0.03em;
-}
-.nw-detail-value .fig-cur {
-  font-size: 0.7em;
-}
-.nw-detail-value .fig-frac {
-  font-size: 0.6em;
-}
-.bal-preview-amt {
-  font-family: var(--font);
-  font-size: 22px;
-  font-weight: 600;
-  letter-spacing: -0.03em;
-  font-variant-numeric: tabular-nums lining-nums;
+@media (max-width: 600px) {
+  /* beside the range buttons on a phone, the date would wrap: the label alone */
+  .hx-eyebrow span {
+    display: none;
+  }
 }
 
 /* ---------- Responsive ---------- */

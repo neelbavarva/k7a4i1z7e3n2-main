@@ -839,11 +839,23 @@ function Market({ session, holdings }) {
     const change = quote ? quote.net_change || quote.last_price - (quote.ohlc?.close || quote.last_price) : 0;
     const changePct = quote?.ohlc?.close ? (change / quote.ohlc.close) * 100 : null;
 
+    // not in this plan: one quiet line, not a search box that can only fail
+    if (state === "plan")
+        return (
+            <section className="group" aria-labelledby="kt-market">
+                <div className="group-head">
+                    <h2 id="kt-market">Quote and chart</h2>
+                </div>
+                <p className="empty-note kt-plan-note">
+                    Live quotes and charts come with the paid Kite Connect plan: ₹500 a month, covered by Zerodha in a month you pay ₹2,000 or more in brokerage.
+                </p>
+            </section>
+        );
+
     return (
         <section className="group" aria-labelledby="kt-market">
             <div className="group-head">
                 <h2 id="kt-market">Quote and chart</h2>
-                <span className="group-note">Market data needs the paid Kite Connect plan</span>
             </div>
             <div className="kt-market">
                 <div className="kt-market-head">

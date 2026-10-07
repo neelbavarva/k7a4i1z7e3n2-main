@@ -68,22 +68,37 @@ const inrShort = (x) => {
     return `${sign}${inr(n, { whole: true })}`;
 };
 
+const fmt2 = new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 /**
- * Money set for reading at a glance: lining figures, the rupee sign smaller and lighter, the
- * paise smaller again. `short` uses lakh and crore (₹6.63 L).
+ * Money set for reading, in the figures font (Literata, see --figs): lining, tabular figures and
+ * its own rupee sign. `short` uses lakh and crore (₹6.63 L); `paise` is "auto" (shown unless
+ * .00), "always" or "never".
  */
-function Fig({ value, short, className = "" }) {
+function Fig({ value, short, paise = "auto", className = "" }) {
     const n = Number(value) || 0;
-    const text = short ? inrShort(Math.abs(n)) : inr(Math.abs(n));
-    const m = text.match(/^[−-]?₹\s?([\d,]+)(\.\d+)?\s?(L|Cr)?$/);
-    if (!m) return <span className={`fig ${className}`}>{text}</span>;
+    const a = Math.abs(n);
+    let int;
+    let frac = "";
+    let unit = "";
+    if (short && a >= 1e5) {
+        [int, frac] = (a >= 1e7 ? a / 1e7 : a / 1e5).toFixed(2).split(".");
+        frac = `.${frac}`;
+        unit = a >= 1e7 ? "Cr" : "L";
+    } else {
+        [int, frac] = fmt2.format(a).split(".");
+        frac = paise === "never" || short || (paise === "auto" && frac === "00") ? "" : `.${frac}`;
+    }
     return (
-        <span className={`fig ${className}${n < 0 ? " is-neg" : ""}`}>
-            {n < 0 ? <span className="fig-sign">−</span> : null}
-            <span className="fig-cur">₹</span>
-            <span className="fig-int">{m[1]}</span>
-            {m[2] ? <span className={short ? "fig-dec" : "fig-frac"}>{m[2]}</span> : null}
-            {m[3] ? <span className="fig-unit">{m[3]}</span> : null}
+        <span className={`fig ${className}${n < 0 ? " is-neg" : ""}`} aria-label={`${n < 0 ? "minus " : ""}₹${int}${frac}${unit ? ` ${unit === "L" ? "lakh" : "crore"}` : ""}`}>
+            <span aria-hidden="true">
+                {n < 0 ? <span className="fig-sign">−</span> : null}
+                <span className="fig-cur">₹</span>
+                <span className="fig-int">{int}</span>
+                {/* paise a shade lighter; the decimals of a short figure (6.63 L) are part of it */}
+                {frac ? <span className={unit ? "fig-dec" : "fig-frac"}>{frac}</span> : null}
+                {unit ? <span className="fig-unit">{unit}</span> : null}
+            </span>
         </span>
     );
 }
@@ -91,11 +106,8 @@ function Fig({ value, short, className = "" }) {
 /** The total, counting up to a new value the way the journal's figures do. */
 function BigFig({ value }) {
     const v = useCountUp(value);
-    return <Fig value={Math.round(v * 100) / 100} className="fig-big" />;
+    return <Fig value={Math.round(v * 100) / 100} paise="always" className="fig-big" />;
 }
-
-// brand-ish flat colours for the marks; only a tint and an initial, no logos
-const SOURCE_COLOR = { zerodha: "#387ED1", groww: "#00A67E", mt5: "#C9971C", prop: "#7C5CE0", manual: "#2F8F8A", crypto: "#D0782C" };
 
 const bankById = (id) => BANKS.find((b) => b.id === id);
 
@@ -143,7 +155,6 @@ export default function NetWorth() {
         id: "zerodha",
         name: "Zerodha",
         kind: "Stocks, F&O, Coin funds",
-        color: SOURCE_COLOR.zerodha,
         mark: { brand: "zerodha" },
         worth: zw,
         status: zw ? `Holdings ${inrShort(zw.parts.stocks)} · cash ${inrShort(zw.parts.cash)}` : { loading: "Loading…", connect: "Connect for today", unset: "Not set up yet", offline: "Server didn’t answer" }[z.phase] || "",
@@ -155,7 +166,6 @@ export default function NetWorth() {
         id: "groww",
         name: "Groww",
         kind: "Stocks and F&O",
-        color: SOURCE_COLOR.groww,
         mark: { brand: "groww" },
         worth: gw,
         status: gw
@@ -171,7 +181,6 @@ export default function NetWorth() {
                 id: `mt5:${a.id || a.label}`,
                 name: a.label,
                 kind: w.counted ? "MT5 forex" : "MT5 · funded, not counted",
-                color: w.counted ? SOURCE_COLOR.mt5 : SOURCE_COLOR.prop,
                 mark: brandFor(`${a.label} ${a.server} ${a.info?.broker}`) ? { brand: brandFor(`${a.label} ${a.server} ${a.info?.broker}`) } : { glyph: "forex" },
                 worth: w.counted ? w : null,
                 shown: w.value,
@@ -188,7 +197,6 @@ export default function NetWorth() {
             mark: { brand: "exness" },
             name: "Exness",
             kind: "Exness and other MT5 brokers",
-            color: SOURCE_COLOR.mt5,
             worth: null,
             status: { loading: "Loading…", unset: "Not set up yet", error: mt5.message }[mt5.state] || "No accounts yet",
             tone: mt5.state === "loading" ? "" : "warn",
@@ -217,7 +225,6 @@ export default function NetWorth() {
             mark: { stack: [{ wallet: "trust" }, { wallet: "metamask" }, { wallet: "phantom" }] },
             name: "Crypto wallets",
             kind: "Trust Wallet, MetaMask, Phantom…",
-            color: SOURCE_COLOR.crypto,
             worth: ready(wallets) ? cryptoWorth(wallets.data) : null,
             status: { loading: "Loading…", error: wallets.message, unset: "Server didn’t answer" }[wallets.state] || "Add a wallet: no keys, read only",
             tone: "",
@@ -234,7 +241,6 @@ export default function NetWorth() {
         })(),
         name: "Bank and cash",
         kind: "Typed in by hand",
-        color: SOURCE_COLOR.manual,
         worth: mw,
         status: mw ? (entries.length ? `${entries.length} ${entries.length === 1 ? "entry" : "entries"}${entries.some((e) => e.kind === "loan") ? ", loans taken off" : ""}` : "Add HDFC, SBI and the rest") : { loading: "Loading…", error: manual.message, unset: "Server didn’t answer" }[manual.state],
         tone: mw && entries.length ? "ok" : "",
@@ -430,14 +436,13 @@ export default function NetWorth() {
 const BALANCE_GROUP = { bank: "cash", cash: "cash", deposit: "cash", crypto: "crypto", property: "other", other: "other", loan: "liabilities" };
 
 const GROUPS = [
-    { key: "brokerage", label: "Brokerage", color: "#2a78d6" },
-    { key: "forex", label: "Forex", color: "#b8861b" },
-    { key: "crypto", label: "Crypto", color: "#cf6f2a" },
-    { key: "cash", label: "Cash and deposits", color: "#2f8f8a" },
-    { key: "other", label: "Other assets", color: "#7c837a" },
-    { key: "liabilities", label: "Liabilities", color: "#c4423f" },
+    { key: "brokerage", label: "Brokerage" },
+    { key: "forex", label: "Forex" },
+    { key: "crypto", label: "Crypto" },
+    { key: "cash", label: "Cash and deposits" },
+    { key: "other", label: "Other assets" },
+    { key: "liabilities", label: "Liabilities" },
 ];
-const groupOf = (key) => GROUPS.find((g) => g.key === key) || GROUPS[4];
 
 // ---------- where it sits: a treemap of every account ----------
 
@@ -489,7 +494,13 @@ function squarify(items, x, y, w, h) {
     return out;
 }
 
-/** Every account with a value, as blocks sized by what it holds and tinted by its group. */
+/** How tall the picture is for this many blocks: one account is a band, not a wall. */
+const mapHeight = (count, narrow) => (count <= 1 ? 112 : count === 2 ? (narrow ? 220 : 170) : count <= 4 ? (narrow ? 300 : 240) : narrow ? 380 : 300);
+
+/**
+ * Every account with a value as a block sized by what it holds: one quiet panel split by hairlines,
+ * like the screener's figures, each block with the account's logo, name and value.
+ */
 function Picture({ lines, gross, current, onOpen }) {
     const box = useRef(null);
     const [size, setSize] = useState({ w: 0, h: 0 });
@@ -504,64 +515,61 @@ function Picture({ lines, gross, current, onOpen }) {
     const valued = lines.filter((l) => l.value > 0).sort((a, b) => b.value - a.value);
     // a floor so a small account is still a block you can point at
     const floor = gross * 0.025;
+    // laid out 1px past the panel's right and bottom, so the hairline after the last block is
+    // under the panel's own edge
     const blocks = squarify(
         valued.map((l) => ({ ...l, size: Math.max(l.value, floor) })),
         0,
         0,
-        size.w,
-        size.h
+        size.w + 1,
+        size.h + 1
     );
-    const used = [...new Set(valued.map((l) => l.group))].map(groupOf);
+    const narrow = size.w > 0 && size.w < 560;
+    const one = valued.length === 1;
 
     return (
         <section className="pic" aria-labelledby="pic-title">
             <div className="pic-head">
                 <h2 id="pic-title">Where it sits</h2>
-                <ul className="pic-key" aria-label="Groups">
-                    {used.map((g) => (
-                        <li key={g.key} style={{ "--gc": g.color }}>
-                            <i aria-hidden="true" />
-                            {g.label}
-                        </li>
-                    ))}
-                </ul>
+                {valued.length > 1 && <span className="pic-sub">{valued.length} accounts, sized by value</span>}
             </div>
-            <div className="pic-map" ref={box}>
+            <div className={valued.length ? "pic-map" : "pic-empty"} ref={box} style={valued.length ? { height: mapHeight(valued.length, narrow) } : undefined}>
                 {valued.length ? (
                     blocks.map((b, i) => {
-                        const big = b.w > 170 && b.h > 96;
-                        const mid = !big && b.w > 96 && b.h > 80;
+                        const big = one || (b.w > 170 && b.h > 110);
+                        const mid = !big && b.w > 104 && b.h > 92;
+                        const tight = !big && !mid && b.w > 104 && b.h > 60;
                         const share = gross ? (b.value / gross) * 100 : 0;
                         return (
                             <button
                                 key={b.id}
                                 type="button"
-                                className={`pic-block${big ? " is-big" : mid ? " is-mid" : " is-small"}${current === b.pick ? " is-on" : ""}`}
-                                style={{ left: b.x, top: b.y, width: b.w, height: b.h, "--gc": groupOf(b.group).color, "--i": i }}
+                                className={`pic-block${big ? " is-big" : mid ? " is-mid" : tight ? " is-tight" : " is-small"}${one ? " is-one" : ""}${current === b.pick ? " is-on" : ""}`}
+                                style={{ left: b.x, top: b.y, width: b.w, height: b.h, "--i": i }}
                                 onClick={() => onOpen(b)}
                                 title={`${b.name}: ${inr(b.value, { whole: true })} (${pct(share, { sign: false })})`}
                             >
                                 <span className="pic-in">
                                     <span className="pic-top">
-                                        <Mark mark={b.mark} size={big ? 36 : 30} />
-                                        {big && <span className="pic-share">{pct(share, { sign: false })}</span>}
+                                        <Mark mark={b.mark} size={big ? 30 : 24} />
+                                        {(big || mid) && !one ? <span className="pic-share">{pct(share, { sign: false }).replace(/\.\d+%/, "%")}</span> : null}
                                     </span>
-                                    {(big || mid) && (
+                                    {big || mid || tight ? (
                                         <span className="pic-text">
-                                            <b>{b.name}</b>
+                                            {tight ? null : <b>{b.name}</b>}
                                             <Fig value={b.value} short className="pic-val" />
-                                            {big && b.h > 150 && b.note ? <small className="pic-note">{b.note}</small> : null}
+                                            {(one || (big && b.h > 150)) && b.note ? <small className="pic-note">{b.note}</small> : null}
                                         </span>
-                                    )}
+                                    ) : null}
                                 </span>
                             </button>
                         );
                     })
                 ) : (
-                    <div className="pic-empty">
+                    <>
                         <p>Your accounts appear here as blocks, each sized by what it holds.</p>
                         <span>Connect an account or add a balance below.</span>
-                    </div>
+                    </>
                 )}
             </div>
         </section>
@@ -599,12 +607,9 @@ function Ledger({ lines, hidden, totals, current, balancesState, walletsState, o
             {groups.map((g) => {
                 const sub = g.lines.reduce((a, l) => a + (l.value || 0), 0);
                 return (
-                    <div key={g.key} className="lg-group" style={{ "--gc": g.color }}>
+                    <div key={g.key} className="lg-group">
                         <div className="lg-group-head">
-                            <span className="lg-group-name">
-                                <i aria-hidden="true" />
-                                {g.label}
-                            </span>
+                            <span className="lg-group-name">{g.label}</span>
                             {g.lines.some((l) => l.value != null) ? <Amount value={sub} whole /> : null}
                         </div>
                         <ul className="lg-rows">
@@ -612,7 +617,11 @@ function Ledger({ lines, hidden, totals, current, balancesState, walletsState, o
                                 const share = l.value != null && gross ? (Math.abs(l.value) / gross) * 100 : null;
                                 return (
                                     <li key={l.id}>
-                                        <button type="button" className={`lg-row${current === l.pick ? " is-on" : ""}${l.state !== "ready" ? " is-off" : ""}`} onClick={() => onOpen(l)}>
+                                        <button
+                                            type="button"
+                                            className={`lg-row${current === l.pick ? " is-on" : ""}${l.state !== "ready" ? " is-off" : ""}`}
+                                            onClick={() => onOpen(l)}
+                                        >
                                             <Mark mark={l.mark} size={36} />
                                             <span className="lg-name">
                                                 <b>{l.name}</b>
@@ -646,7 +655,7 @@ function Ledger({ lines, hidden, totals, current, balancesState, walletsState, o
             })}
             <div className="lg-total">
                 <span>Net worth</span>
-                <Amount value={totals.total} />
+                <Fig value={totals.total} className="lg-total-amt" />
             </div>
             {hidden.length > 0 && (
                 <p className="lg-foot">
@@ -688,11 +697,19 @@ function Hero({ totals, rate, points, counted, sources, demo, onPreview, onRefre
 
     return (
         <section className="hx" aria-labelledby="nw-total">
+            <div className="hx-bar">
+                <p className="hx-eyebrow" id="nw-total">
+                    Net worth{asOf ? <span> · {asOf}</span> : null}
+                </p>
+                <div className="hx-tools">
+                    {points.length > 1 && <Seg label="Range" options={RANGES} value={range} onChange={setRange} />}
+                    <button type="button" className="btn btn-ghost btn-icon" onClick={onRefresh} title="Read every account again" aria-label="Refresh">
+                        <RefreshCw />
+                    </button>
+                </div>
+            </div>
             <div className="hx-top">
                 <div className="hx-figure">
-                    <p className="hx-eyebrow" id="nw-total">
-                        Net worth{asOf ? ` · ${asOf}` : ""}
-                    </p>
                     <p className="hx-big">
                         <BigFig value={totals.total} />
                     </p>
@@ -719,14 +736,8 @@ function Hero({ totals, rate, points, counted, sources, demo, onPreview, onRefre
                         ) : null}
                     </div>
                 </div>
-                <div className="hx-tools">
-                    <Seg label="Range" options={RANGES} value={range} onChange={setRange} />
-                    <button type="button" className="btn btn-ghost btn-icon" onClick={onRefresh} title="Read every account again" aria-label="Refresh">
-                        <RefreshCw />
-                    </button>
-                </div>
             </div>
-            <History points={shown} />
+            <History points={shown} total={totals.total} />
             <p className="hx-foot">
                 From {counted} of {sources} sources
                 {!demo && counted < sources ? (
@@ -744,16 +755,24 @@ function Hero({ totals, rate, points, counted, sources, demo, onPreview, onRefre
 }
 
 /** The total over time, one point a day. Point at it to read a day. */
-function History({ points }) {
+function History({ points, total }) {
     const [at, setAt] = useState(null);
     const plot = useRef(null);
     if (points.length < 2) {
+        // day one: the month ahead as a ruler, today's mark lit at its start
         return (
             <div className="hx-chart is-empty">
-                <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <path className="hx-ghost" d="M0 70 C 15 66, 22 72, 34 60 S 52 52, 62 54 S 80 40, 100 34" />
-                </svg>
-                <p>Your history starts today. A point is added each day you open this page.</p>
+                <div className="hx-ruler" aria-hidden="true">
+                    {Array.from({ length: 31 }, (_, d) => (
+                        <i key={d} className={d === 0 ? "is-today" : d % 7 === 0 ? "is-week" : ""} />
+                    ))}
+                </div>
+                <div className="hx-ruler-text">
+                    <span className="hx-ruler-today">
+                        <b>Day one</b> <Fig value={total} short className="hx-ruler-val" />
+                    </span>
+                    <span>A point is added each day you open this page, and the line draws itself.</span>
+                </div>
             </div>
         );
     }

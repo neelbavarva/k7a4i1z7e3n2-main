@@ -1,8 +1,8 @@
 "use client";
 
-import { Wallet } from "lucide-react";
-import { NETWORKS, TOKENS, WALLETS as WALLET_SVGS } from "@/lib/icons";
-import { NATIVE, walletOf } from "@/lib/wallets";
+import { NETWORKS, TOKENS } from "@/lib/icons";
+import { NATIVE } from "@/lib/wallets";
+import { Mark } from "./Marks";
 
 // Icons for crypto: the wallet apps, coins, and the networks coins live on. The SVGs come from
 // lib/icons.js (static, trusted markup).
@@ -11,21 +11,17 @@ function Svg({ svg, size, className = "" }) {
     return <span className={`ci ${className}`} style={{ "--cs": `${size}px` }} aria-hidden="true" dangerouslySetInnerHTML={{ __html: svg }} />;
 }
 
-/** A wallet app's icon on a soft tile; an installed extension's own icon wins when there is one. */
+/**
+ * A wallet app's mark: its colour with its logo in white, like every account on the net worth
+ * page. An installed extension's own icon wins when there is one.
+ */
 export function WalletIcon({ id, icon, size = 40 }) {
-    const w = walletOf(id);
-    const svg = w.icon && WALLET_SVGS[w.icon];
+    if (!icon) return <Mark mark={{ wallet: id }} size={size} />;
     return (
-        <span className="wi" style={{ "--ws": `${size}px`, "--wc": w.color }} aria-hidden="true">
-            {icon ? (
-                // the extension's own icon, a data URL it hands over: nothing for next/image to optimise
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={icon} alt="" />
-            ) : svg ? (
-                <span className="wi-svg" dangerouslySetInnerHTML={{ __html: svg }} />
-            ) : (
-                <Wallet />
-            )}
+        <span className="wi" style={{ "--ws": `${size}px` }} aria-hidden="true">
+            {/* the extension's own icon, a data URL it hands over: nothing for next/image to optimise */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={icon} alt="" />
         </span>
     );
 }

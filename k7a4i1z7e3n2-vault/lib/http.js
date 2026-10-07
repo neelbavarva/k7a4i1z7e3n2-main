@@ -1,6 +1,6 @@
 // One place for the backend URL and key, so every screen calls the API the same way.
 
-import { lock, vaultSession } from "./auth";
+import { LOCK_OFF, lock, vaultSession } from "./auth";
 
 const BASE = (process.env.NEXT_PUBLIC_PROD_LINK || "https://k7a4i1z7e3n2.onrender.com").replace(/\/$/, "");
 const KEY = process.env.NEXT_PUBLIC_SERVER_KEY || "";
@@ -31,7 +31,7 @@ async function request(path, { method, body, accept, headers: extra }) {
     if (!res.ok) {
         const info = await res.json().catch(() => ({}));
         // the server's lock wants a fresh unlock: back to the lock screen
-        if (res.status === 401 && info?.code === "locked") lock();
+        if (res.status === 401 && info?.code === "locked" && !LOCK_OFF) lock();
         throw new HttpError(res.status, undefined, info && typeof info === "object" ? info : {});
     }
     return res;
