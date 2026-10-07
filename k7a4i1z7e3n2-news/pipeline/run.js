@@ -5,7 +5,7 @@
 //   node pipeline/run.js --fixture       use the saved sample calendar, no network for it
 //   node pipeline/run.js --skip-prices   don't call Twelve Data
 //
-// Environment: JBLANKED_API_KEY, APIFY_TOKEN, TWELVE_DATA_KEY (all optional; a step without its key is skipped and the
+// Environment: FRED_API_KEY, JBLANKED_API_KEY, APIFY_TOKEN, TWELVE_DATA_KEY (all optional; a step without its key is skipped and the
 // site still updates).
 
 import { join } from 'node:path';
@@ -13,6 +13,7 @@ import { fetchCalendar, normalise, mergeCalendar } from './sources/calendar.js';
 import { fillFromFeedPrevious, applyOverrides } from './sources/actuals.js';
 import { fillFromApify } from './sources/apify.js';
 import { fillFromJBlanked } from './sources/jblanked.js';
+import { fillFromOfficial } from './sources/official.js';
 import { effectOf } from './lib/score.js';
 import { INSTRUMENTS } from './config.js';
 import { syncPrices, loadLegs, makePriceSource } from './sources/prices.js';
@@ -40,7 +41,7 @@ async function main() {
   const report = {
     trigger: process.env.GITHUB_EVENT_NAME || 'local',
     calendar: { files: [], added: 0, updated: 0, removed: 0, error: null },
-    actuals: { feed: 0, jblanked: null, apify: null, overrides: 0 },
+    actuals: { feed: 0, official: null, jblanked: null, apify: null, overrides: 0 },
     prices: null,
   };
 
@@ -57,12 +58,22 @@ async function main() {
     log(`calendar: ${err.message}; continuing with ${Object.keys(events).length} stored events`);
   }
 
-  // 2. Actual values, each source taking what the ones before it left: feed "previous" -> JBlanked
-  //    (free) -> ForexFactory's page via Apify (paid from a monthly credit) -> manual CSV (always wins)
+  // 2. Actual values, each source taking what the ones before it left: feed "previous" -> official
+  //    statistics agencies (free) -> JBlanked (free) -> ForexFactory's page via Apify (paid from a
+  //    monthly credit) -> manual CSV (always wins)
   report.actuals.feed = fillFromFeedPrevious(events, nowMs);
   log(`actuals: ${report.actuals.feed} filled from the feed`);
   // releases that only matter to a commodity or index (e.g. crude inventories) still get looked up
   const isDriver = (e) => INSTRUMENTS.some((p) => effectOf(p, e)?.override);
+  try {
+    const r = (report.actuals.official = await fillFromOfficial(events, nowMs, { fredKey: process.env.FRED_API_KEY, isDriver }));
+    log(`actuals: official statistics filled ${r.filled}/${r.tried}${r.waiting ? `, ${r.waiting} not published yet` : ''}${Object.keys(r.errors).length ? `; errors: ${JSON.stringify(r.errors)}` : ''}`);
+    if (r.filled) sources.actuals.push('official');
+  } catch (err) {
+    report.actuals.official = { error: err.message };
+    log(`actuals: official statistics: ${err.message}`);
+  }
+
   const jbKey = process.env.JBLANKED_API_KEY;
   if (jbKey) {
     try {

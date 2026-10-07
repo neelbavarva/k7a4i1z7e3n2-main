@@ -12,7 +12,7 @@ GitHub Actions (hourly)                         Vercel
 │ pipeline/run.js                      │        │ React + Vite site     │
 │  1. ForexFactory calendar ──┐        │  build │ reads public/data/*.  │
 │  2. actual values           ├─ data/ ├───────▶│ json only; no keys,   │
-│ (feed, JBlanked, Apify, CSV)│ (state)│        │ no API calls          │
+│ (feed, agencies, APIs, CSV) │ (state)│        │ no API calls          │
 │  3. Twelve Data prices ─────┘        │        └───────────────────────┘
 │  4. score → public/data/*.json       │
 └──────────────────────────────────────┘
@@ -57,7 +57,8 @@ The hourly job is `.github/workflows/news-update.yml` at the **root of the monor
    - `VERCEL_TOKEN`: a token from vercel.com/account/tokens
    - `VERCEL_ORG_ID`: `orgId` from `.vercel/project.json`
    - `VERCEL_NEWS_PROJECT_ID`: `projectId` from `.vercel/project.json`
-   - `JBLANKED_API_KEY` (recommended): free key from jblanked.com (Profile page). Its News API relays ForexFactory's calendar with actual values; asked first, once a run, for every release still waiting.
+   - `FRED_API_KEY` (recommended, free): from fred.stlouisfed.org (My Account → API Keys). Official US figures (jobs, CPI, retail sales, GDP…) straight from FRED. Canada (Statistics Canada), the UK (ONS) and Australia (ABS) need no key.
+   - `JBLANKED_API_KEY` (optional): free key from jblanked.com (Profile page). Its News API relays ForexFactory's calendar with actual values; asked first, once a run, for every release still waiting.
    - `APIFY_TOKEN` (backup): your personal API token from apify.com (Settings → API & Integrations). The job runs the `xtracto/forexfactory-calendar` scraper to read released values from ForexFactory's calendar page. It asks only when a Medium/High release is waiting, one day and the waiting currencies at a time, at most 3 tries per release, and checks the month's usage first so it stays inside the free plan's $5 (`APIFY` in `pipeline/config.js`).
    - `TWELVE_DATA_KEY` (optional): free key from twelvedata.com (prices for the lower chart). 14 series are downloaded an hour (336 credits a day, inside the free 800): the 7 USD pairs, from which every FX cross is calculated (EUR/GBP = EUR/USD ÷ GBP/USD), plus one symbol per instrument. Indices use their tracking funds (SPY, QQQ, DIA). Silver, copper and oil try spot first (XAG/USD, XCU/USD, WTI/USD) and fall back to SLV, CPER and USO if your plan doesn't include spot; `data/prices/sources.json` records which one is used.
 3. **Make Refresh collect new data:** create a fine-grained GitHub token (github.com/settings/personal-access-tokens) for this repository only, with **Actions: Read and write**, and add it to the Vercel project as `GITHUB_DISPATCH_TOKEN` (from this folder: `vercel env add GITHUB_DISPATCH_TOKEN production`, then redeploy, or let the next hourly run do it). Optional overrides: `NEWS_REPO`, `NEWS_WORKFLOW`, `NEWS_REF`.
@@ -138,7 +139,7 @@ All tunables live in `pipeline/config.js`.
 
 ## Where actual values come from
 
-The ForexFactory feed has forecasts and previous values but **no actual values**. The pipeline fills them from four sources, each taking what the ones before it left:
+The ForexFactory feed has forecasts and previous values but **no actual values**. The pipeline fills them from five sources, each taking what the ones before it left:
 
 1. **Manual:** `data/actuals_overrides.csv`, edited directly on GitHub. Always wins.
    ```csv
@@ -146,9 +147,10 @@ The ForexFactory feed has forecasts and previous values but **no actual values**
    2026-10-02,USD,Non-Farm Employment Change,150K
    ```
    `date` is the release date in UTC, and `title` must match the calendar exactly.
-2. **JBlanked:** a free calendar API relaying ForexFactory's actual values. One request a run; matched by currency and name, scaled to the feed's own format, and checked for plausibility.
-3. **ForexFactory's calendar page, through Apify (backup):** minutes after a release, the page shows its actual value under the same title, currency and time as the feed, so it matches exactly and comes in the feed's format. Read by the `forexfactory-calendar` scraper on Apify with `APIFY_TOKEN`, sparingly (see above). A value must have the forecast's unit and a plausible size.
-4. **Feed:** for recurring indicators, the next listing's "previous" figure is the official value. This is free and automatic, but only arrives when the next release appears in the feed (next week for weekly data, the release week for monthly data).
+2. **Official statistics (`pipeline/sources/official.js`):** FRED (US), Statistics Canada, ONS (UK) and ABS (Australia) publish jobs, inflation, GDP, retail sales and trade figures minutes after each release. Each figure is checked to come from the release in question (publish time, or the period it reports), so last month's number is never taken for this month's. Free; only FRED needs a key. Surveys such as PMIs aren't covered.
+3. **JBlanked:** a free calendar API relaying ForexFactory's actual values. One request a run; matched by currency and name, scaled to the feed's own format, and checked for plausibility.
+4. **ForexFactory's calendar page, through Apify (backup):** minutes after a release, the page shows its actual value under the same title, currency and time as the feed, so it matches exactly and comes in the feed's format. Read by the `forexfactory-calendar` scraper on Apify with `APIFY_TOKEN`, sparingly (see above). A value must have the forecast's unit and a plausible size.
+5. **Feed:** for recurring indicators, the next listing's "previous" figure is the official value. This is free and automatic, but only arrives when the next release appears in the feed (next week for weekly data, the release week for monthly data).
 
 ## Project layout
 

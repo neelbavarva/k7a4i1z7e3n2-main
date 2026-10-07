@@ -7,6 +7,7 @@ import { fillFromFeedPrevious, applyOverrides, plausible, needsLookup } from '..
 import { MODEL } from '../config.js';
 import { fillFromApify } from '../sources/apify.js';
 import { fillFromJBlanked } from '../sources/jblanked.js';
+import { fillFromOfficial, formatLike } from '../sources/official.js';
 
 const near = (a, b, tol = 0.6) => assert.ok(Math.abs(a - b) <= tol, `${a} not within ${tol} of ${b}`);
 const HOUR = 3600e3;
@@ -524,4 +525,47 @@ test('JBlanked fills released values: exact names, plain numbers scaled to our f
   } finally {
     globalThis.fetch = real;
   }
+});
+
+test('official statistics: values from the release itself, never the one before', async () => {
+  const [nfp, ukCpi, auUnemp] = normalise([
+    { title: 'Non-Farm Employment Change', country: 'USD', date: '2026-10-02T08:30:00-04:00', impact: 'High', forecast: '150K', previous: '22K' },
+    { title: 'CPI y/y', country: 'GBP', date: '2026-10-21T07:00:00+01:00', impact: 'High', forecast: '3.0%', previous: '3.1%' },
+    { title: 'Unemployment Rate', country: 'AUD', date: '2026-10-16T11:30:00+11:00', impact: 'High', forecast: '4.6%', previous: '4.6%' },
+  ]);
+  const real = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const u = String(url);
+    const ok = (body) => ({ ok: true, status: 200, json: async () => body });
+    // FRED: updated minutes after the release, payrolls in thousands
+    if (u.includes('/fred/series?')) return ok({ seriess: [{ last_updated: '2026-10-02 07:35:10-05' }] });
+    if (u.includes('/fred/series/observations')) return ok({ observations: [{ date: '2026-09-01', value: '159650' }, { date: '2026-08-01', value: '159531' }] });
+    // ONS: still on the September release, so October's isn't out yet
+    if (u.includes('ons.gov.uk')) return ok({ months: [{ date: '2026 AUG', value: '3.1' }], description: { releaseDate: '2026-09-15T23:00:00.000Z' } });
+    // ABS: the latest period is August, but an October release reports September
+    if (u.includes('abs.gov.au'))
+      return ok({ data: { structures: [{ dimensions: { observation: [{ values: [{ id: '2026-08' }] }] } }], dataSets: [{ series: { '0:0': { observations: { 0: [4.646] } } } }] } });
+    throw new Error(`unexpected ${u}`);
+  };
+  try {
+    const us = await fillFromOfficial({ [nfp.id]: nfp }, Date.parse('2026-10-02T14:00:00Z'), { fredKey: 'K', isDriver: () => false });
+    assert.equal(nfp.actualRaw, '119K');
+    assert.equal(nfp.actualSource, 'official');
+    assert.equal(us.filled, 1);
+    const later = await fillFromOfficial({ [ukCpi.id]: ukCpi, [auUnemp.id]: auUnemp }, Date.parse('2026-10-22T12:00:00Z'), { fredKey: 'K', isDriver: () => false });
+    assert.ok(ukCpi.actual == null, 'last month\'s CPI must not fill this month\'s release');
+    assert.ok(auUnemp.actual == null, 'August data must not fill the September release');
+    assert.equal(later.waiting, 2);
+  } finally {
+    globalThis.fetch = real;
+  }
+});
+
+test('official statistics: numbers written in the calendar\'s own unit and decimals', () => {
+  const e = (f, p) => ({ forecastRaw: f, previousRaw: p });
+  assert.equal(formatLike(e('10.0K', '-40.8K'), -41700), '-41.7K');
+  assert.equal(formatLike(e('1.5B', '0.8B'), 4198.8e6), '4.2B');
+  assert.equal(formatLike(e('0.1%', '0.5%'), -0.0588), '-0.1%');
+  assert.equal(formatLike(e('0.1%', '0.4%'), -0.0048), '0.0%');
+  assert.equal(formatLike(e('225K', '231K'), 241000), '241K');
 });

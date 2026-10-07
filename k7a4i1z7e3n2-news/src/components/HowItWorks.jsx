@@ -15,6 +15,7 @@ import { CATEGORIES, LOWER_IS_BETTER, NO_SIGNAL, RATE_DECISION } from '../../pip
 import { CAL_CACHE_MINUTES, COLLECT_REST_MINUTES, POLL_MINUTES, REFRESH_COOLDOWN_S, STALE_HOURS } from '../constants.js';
 import { Contents, useActiveSection } from './Doc.jsx';
 import { DataFlow, LiveStatus, useHealth } from './Health.jsx';
+import { OFFICIAL } from '../../pipeline/lib/official-series.js';
 import { PROJECT_MAX_HOURS } from '../freshness.js';
 
 // Every number on this page is read from the pipeline's own settings (pipeline/config.js
@@ -126,9 +127,10 @@ export default function HowItWorks({ meta }) {
             <ol className="steps">
               <li>
                 <b>Sources.</b> ForexFactory publishes the week's economic calendar as a JSON feed: times, forecasts and
-                previous values. Released values come from JBlanked's free calendar API, which relays ForexFactory's
-                with actual values, and for anything it misses, from ForexFactory's calendar page through a scraper on
-                Apify. Twelve Data supplies hourly prices. The keys live in GitHub Secrets.
+                previous values. Released values come first from the statistics agencies themselves (FRED for the US,
+                Statistics Canada, the ONS and the ABS), then from JBlanked's calendar API and ForexFactory's calendar page
+                through Apify for what the agencies don't publish, such as PMIs. Twelve Data supplies hourly prices. The
+                keys live in GitHub Secrets.
               </li>
               <li>
                 <b>The hourly job.</b> GitHub Actions runs <code>pipeline/run.js</code> twice an hour, at :17 and :47 UTC, and right away
@@ -175,8 +177,8 @@ export default function HowItWorks({ meta }) {
               </li>
               <li>
                 <b>Released values.</b> Fill in the actual numbers for releases that have come out: from the calendar feed
-                itself, from JBlanked's calendar API, from ForexFactory's calendar page (through Apify), or from a
-                hand-edited file.
+                itself, from the statistics agencies, from JBlanked's calendar API, from ForexFactory's calendar page
+                (through Apify), or from a hand-edited file.
               </li>
               <li>
                 <b>Prices.</b> Download hourly prices for {Object.keys(PRICE_LEGS).length} dollar pairs and{' '}
@@ -229,6 +231,20 @@ export default function HowItWorks({ meta }) {
                       <span className="muted small">This week is required; next week is optional (it appears late in the week).</span>
                     </td>
                     <td data-label="Limits">One week at a time, and no actual values, which is why step 2 exists.</td>
+                  </tr>
+                  <tr>
+                    <td data-label="Service">
+                      <b>Statistics agencies</b>
+                      <div className="muted small">
+                        <code>FRED_API_KEY</code> (FRED only)
+                      </div>
+                    </td>
+                    <td data-label="Used for">Released values for the big official figures in the US, Canada, the UK and Australia.</td>
+                    <td data-label="How it's called">
+                      <code className="block">api.stlouisfed.org · www150.statcan.gc.ca/t1/wds · ons.gov.uk · data.api.abs.gov.au</code>
+                      <span className="muted small">Only for releases that are out and still waiting; one request per series.</span>
+                    </td>
+                    <td data-label="Limits">Free. FRED needs a free key (120 requests a minute); the others need none.</td>
                   </tr>
                   <tr>
                     <td data-label="Service">
@@ -339,12 +355,22 @@ export default function HowItWorks({ meta }) {
           {/* ------------------------------------------------------------------ */}
           <section id="actuals">
             <h2>2. Released values</h2>
-            <p>The calendar feed never lists a release's own actual value, so four sources fill them in, tried in this order each run, each taking what the ones before it left:</p>
+            <p>The calendar feed never lists a release's own actual value, so five sources fill them in, tried in this order each run, each taking what the ones before it left:</p>
             <ol className="steps">
               <li>
                 <b>The feed's own “previous” figure.</b> When an indicator's next release appears on the calendar, its
                 “previous” value is the official (possibly revised) result of the last one. It's used once the release is at
                 least an hour old and the units match.
+              </li>
+              <li>
+                <b>Official statistics, from the agencies.</b> Free, and out minutes after each release: FRED (the St. Louis
+                Fed's copy of BLS, BEA and Census figures) for the US, Statistics Canada, the ONS for the UK and the ABS for
+                Australia. They cover {Object.keys(OFFICIAL).length} releases: jobs, unemployment, inflation, GDP, retail
+                sales, trade and housing. Each figure must come from the release in question: FRED and the ONS say when the
+                series was last published, Statistics Canada stamps each number with its release time, and for the ABS the
+                latest period must be the one the release reports. Until then the release keeps waiting, so last month's
+                number is never taken for this month's. Surveys (PMIs, sentiment) aren't published by agencies, so the
+                next sources cover those.
               </li>
               <li>
                 <b>JBlanked's calendar API.</b> A free service that relays ForexFactory's calendar with actual values. One

@@ -85,7 +85,7 @@ async function runChecks() {
   }
 
   // the job's sources, from its own report
-  if (!r) Object.assign(checks, { feed: noReport, jblanked: noReport, actuals: noReport, prices: noReport });
+  if (!r) Object.assign(checks, { feed: noReport, official: noReport, jblanked: noReport, actuals: noReport, prices: noReport });
   else {
     const c = r.calendar;
     const week = c.files[0];
@@ -98,6 +98,27 @@ async function runChecks() {
         };
 
     const values = m.counts ? `${m.counts.withActual} of ${m.counts.released} released have a value` : '';
+    const of = r.actuals.official;
+    const AG = { fred: 'FRED', statcan: 'Statistics Canada', ons: 'ONS', abs: 'ABS' };
+    if (!of) checks.official = noReport;
+    else if (of.error) checks.official = { state: 'fail', detail: of.error };
+    else {
+      const errs = Object.entries(of.errors ?? {}).map(([a, m]) => `${AG[a] ?? a}: ${m}`);
+      const noFred = of.skipped?.fred;
+      const got = Object.entries(of.byAgency ?? {}).map(([a, n]) => `${n} from ${AG[a] ?? a}`);
+      checks.official = {
+        state: errs.length ? 'warn' : noFred && !LOCAL ? 'warn' : 'ok',
+        detail: [
+          of.tried ? `Filled ${of.filled} of the ${of.tried} waiting that it covers${got.length ? ` (${got.join(', ')})` : ''}` : 'Nothing waiting that it covers',
+          of.waiting ? `${of.waiting} not published by the agency yet` : null,
+          noFred ? `US figures skipped: no FRED_API_KEY${LOCAL ? ' on this machine' : ''}` : null,
+          ...errs,
+        ]
+          .filter(Boolean)
+          .join(' · '),
+      };
+    }
+
     const jb = r.actuals.jblanked;
     checks.jblanked = !jb
       ? noReport
@@ -155,8 +176,9 @@ const TRIGGER = { schedule: 'the hourly schedule', workflow_dispatch: 'Refresh',
 // the checks, in the order the data flows
 const CHECKS = [
   { id: 'feed', title: 'Calendar feed', what: `ForexFactory, fetched by the last ${LOCAL ? 'local run of the job' : 'hourly job'}` },
-  { id: 'jblanked', title: 'Released values', what: `JBlanked's free calendar API, in the last ${LOCAL ? 'local run of the job' : 'hourly job'}` },
-  { id: 'actuals', title: 'Released values, backup', what: `ForexFactory's calendar page through Apify, for what JBlanked missed, in the last ${LOCAL ? 'local run of the job' : 'hourly job'}` },
+  { id: 'official', title: 'Released values: official statistics', what: `FRED (US), Statistics Canada, ONS (UK) and ABS (Australia), in the last ${LOCAL ? 'local run of the job' : 'hourly job'}` },
+  { id: 'jblanked', title: 'Released values: JBlanked', what: `JBlanked's calendar API, for what the agencies don't publish, in the last ${LOCAL ? 'local run of the job' : 'hourly job'}` },
+  { id: 'actuals', title: 'Released values: Apify', what: `ForexFactory's calendar page through Apify, for what's still missing, in the last ${LOCAL ? 'local run of the job' : 'hourly job'}` },
   { id: 'prices', title: 'Prices', what: `Twelve Data, in the last ${LOCAL ? 'local run of the job' : 'hourly job'}` },
   { id: 'job', title: 'Hourly job', what: 'GitHub Actions, asked through /api/refresh' },
   { id: 'files', title: 'Published scores', what: LOCAL ? 'data/meta.json, your local copy' : 'data/meta.json on Vercel' },
@@ -167,6 +189,7 @@ const CHECKS = [
 // which checks light up each box in the diagram
 const NODE_CHECKS = {
   ff: ['feed', 'live'],
+  agencies: ['official'],
   jblanked: ['jblanked'],
   apify: ['actuals'],
   twelve: ['prices'],
@@ -258,7 +281,8 @@ export function DataFlow({ checks }) {
       <div className="fl-col">
         <span className="fl-label">1 · Sources</span>
         <Node id="ff" name="ForexFactory" sub="Weekly calendar: times, forecasts, previous values" />
-        <Node id="jblanked" name="JBlanked" sub="Released values, free calendar API" />
+        <Node id="agencies" name="Statistics agencies" sub="Official figures: FRED, StatCan, ONS, ABS" />
+        <Node id="jblanked" name="JBlanked" sub="Released values, calendar API" />
         <Node id="apify" name="Apify" sub="Backup: ForexFactory's calendar page" />
         <Node id="twelve" name="Twelve Data" sub="Hourly prices" />
       </div>
