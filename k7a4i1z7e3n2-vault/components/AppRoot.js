@@ -43,7 +43,7 @@ export default function AppRoot() {
     return (
         <>
             <Toasts />
-            {since ? <Main unlockedAt={since} onLogout={lock} /> : <Login onSuccess={() => unlock()} />}
+            {since ? <Main unlockedAt={since} onLogout={lock} /> : <Login onSuccess={(session) => unlock(Date.now(), session)} />}
         </>
     );
 }

@@ -1,7 +1,15 @@
 # k7a4i1z7e3n2-api
 
-Express + MongoDB server behind the vault. Every route needs the `x-api-key` header (`SERVER_KEYS`).
-Run the tests with `npm test`.
+Express + MongoDB server behind the vault. Run the tests with `npm test`.
+
+## The lock
+
+Every data route needs the `x-api-key` header (`SERVER_KEYS`) and, once `VAULT_TOTP_SECRET` is set,
+today's vault session in `x-vault-session`. The vault gets that session from `POST /otp/unlock` with
+the 6-digit code from your authenticator app; the code is checked here, against `VAULT_TOTP_SECRET`
+(a base32 key, 32 characters), and three wrong codes block the address for a day. The session lasts
+24 hours. While `VAULT_TOTP_SECRET` isn't set, `/otp/unlock` answers 503 and the vault falls back to
+its old in-browser check.
 
 ## Zerodha (`/kite`)
 

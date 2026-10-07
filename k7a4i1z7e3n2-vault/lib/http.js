@@ -1,5 +1,7 @@
 // One place for the backend URL and key, so every screen calls the API the same way.
 
+import { lock, vaultSession } from "./auth";
+
 const BASE = (process.env.NEXT_PUBLIC_PROD_LINK || "https://k7a4i1z7e3n2.onrender.com").replace(/\/$/, "");
 const KEY = process.env.NEXT_PUBLIC_SERVER_KEY || "";
 
@@ -9,6 +11,7 @@ export class HttpError extends Error {
         this.status = status;
         this.code = info.code || ""; // the server's reason, when it gave one
         this.detail = info.message || "";
+        this.info = info;
     }
 }
 
@@ -16,6 +19,8 @@ export const API_BASE = BASE;
 
 async function request(path, { method, body, accept, headers: extra }) {
     const headers = { "x-api-key": KEY, ...extra };
+    const session = vaultSession();
+    if (session) headers["x-vault-session"] = session;
     if (accept) headers.Accept = accept;
     if (body !== undefined) headers["Content-Type"] = "application/json";
     const res = await fetch(`${BASE}${path}`, {
@@ -25,6 +30,8 @@ async function request(path, { method, body, accept, headers: extra }) {
     });
     if (!res.ok) {
         const info = await res.json().catch(() => ({}));
+        // the server's lock wants a fresh unlock: back to the lock screen
+        if (res.status === 401 && info?.code === "locked") lock();
         throw new HttpError(res.status, undefined, info && typeof info === "object" ? info : {});
     }
     return res;

@@ -92,3 +92,23 @@ describe("auth", () => {
         expect(cb).toHaveBeenCalledTimes(3);
     });
 });
+
+describe("server lock", () => {
+    afterEach(() => lock());
+    it("sends the day's session with every request once unlocked with one", async () => {
+        const fetch = vi.fn(async () => new Response("{}", { status: 200 }));
+        vi.stubGlobal("fetch", fetch);
+        unlock(Date.now(), "signed.session");
+        await http("/x");
+        expect(fetch.mock.calls[0][1].headers["x-vault-session"]).toBe("signed.session");
+        lock();
+        await http("/x");
+        expect("x-vault-session" in fetch.mock.calls[1][1].headers).toBe(false);
+    });
+    it("goes back to the lock screen when the server says the session is gone", async () => {
+        vi.stubGlobal("fetch", async () => new Response('{"code":"locked"}', { status: 401 }));
+        unlock(Date.now(), "old.session");
+        await expect(http("/x")).rejects.toMatchObject({ status: 401, code: "locked" });
+        expect(unlockedAt()).toBe(0);
+    });
+});

@@ -1,5 +1,6 @@
 require("dotenv").config();
 const crypto = require("crypto");
+const { requireVault } = require("./vaultAuth");
 
 const DEFAULT_HEADER = "x-api-key";
 
@@ -66,9 +67,16 @@ function createApiKeyMiddleware({
     };
 }
 
-const apiKeyMiddleware = createApiKeyMiddleware();
+/** The server key alone: only for the lock screen's own routes, before there's a session. */
+const apiKeyOnly = createApiKeyMiddleware();
+
+/** The server key and today's vault session (see vaultAuth.js). Every data route uses this. */
+function apiKeyMiddleware(req, res, next) {
+    apiKeyOnly(req, res, () => requireVault(req, res, next));
+}
 
 module.exports = {
     createApiKeyMiddleware,
+    apiKeyOnly,
     apiKeyMiddleware,
 };

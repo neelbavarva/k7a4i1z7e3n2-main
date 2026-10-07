@@ -1,7 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const Block = require("../schema/Block");
-const { apiKeyMiddleware } = require("../middleware");
+const { apiKeyMiddleware, apiKeyOnly } = require("../middleware");
+const vault = require("../vaultAuth");
 const { body, validationResult } = require("express-validator");
 
 const MAX_FAILED = parseInt(process.env.OTP_MAX_FAILED || "3", 10);
@@ -23,7 +24,7 @@ function getClientIp(req) {
 
 router.post(
     "/isBlocked",
-    apiKeyMiddleware,
+    apiKeyOnly,
     [body("mac").optional().isString().isLength({ max: 128 })],
     async (req, res) => {
         const errors = validationResult(req);
@@ -68,7 +69,7 @@ router.post(
 
 router.post(
     "/failure",
-    apiKeyMiddleware,
+    apiKeyOnly,
     [body("mac").optional().isString().isLength({ max: 128 })],
     async (req, res) => {
         const errors = validationResult(req);
@@ -130,6 +131,63 @@ router.post(
             doc.blockedUntil = null;
             await doc.save();
             return res.json({ ok: true });
+        } catch {
+            res.status(500).json({ message: "Server error" });
+        }
+    }
+);
+
+/**
+ * The lock screen's code, checked here. Wrong codes count towards the same block as /failure;
+ * a right one clears it and returns the day's session. 503 while VAULT_TOTP_SECRET isn't set,
+ * which tells the vault to fall back to its old browser-side check.
+ */
+router.post(
+    "/unlock",
+    apiKeyOnly,
+    [body("code").isString().isLength({ min: 6, max: 6 })],
+    async (req, res) => {
+        if (!vault.enforced()) return res.status(503).json({ code: "unset", message: "The server lock isn't set up" });
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) return res.status(400).json({ code: "input", message: "Send the 6-digit code" });
+
+        try {
+            const ip = getClientIp(req);
+            let doc = await Block.findOne({ ip });
+            if (doc?.blocked && doc.blockedUntil && doc.blockedUntil.getTime() > Date.now()) {
+                return res.status(403).json({ code: "blocked", blocked: true, blockedUntil: doc.blockedUntil, failedAttempts: doc.failedAttempts });
+            }
+
+            if (vault.verifyCode(req.body.code)) {
+                if (doc) {
+                    doc.failedAttempts = 0;
+                    doc.blocked = false;
+                    doc.blockedUntil = null;
+                    await doc.save();
+                }
+                return res.json(vault.signSession());
+            }
+
+            if (!doc) doc = new Block({ ip, failedAttempts: 0 });
+            if (doc.blocked) {
+                // an old block that has run out: start counting again
+                doc.blocked = false;
+                doc.failedAttempts = 0;
+                doc.blockedUntil = null;
+            }
+            doc.failedAttempts = (doc.failedAttempts || 0) + 1;
+            doc.lastAttempt = new Date();
+            if (doc.failedAttempts >= MAX_FAILED) {
+                doc.blocked = true;
+                doc.blockedUntil = new Date(Date.now() + BLOCK_DURATION_MS);
+            }
+            await doc.save();
+            res.status(doc.blocked ? 403 : 401).json({
+                code: doc.blocked ? "blocked" : "wrong",
+                blocked: doc.blocked,
+                blockedUntil: doc.blockedUntil,
+                failedAttempts: doc.failedAttempts,
+            });
         } catch {
             res.status(500).json({ message: "Server error" });
         }

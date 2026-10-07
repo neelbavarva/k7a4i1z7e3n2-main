@@ -4,8 +4,10 @@
 
 export const UNLOCK_MS = 24 * 60 * 60 * 1000;
 const KEY = "auth";
+const SESSION = "vaultSession"; // the server's signed pass for the day, sent with every request
 const EVENT = "k7-auth";
 let held = 0; // the unlock time, when localStorage can't be used
+let heldSession = "";
 
 /** When this browser was unlocked, or 0 if it's locked (or the day is up). */
 export function unlockedAt(now = Date.now()) {
@@ -18,20 +20,34 @@ export function unlockedAt(now = Date.now()) {
     return ts && now - ts < UNLOCK_MS ? ts : 0;
 }
 
-export function unlock(now = Date.now()) {
+export function unlock(now = Date.now(), session = "") {
     held = now;
+    heldSession = session;
     try {
         localStorage.setItem(KEY, String(now));
+        if (session) localStorage.setItem(SESSION, session);
+        else localStorage.removeItem(SESSION);
     } catch {
         // storage blocked: the unlock lasts until the page is closed
     }
     window.dispatchEvent(new Event(EVENT));
 }
 
+/** The server session from the last unlock, or "" (the old browser-only lock had none). */
+export function vaultSession() {
+    try {
+        return localStorage.getItem(SESSION) || "";
+    } catch {
+        return heldSession;
+    }
+}
+
 export function lock() {
     held = 0;
+    heldSession = "";
     try {
         localStorage.removeItem(KEY);
+        localStorage.removeItem(SESSION);
     } catch {
         // nothing stored to remove
     }

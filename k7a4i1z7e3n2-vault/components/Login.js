@@ -6,6 +6,7 @@ import { OTPInput } from "input-otp";
 import { Hourglass } from "lucide-react";
 import { toast } from "sonner";
 import { apiPost } from "../lib/api";
+import { http } from "../lib/http";
 import AuthTimer from "./AuthTimer";
 import Mark from "./k7/Mark";
 import SessionBar from "./k7/SessionBar";
@@ -43,34 +44,43 @@ export default function Login({ onSuccess }) {
         setTimeout(() => inputRef.current?.focus(), 0);
     };
 
+    /** The old check, in the browser: only while the server's lock isn't set up. */
+    const legacyCheck = async (value) => {
+        const secret = process.env.NEXT_PUBLIC_SECRET_KEY;
+        const valid = secret ? authenticator.verify({ token: value, secret }) : false;
+        if (valid) {
+            await apiPost("/reset", {}).catch((e) => console.warn("reset failed", e));
+            onSuccess("");
+            return;
+        }
+        try {
+            const r = await apiPost("/failure", {});
+            if (r && r.blocked) setBlockedInfo(r);
+            else fail();
+        } catch (e) {
+            console.error("failure endpoint error", e);
+            fail();
+        }
+    };
+
     const verifyAndSubmit = useCallback(
         async (value) => {
             if (blockedInfo?.blocked || loading) return;
             setLoading(true);
             try {
-                const secret = process.env.NEXT_PUBLIC_SECRET_KEY;
-                const valid = secret ? authenticator.verify({ token: value, secret }) : false;
-                if (valid) {
-                    try {
-                        await apiPost("/reset", {});
-                    } catch (e) {
-                        console.warn("reset failed", e);
-                    }
-                    onSuccess();
-                    return;
-                }
-                try {
-                    const r = await apiPost("/failure", {});
-                    if (r && r.blocked) setBlockedInfo(r);
-                    else fail();
-                } catch (e) {
-                    console.error("failure endpoint error", e);
-                    fail();
-                }
+                // the server checks the code and hands back the day's session
+                const r = await http("/otp/unlock", { method: "POST", body: { code: value } });
+                onSuccess(r.session);
+            } catch (e) {
+                if (e.status === 503 || e.status === 404) await legacyCheck(value);
+                else if (e.info?.blocked) setBlockedInfo(e.info);
+                else if (e.status === 401) fail();
+                else toast.error("Couldn’t check the code", { description: "The server didn’t answer. Try again in a moment." });
             } finally {
                 setLoading(false);
             }
         },
+        // eslint-disable-next-line react-hooks/exhaustive-deps
         [blockedInfo, onSuccess, loading]
     );
 
