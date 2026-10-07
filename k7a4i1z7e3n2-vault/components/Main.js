@@ -11,6 +11,7 @@ import Seg from "./k7/Seg";
 import { useKey, useScrolled } from "./k7/hooks";
 import { fmtTime } from "@/lib/format";
 import { banksOf } from "@/lib/cards";
+import { hasHandoff } from "@/lib/kite";
 
 const TABS = [
     { value: "passwords", label: "Vault", title: "Passwords and cards (1)" },
@@ -20,6 +21,7 @@ const TABS = [
 export default function Main({ unlockedAt, onLogout }) {
     const [activeTab, setActiveTab] = useState(() => {
         if (typeof window === "undefined") return "passwords";
+        if (hasHandoff()) return "trades"; // back from the Zerodha login
         const saved = window.localStorage.getItem("mainActiveSection");
         return saved === "trades" ? "trades" : "passwords";
     });

@@ -18,12 +18,40 @@ import SessionBar from "./k7/SessionBar";
 import Seg from "./k7/Seg";
 import { GradeChip, TfTag, TypeTag } from "./k7/TradeTags";
 import { useKey } from "./k7/hooks";
+import Zerodha from "./Zerodha";
+import { hasHandoff } from "@/lib/kite";
 
 const TF_OPTIONS = [
     { value: "all", label: "All time frames" },
     { value: "lower", label: "Lower" },
     { value: "higher", label: "Higher" },
 ];
+
+const VIEWS = [
+    { value: "journal", label: "Journal" },
+    { value: "zerodha", label: "Zerodha" },
+];
+
+/** Journal or Zerodha: remembered, except that coming back from the Kite login opens Zerodha. */
+function useTradesView() {
+    const [view, setView] = useState(() => {
+        if (typeof window === "undefined") return "journal";
+        if (hasHandoff()) return "zerodha";
+        try {
+            return localStorage.getItem("tradesView") === "zerodha" ? "zerodha" : "journal";
+        } catch {
+            return "journal";
+        }
+    });
+    useEffect(() => {
+        try {
+            localStorage.setItem("tradesView", view);
+        } catch {
+            // storage blocked: the choice lasts as long as the page
+        }
+    }, [view]);
+    return [view, setView];
+}
 
 const byTf = (tf) => (t) => (tf === "lower" ? t.isLowerTf : tf === "higher" ? !t.isLowerTf : true);
 
@@ -36,6 +64,7 @@ export default function Trades({ refreshKey = 0, onNew }) {
     const [pairFilter, setPairFilter] = useState("all");
     const [pickerOpen, setPickerOpen] = useState(false);
     const [selected, setSelected] = useState(null);
+    const [view, setView] = useTradesView();
 
     const fetchTrades = async () => {
         try {
@@ -54,7 +83,7 @@ export default function Trades({ refreshKey = 0, onNew }) {
         fetchTrades();
     }, [refreshKey]);
 
-    useKey("p", () => setPickerOpen(true));
+    useKey("p", () => setPickerOpen(true), view === "journal");
 
     const allPairs = useMemo(() => {
         const fromTrades = Array.from(new Set(trades.map((t) => t.tradeSymbol).filter((s) => typeof s === "string" && s))).sort();
@@ -101,110 +130,120 @@ export default function Trades({ refreshKey = 0, onNew }) {
         <>
             <section className="overview">
                 <div className="overview-row">
-                    <h1 className="overview-title">Trade journal</h1>
+                    <h1 className="overview-title">{view === "zerodha" ? "Zerodha" : "Trade journal"}</h1>
                     <div className="overview-actions">
-                        <a className="btn" href="/Forex.zip" download aria-label="Old trades" title="Download trades from before this journal (zip)">
-                            <Download aria-hidden="true" />
-                            <span className="btn-label">Old trades</span>
-                        </a>
+                        <Seg className="trade-view" label="Trades view" options={VIEWS} value={view} onChange={setView} />
+                        {view === "journal" && (
+                            <a className="btn" href="/Forex.zip" download aria-label="Old trades" title="Download trades from before this journal (zip)">
+                                <Download aria-hidden="true" />
+                                <span className="btn-label">Old trades</span>
+                            </a>
+                        )}
                     </div>
                 </div>
                 <hr className="rule" />
             </section>
 
-            <SessionBar />
-
-            <div className="toolbar trade-filters">
-                <Seg label="Time frame" options={TF_OPTIONS} value={tfFilter} onChange={setTfFilter} />
-                <Seg
-                    label="Account"
-                    value={typeFilter}
-                    onChange={setTypeFilter}
-                    options={[
-                        { value: "all", label: "All", count: typeCounts.all || 0 },
-                        ...TRADE_TYPES.map((t) => ({ value: t, label: t, count: typeCounts[t] || 0 })),
-                    ]}
-                />
-                <button type="button" className="btn pair-btn" onClick={() => setPickerOpen(true)} aria-haspopup="dialog">
-                    {pairFilter === "all" ? null : <MarketIcon symbol={pairFilter} size={18} />}
-                    {pairFilter === "all" ? "All pairs" : pairFilter}
-                    <ChevronDown className="chev" aria-hidden="true" />
-                    <kbd>P</kbd>
-                </button>
-                {filtering && (
-                    <button type="button" className="btn btn-ghost fade-in" onClick={clearFilters}>
-                        <X aria-hidden="true" />
-                        Clear filters
-                    </button>
-                )}
-            </div>
-
-            {loading ? (
-                <div className="skeleton" aria-busy="true" aria-label="Loading trades">
-                    <div className="sk sk-perf" />
-                    <div className="sk-pair">
-                        <div className="sk sk-break" />
-                        <div className="sk sk-break" />
-                    </div>
-                    <div className="sk sk-rows" />
-                </div>
-            ) : failed ? (
-                <div className="empty-card fade-in">
-                    <h2>Trades didn’t load</h2>
-                    <p>This is usually a brief network hiccup, or the server is waking up. Try again in a moment.</p>
-                    <button
-                        type="button"
-                        className="btn btn-primary"
-                        onClick={() => {
-                            setLoading(true);
-                            fetchTrades();
-                        }}
-                    >
-                        Try again
-                    </button>
-                </div>
-            ) : !trades.length ? (
-                <div className="empty-card fade-in">
-                    <h2>No trades yet</h2>
-                    <p>Log your first trade and grade it against your checklist.</p>
-                    <button type="button" className="btn btn-primary" onClick={onNew}>
-                        New trade
-                    </button>
-                </div>
+            {view === "zerodha" ? (
+                <Zerodha />
             ) : (
                 <>
-                    <section className="group" aria-labelledby="g-perf">
-                        <div className="group-head">
-                            <h2 id="g-perf">Performance</h2>
-                            {filtering && <span className="group-note">Following your filters</span>}
-                        </div>
-                        <Performance trades={filtered} replay={filterKey} />
-                        <Breakdown trades={filtered} pairTrades={byTfAndType} pair={pairFilter} onPair={setPairFilter} />
-                    </section>
+                    <SessionBar />
 
-                    <section className="group" aria-labelledby="g-journal">
-                        <div className="group-head">
-                            <h2 id="g-journal">Journal</h2>
-                            <span className="count">{filtered.length}</span>
-                        </div>
+                    <div className="toolbar trade-filters">
+                        <Seg label="Time frame" options={TF_OPTIONS} value={tfFilter} onChange={setTfFilter} />
+                        <Seg
+                            label="Account"
+                            value={typeFilter}
+                            onChange={setTypeFilter}
+                            options={[
+                                { value: "all", label: "All", count: typeCounts.all || 0 },
+                                ...TRADE_TYPES.map((t) => ({ value: t, label: t, count: typeCounts[t] || 0 })),
+                            ]}
+                        />
+                        <button type="button" className="btn pair-btn" onClick={() => setPickerOpen(true)} aria-haspopup="dialog">
+                            {pairFilter === "all" ? null : <MarketIcon symbol={pairFilter} size={18} />}
+                            {pairFilter === "all" ? "All pairs" : pairFilter}
+                            <ChevronDown className="chev" aria-hidden="true" />
+                            <kbd>P</kbd>
+                        </button>
+                        {filtering && (
+                            <button type="button" className="btn btn-ghost fade-in" onClick={clearFilters}>
+                                <X aria-hidden="true" />
+                                Clear filters
+                            </button>
+                        )}
+                    </div>
 
-                        {!filtered.length && (
-                            <div className="empty-card fade-in">
-                                <h2>No trades match</h2>
-                                <p>Nothing was logged for this mix of time frame, account and pair.</p>
-                                <button type="button" className="btn" onClick={clearFilters}>
-                                    Clear filters
-                                </button>
+                    {loading ? (
+                        <div className="skeleton" aria-busy="true" aria-label="Loading trades">
+                            <div className="sk sk-perf" />
+                            <div className="sk-pair">
+                                <div className="sk sk-break" />
+                                <div className="sk sk-break" />
                             </div>
-                        )}
+                            <div className="sk sk-rows" />
+                        </div>
+                    ) : failed ? (
+                        <div className="empty-card fade-in">
+                            <h2>Trades didn’t load</h2>
+                            <p>This is usually a brief network hiccup, or the server is waking up. Try again in a moment.</p>
+                            <button
+                                type="button"
+                                className="btn btn-primary"
+                                onClick={() => {
+                                    setLoading(true);
+                                    fetchTrades();
+                                }}
+                            >
+                                Try again
+                            </button>
+                        </div>
+                    ) : !trades.length ? (
+                        <div className="empty-card fade-in">
+                            <h2>No trades yet</h2>
+                            <p>Log your first trade and grade it against your checklist.</p>
+                            <button type="button" className="btn btn-primary" onClick={onNew}>
+                                New trade
+                            </button>
+                        </div>
+                    ) : (
+                        <>
+                            <section className="group" aria-labelledby="g-perf">
+                                <div className="group-head">
+                                    <h2 id="g-perf">Performance</h2>
+                                    {filtering && <span className="group-note">Following your filters</span>}
+                                </div>
+                                <Performance trades={filtered} replay={filterKey} />
+                                <Breakdown trades={filtered} pairTrades={byTfAndType} pair={pairFilter} onPair={setPairFilter} />
+                            </section>
 
-                        {open.length > 0 && (
-                            <TradeGroup key={`open-${filterKey}`} title="Open" rows={open} note="Close them with the result and charts" withMonth onOpen={setSelected} />
-                        )}
-                        {months.map((m) => (
-                            <TradeGroup key={`${m.key}-${filterKey}`} title={m.label} rows={m.rows} onOpen={setSelected} />
-                        ))}
-                    </section>
+                            <section className="group" aria-labelledby="g-journal">
+                                <div className="group-head">
+                                    <h2 id="g-journal">Journal</h2>
+                                    <span className="count">{filtered.length}</span>
+                                </div>
+
+                                {!filtered.length && (
+                                    <div className="empty-card fade-in">
+                                        <h2>No trades match</h2>
+                                        <p>Nothing was logged for this mix of time frame, account and pair.</p>
+                                        <button type="button" className="btn" onClick={clearFilters}>
+                                            Clear filters
+                                        </button>
+                                    </div>
+                                )}
+
+                                {open.length > 0 && (
+                                    <TradeGroup key={`open-${filterKey}`} title="Open" rows={open} note="Close them with the result and charts" withMonth onOpen={setSelected} />
+                                )}
+                                {months.map((m) => (
+                                    <TradeGroup key={`${m.key}-${filterKey}`} title={m.label} rows={m.rows} onOpen={setSelected} />
+                                ))}
+                            </section>
+                </>
+            )}
+
                 </>
             )}
 

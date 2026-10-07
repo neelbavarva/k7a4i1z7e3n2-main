@@ -4,14 +4,18 @@ const BASE = (process.env.NEXT_PUBLIC_PROD_LINK || "https://k7a4i1z7e3n2.onrende
 const KEY = process.env.NEXT_PUBLIC_SERVER_KEY || "";
 
 export class HttpError extends Error {
-    constructor(status, message) {
+    constructor(status, message, info = {}) {
         super(message || `Request failed: ${status}`);
         this.status = status;
+        this.code = info.code || ""; // the server's reason, when it gave one
+        this.detail = info.message || "";
     }
 }
 
-async function request(path, { method, body, accept }) {
-    const headers = { "x-api-key": KEY };
+export const API_BASE = BASE;
+
+async function request(path, { method, body, accept, headers: extra }) {
+    const headers = { "x-api-key": KEY, ...extra };
     if (accept) headers.Accept = accept;
     if (body !== undefined) headers["Content-Type"] = "application/json";
     const res = await fetch(`${BASE}${path}`, {
@@ -19,7 +23,10 @@ async function request(path, { method, body, accept }) {
         headers,
         body: body === undefined ? undefined : JSON.stringify(body),
     });
-    if (!res.ok) throw new HttpError(res.status);
+    if (!res.ok) {
+        const info = await res.json().catch(() => ({}));
+        throw new HttpError(res.status, undefined, info && typeof info === "object" ? info : {});
+    }
     return res;
 }
 
@@ -32,8 +39,8 @@ async function read(res) {
     }
 }
 
-export async function http(path, { method = "GET", body } = {}) {
-    return read(await request(path, { method, body }));
+export async function http(path, { method = "GET", body, headers } = {}) {
+    return read(await request(path, { method, body, headers }));
 }
 
 /**
