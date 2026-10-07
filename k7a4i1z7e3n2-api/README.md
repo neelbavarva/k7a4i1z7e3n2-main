@@ -70,7 +70,7 @@ starts out not counted.
 
 ## Crypto wallets (`/crypto`)
 
-Wallets by **public address only**: no keys or seed phrase, ever. Each wallet's coins are read from public
+Wallets are a name and their **public addresses**, one per chain, pasted all at once: no keys or seed phrase, ever. Each address's coins are read from public
 blockchains and priced in rupees and dollars with CoinGecko, all free with no keys (`crypto.js`):
 Bitcoin (mempool.space); Ethereum, BNB Chain, Polygon, Arbitrum, Base and Optimism (the main coin, USDT and
 USDC, through dRPC and PublicNode); Tron (TRX and USDT, TronGrid); Solana (SOL, USDT, USDC). The chain is told
@@ -79,7 +79,7 @@ from the address format. Balances are cached five minutes, prices five minutes.
 | Route | What it does |
 |---|---|
 | `GET /crypto/wallets` | Every wallet with its coins and values (`?fresh=1` to skip the balance cache). |
-| `POST /crypto/wallets` | `{ name, address }` adds a wallet. |
-| `PUT /crypto/wallets/:id`, `DELETE /crypto/wallets/:id` | Rename or remove one. |
+| `POST /crypto/wallets` | `{ name, addresses }` adds a wallet; `addresses` is a list or one pasted block (lines, spaces or commas). |
+| `PUT /crypto/wallets/:id`, `DELETE /crypto/wallets/:id` | Rename a wallet or replace its addresses; remove one. |
 
 Optional: `COINGECKO_KEY` (a free CoinGecko demo key) and `TRONGRID_KEY`, if the keyless limits ever bite.

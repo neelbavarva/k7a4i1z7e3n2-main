@@ -6227,6 +6227,60 @@ fieldset.bare:disabled {
   margin-top: 8px;
 }
 
+.nw-wallet-form {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.6fr);
+  align-items: start;
+  gap: 14px;
+}
+.nw-wallet-form .field {
+  align-content: start;
+}
+.nw-wallet-form .textarea {
+  min-height: 112px;
+  font-size: 12.5px;
+}
+.nw-found {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.nw-found li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  font-size: 12px;
+  background: color-mix(in srgb, var(--ok) 6%, var(--raised));
+  border: 1px solid color-mix(in srgb, var(--ok) 26%, var(--line));
+  border-radius: 8px;
+}
+.nw-found li b {
+  font-weight: 600;
+  color: color-mix(in srgb, var(--ok) 80%, var(--ink));
+}
+.nw-found li.is-bad {
+  background: color-mix(in srgb, var(--bear) 6%, var(--raised));
+  border-color: color-mix(in srgb, var(--bear) 30%, var(--line));
+}
+.nw-found li.is-bad b {
+  color: var(--bear-ink);
+}
+.nw-form-err {
+  margin-right: auto;
+  align-self: center;
+  font-size: 12.5px;
+  color: var(--bear-ink);
+}
+.nw-addr {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 @media (max-width: 900px) {
   .nw-hero {
     grid-template-columns: 1fr;
@@ -6246,7 +6300,8 @@ fieldset.bare:disabled {
   .nw-kind {
     display: none;
   }
-  .nw-form-grid {
+  .nw-form-grid,
+  .nw-wallet-form {
     grid-template-columns: 1fr;
   }
 }

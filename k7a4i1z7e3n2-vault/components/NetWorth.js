@@ -627,8 +627,8 @@ function AccountSettings({ src, account, demo }) {
 
 // ---------- Crypto wallets ----------
 
-const CHAINS = { evm: "EVM: Ethereum, BNB Chain, Polygon, Arbitrum, Base, Optimism", btc: "Bitcoin", tron: "Tron", sol: "Solana" };
 const CHAIN_SHORT = { evm: "EVM", btc: "Bitcoin", tron: "Tron", sol: "Solana" };
+const CHAIN_LONG = { evm: "Ethereum, BNB Chain, Polygon, Arbitrum, Base, Optimism", btc: "Bitcoin", tron: "Tron", sol: "Solana" };
 
 /** The same rules as the server: which chain an address is on, from its format. */
 function chainOf(address) {
@@ -641,16 +641,74 @@ function chainOf(address) {
     return null;
 }
 
+/** A pasted block of addresses, split on lines, spaces or commas, each with its chain. */
+const parseAddresses = (text) => [...new Set(text.split(/[\s,;]+/).map((a) => a.trim()).filter(Boolean))].map((address) => ({ address, chain: chainOf(address) }));
+
 const short = (a) => (a.length > 16 ? `${a.slice(0, 8)}…${a.slice(-6)}` : a);
 const amount = (x) => (x >= 1000 ? num(x, 2) : x >= 1 ? num(x, 4) : num(x, 8));
 
+/** Name a wallet and paste all its addresses at once; used for adding and for editing. */
+function WalletForm({ initial, onSave, onCancel, saving }) {
+    const [name, setName] = useState(initial?.name || "");
+    const [text, setText] = useState(initial ? initial.addresses.map((a) => a.address).join("\n") : "");
+    const parsed = parseAddresses(text);
+    const bad = parsed.filter((a) => !a.chain);
+    const ok = name.trim() && parsed.length && !bad.length;
+    return (
+        <form
+            className="nw-form"
+            onSubmit={(e) => {
+                e.preventDefault();
+                if (ok) onSave({ name: name.trim(), addresses: parsed.map((a) => a.address) });
+            }}
+        >
+            <div className="nw-wallet-form">
+                <div className="field">
+                    <label htmlFor="cw-name">Name</label>
+                    <input id="cw-name" className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Trust Wallet" maxLength={40} autoFocus />
+                </div>
+                <div className="field">
+                    <label htmlFor="cw-addresses">Addresses</label>
+                    <textarea
+                        id="cw-addresses"
+                        className="textarea nw-mono"
+                        value={text}
+                        onChange={(e) => setText(e.target.value)}
+                        placeholder={"Paste each coin’s receive address, one per line:\n0x…  (one covers ETH, BNB, Polygon and more)\nbc1…\nT…\nSolana address"}
+                        spellCheck={false}
+                        autoComplete="off"
+                        rows={5}
+                    />
+                    <span className="field-hint">In Trust Wallet: tap a coin → Receive → copy. One 0x address covers every EVM chain. Never your recovery phrase.</span>
+                </div>
+            </div>
+            {parsed.length > 0 && (
+                <ul className="nw-found" aria-label="Addresses found">
+                    {parsed.map((a) => (
+                        <li key={a.address} className={a.chain ? "" : "is-bad"} title={a.chain ? CHAIN_LONG[a.chain] : "Not a Bitcoin, EVM, Tron or Solana address"}>
+                            <b>{a.chain ? CHAIN_SHORT[a.chain] : "Unknown"}</b>
+                            <span className="nw-mono">{short(a.address)}</span>
+                        </li>
+                    ))}
+                </ul>
+            )}
+            <div className="nw-form-actions">
+                {bad.length > 0 && <span className="nw-form-err">{bad.length === 1 ? "One address isn’t recognised" : `${bad.length} addresses aren’t recognised`}</span>}
+                <button type="button" className="btn btn-ghost" onClick={onCancel}>
+                    Cancel
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={saving || !ok}>
+                    {initial ? "Save" : `Add${parsed.length > 1 ? ` ${parsed.length} addresses` : ""}`}
+                </button>
+            </div>
+        </form>
+    );
+}
+
 function CryptoPanel({ src, demo }) {
-    const [adding, setAdding] = useState(false);
-    const [name, setName] = useState("");
-    const [address, setAddress] = useState("");
+    const [editing, setEditing] = useState(null); // null | "new" | a wallet's _id
     const [saving, setSaving] = useState(false);
     const list = src.data?.wallets || [];
-    const chain = chainOf(address);
 
     if (src.state === "loading") return <div className="sk sk-rows" aria-busy="true" />;
     if (src.state === "error" || src.state === "unset")
@@ -660,25 +718,28 @@ function CryptoPanel({ src, demo }) {
             </Setup>
         );
 
-    const add = async (e) => {
-        e.preventDefault();
-        if (!name.trim() || !chain) {
-            toast.error(!chain ? "That doesn’t look like a wallet address" : "Give the wallet a name");
-            return;
-        }
+    const save = async (fields) => {
         setSaving(true);
         try {
             if (demo) {
-                src.setData((d) => ({ ...d, wallets: [...d.wallets, { _id: `d${Date.now()}`, name: name.trim(), address: address.trim(), chain, holdings: [], inr: 0, usd: 0, error: null }] }));
+                const addresses = fields.addresses.map((address) => ({ address, chain: chainOf(address), holdings: [], inr: 0, usd: 0, error: null }));
+                src.setData((d) => ({
+                    ...d,
+                    wallets:
+                        editing === "new"
+                            ? [...d.wallets, { _id: `d${Date.now()}`, name: fields.name, addresses, holdings: [], inr: 0, usd: 0, error: null }]
+                            : d.wallets.map((w) => (w._id === editing ? { ...w, name: fields.name, addresses } : w)),
+                }));
+            } else if (editing === "new") {
+                await http("/crypto/wallets", { method: "POST", body: fields });
+                src.reload();
             } else {
-                await http("/crypto/wallets", { method: "POST", body: { name: name.trim(), address: address.trim() } });
+                await http(`/crypto/wallets/${editing}`, { method: "PUT", body: fields });
                 src.reload();
             }
-            setAdding(false);
-            setName("");
-            setAddress("");
+            setEditing(null);
         } catch (err) {
-            toast.error("Didn’t add it", { description: err.detail || "Try again in a moment." });
+            toast.error("Didn’t save", { description: err.detail || "Try again in a moment." });
         } finally {
             setSaving(false);
         }
@@ -708,89 +769,67 @@ function CryptoPanel({ src, demo }) {
                         "Public addresses only: no keys or seed phrase, ever."
                     )}
                 </span>
-                {!adding && (
-                    <button type="button" className="btn btn-sm" onClick={() => setAdding(true)}>
+                {editing !== "new" && (
+                    <button type="button" className="btn btn-sm" onClick={() => setEditing("new")}>
                         <Plus aria-hidden="true" />
                         Add wallet
                     </button>
                 )}
             </div>
             {src.data?.priceError && <p className="kt-note">Prices didn’t load ({src.data.priceError}), so values may be missing.</p>}
+            {editing === "new" && <WalletForm onSave={save} onCancel={() => setEditing(null)} saving={saving} />}
 
-            {adding && (
-                <form className="nw-form" onSubmit={add}>
-                    <div className="nw-form-grid">
-                        <div className="field">
-                            <label htmlFor="cw-name">Name</label>
-                            <input id="cw-name" className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Trust Wallet" maxLength={40} autoFocus />
-                        </div>
-                        <div className="field">
-                            <label htmlFor="cw-address">Public address</label>
-                            <input
-                                id="cw-address"
-                                className="input nw-mono"
-                                value={address}
-                                onChange={(e) => setAddress(e.target.value)}
-                                placeholder="0x…, bc1…, T… or a Solana address"
-                                spellCheck={false}
-                                autoComplete="off"
-                            />
-                            <span className="field-hint">{address.trim() ? (chain ? CHAINS[chain] : "Not a Bitcoin, EVM, Tron or Solana address") : "In Trust Wallet: the coin → Receive → copy. Never your recovery phrase."}</span>
-                        </div>
-                    </div>
-                    <div className="nw-form-actions">
-                        <button type="button" className="btn btn-ghost" onClick={() => setAdding(false)}>
-                            Cancel
-                        </button>
-                        <button type="submit" className="btn btn-primary" disabled={saving || !chain || !name.trim()}>
-                            Add
-                        </button>
-                    </div>
-                </form>
-            )}
-
-            {list.map((w) => (
-                <div key={w._id} className="nw-wallet">
-                    <div className="nw-wallet-head">
-                        <span className="nw-wallet-name">
-                            <b>{w.name}</b>
-                            <span className="kt-chip muted">{CHAIN_SHORT[w.chain]}</span>
-                            <span className="nw-mono muted" title={w.address}>
-                                {short(w.address)}
+            {list.map((w) =>
+                editing === w._id ? (
+                    <WalletForm key={w._id} initial={w} onSave={save} onCancel={() => setEditing(null)} saving={saving} />
+                ) : (
+                    <div key={w._id} className="nw-wallet">
+                        <div className="nw-wallet-head">
+                            <span className="nw-wallet-name">
+                                <b>{w.name}</b>
+                                {(w.addresses || []).map((a) => (
+                                    <span key={a.address} className="nw-addr" title={`${a.address}${a.error ? ` · ${a.error}` : ""}`}>
+                                        <span className={`kt-chip ${a.error ? "open" : "muted"}`}>{CHAIN_SHORT[a.chain]}</span>
+                                        <span className="nw-mono muted">{short(a.address)}</span>
+                                    </span>
+                                ))}
                             </span>
-                        </span>
-                        <span className="nw-wallet-total">
-                            <b>{inr(w.inr || 0, { whole: true })}</b>
-                            <small>{usd(w.usd || 0)}</small>
-                        </span>
-                        <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => remove(w)} aria-label={`Remove ${w.name}`}>
-                            <Trash2 aria-hidden="true" />
-                        </button>
+                            <span className="nw-wallet-total">
+                                <b>{inr(w.inr || 0, { whole: true })}</b>
+                                <small>{usd(w.usd || 0)}</small>
+                            </span>
+                            <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => setEditing(w._id)} aria-label={`Edit ${w.name}`}>
+                                <Pencil aria-hidden="true" />
+                            </button>
+                            <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => remove(w)} aria-label={`Remove ${w.name}`}>
+                                <Trash2 aria-hidden="true" />
+                            </button>
+                        </div>
+                        {w.error && <p className="kt-note">Some chains didn’t answer: {w.error}</p>}
+                        {w.holdings?.length ? (
+                            <Table
+                                label={`${w.name} coins`}
+                                cols="minmax(0, 1.3fr) 8rem 7rem 7.5rem 5rem"
+                                colsSm="minmax(0, 1fr) 7rem"
+                                hide={[1, 2, 4]}
+                                head={["Coin", "Amount", "Dollars", "Rupees", "24h"]}
+                                rows={w.holdings}
+                                rowKey={(h) => `${h.network}:${h.symbol}`}
+                                render={(h) => [
+                                    <Sym key="s" title={h.symbol} sub={h.network} />,
+                                    <span key="a" className="kt-num">{amount(h.amount)}</span>,
+                                    <span key="u" className="kt-num">{h.usd != null ? usd(h.usd) : "—"}</span>,
+                                    <span key="i" className="kt-num">{h.inr != null ? inr(h.inr, { whole: true }) : "—"}</span>,
+                                    <span key="c" className={`kt-num ${sideOf(h.change24h)}`}>{/^USD[TC]$/.test(h.symbol) ? "—" : pct(h.change24h)}</span>,
+                                ]}
+                            />
+                        ) : (
+                            !w.error && <p className="empty-note">Nothing on these addresses yet, or only coins this page doesn’t read.</p>
+                        )}
                     </div>
-                    {w.error && <p className="kt-note">Some chains didn’t answer: {w.error}</p>}
-                    {w.holdings.length ? (
-                        <Table
-                            label={`${w.name} coins`}
-                            cols="minmax(0, 1.3fr) 8rem 7rem 7.5rem 5rem"
-                            colsSm="minmax(0, 1fr) 7rem"
-                            hide={[1, 2, 4]}
-                            head={["Coin", "Amount", "Dollars", "Rupees", "24h"]}
-                            rows={w.holdings}
-                            rowKey={(h) => `${h.network}:${h.symbol}`}
-                            render={(h) => [
-                                <Sym key="s" title={h.symbol} sub={h.network} />,
-                                <span key="a" className="kt-num">{amount(h.amount)}</span>,
-                                <span key="u" className="kt-num">{h.usd != null ? usd(h.usd) : "—"}</span>,
-                                <span key="i" className="kt-num">{h.inr != null ? inr(h.inr, { whole: true }) : "—"}</span>,
-                                <span key="c" className={`kt-num ${sideOf(h.change24h)}`}>{/^USD[TC]$/.test(h.symbol) ? "—" : pct(h.change24h)}</span>,
-                            ]}
-                        />
-                    ) : (
-                        !w.error && <p className="empty-note">Nothing on this wallet yet, or only coins this page doesn’t read.</p>
-                    )}
-                </div>
-            ))}
-            {!list.length && !adding && <p className="empty-note">No wallets yet. Add one by its public address to count it.</p>}
+                )
+            )}
+            {!list.length && editing !== "new" && <p className="empty-note">No wallets yet. Add one with its public addresses to count it.</p>}
             <p className="nw-fine">
                 Read from public blockchains: Bitcoin; Ethereum, BNB Chain, Polygon, Arbitrum, Base and Optimism (the main coin, USDT and USDC); Tron (TRX, USDT); Solana (SOL, USDT, USDC). Prices from
                 CoinGecko. Coins on an exchange aren’t in a wallet address.

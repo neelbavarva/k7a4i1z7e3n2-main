@@ -74,28 +74,26 @@ export function demoManual() {
 
 export function demoCrypto() {
     const h = (network, symbol, amount, inr, usd, change24h = 0) => ({ network, symbol, amount, inr: amount * inr, usd: amount * usd, change24h });
-    const wallet = (_id, name, chain, address, holdings) => ({
-        _id,
-        name,
-        chain,
-        address,
-        holdings,
-        inr: holdings.reduce((a, x) => a + x.inr, 0),
-        usd: holdings.reduce((a, x) => a + x.usd, 0),
-        error: null,
-    });
+    const at = (chain, address, holdings) => ({ chain, address, holdings, inr: holdings.reduce((a, x) => a + x.inr, 0), usd: holdings.reduce((a, x) => a + x.usd, 0), error: null });
+    const wallet = (_id, name, addresses) => {
+        const holdings = addresses.flatMap((a) => a.holdings).sort((x, y) => y.inr - x.inr);
+        return { _id, name, addresses, holdings, inr: addresses.reduce((a, x) => a + x.inr, 0), usd: addresses.reduce((a, x) => a + x.usd, 0), error: null };
+    };
     return {
         fetchedAt: new Date().toISOString(),
         priceError: null,
         wallets: [
-            wallet("c1", "Trust Wallet", "evm", "0x3f5CE5FBFe3E9af3971dD833D26bA9b5C936f0bE", [
-                h("BNB Chain", "USDT", 1250, 96.7, 1),
-                h("Ethereum", "ETH", 0.42, 248832, 2571.86, -4.3),
-                h("BNB Chain", "BNB", 1.8, 74590, 770.94, -1.1),
-                h("Polygon", "POL", 640, 9.92, 0.1025, 2.4),
+            wallet("c1", "Trust Wallet", [
+                at("evm", "0x3f5CE5FBFe3E9af3971dD833D26bA9b5C936f0bE", [
+                    h("BNB Chain", "USDT", 1250, 96.7, 1),
+                    h("Ethereum", "ETH", 0.42, 248832, 2571.86, -4.3),
+                    h("BNB Chain", "BNB", 1.8, 74590, 770.94, -1.1),
+                    h("Polygon", "POL", 640, 9.92, 0.1025, 2.4),
+                ]),
+                at("btc", "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq", [h("Bitcoin", "BTC", 0.0185, 8082449, 83538, -2)]),
+                at("tron", "TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL", [h("Tron", "USDT", 820, 96.7, 1), h("Tron", "TRX", 35.2, 32.45, 0.335)]),
             ]),
-            wallet("c2", "Trust Wallet BTC", "btc", "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq", [h("Bitcoin", "BTC", 0.0185, 8082449, 83538, -2)]),
-            wallet("c3", "USDT on Tron", "tron", "TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL", [h("Tron", "USDT", 820, 96.7, 1), h("Tron", "TRX", 35.2, 32.45, 0.335)]),
+            wallet("c2", "Phantom", [at("sol", "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM", [h("Solana", "SOL", 3.4, 11323.64, 117.04, 1.8), h("Solana", "USDC", 150, 96.7, 1)])]),
         ],
     };
 }

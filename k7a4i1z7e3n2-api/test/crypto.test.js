@@ -10,6 +10,7 @@ const KEY = "test-key";
 // wallets in memory
 let wallets = [];
 let n = 1;
+let synced = 0;
 const copy = (x) => (x == null ? x : JSON.parse(JSON.stringify(x)));
 const p = require.resolve("../schema/CryptoWallet");
 require.cache[p] = {
@@ -17,8 +18,10 @@ require.cache[p] = {
     filename: p,
     loaded: true,
     exports: {
-        find: () => ({ sort: () => ({ lean: async () => copy(wallets) }) }),
-        findOne: (q) => ({ lean: async () => copy(wallets.find((w) => w.address === q.address)) || null }),
+        find: () => ({ sort: () => ({ lean: async () => copy(wallets) }), lean: async () => copy(wallets) }),
+        syncIndexes: async () => {
+            synced++;
+        },
         create: async (f) => {
             const doc = { _id: String(n++).padStart(24, "0"), ...f, createdAt: new Date().toISOString() };
             wallets.push(doc);
@@ -27,7 +30,10 @@ require.cache[p] = {
         findByIdAndUpdate: (id, u) => ({
             lean: async () => {
                 const w = wallets.find((x) => x._id === id);
-                if (w) Object.assign(w, u.$set);
+                if (w) {
+                    Object.assign(w, u.$set);
+                    for (const k of Object.keys(u.$unset || {})) delete w[k];
+                }
                 return copy(w) || null;
             },
         }),
@@ -104,37 +110,55 @@ test("tells chains apart by address format", () => {
     assert.equal(detect("0x123"), null);
 });
 
-test("adds wallets by address, refusing bad and repeated ones", async () => {
-    for (const [name, address] of [["Trust EVM", EVM], ["Cold BTC", BTC], ["Tron USDT", TRON], ["Phantom", SOL]]) {
-        assert.equal((await req("/crypto/wallets", { method: "POST", body: { name, address } })).status, 201);
-    }
-    assert.equal((await req("/crypto/wallets", { method: "POST", body: { name: "Again", address: EVM } })).status, 409);
-    assert.equal((await req("/crypto/wallets", { method: "POST", body: { name: "Bad", address: "not-an-address-at-all-really" } })).status, 400);
-    assert.equal((await req("/crypto/wallets", { method: "POST", body: { name: "Mismatch", address: TRON, chain: "evm" } })).status, 400);
-    assert.equal((await req("/crypto/wallets", { method: "POST", body: { name: "", address: BTC } })).status, 400);
-    assert.deepEqual(wallets.map((w) => w.chain), ["evm", "btc", "tron", "sol"]);
+test("adds a wallet with all its addresses pasted at once, each told apart", async () => {
+    const r = await req("/crypto/wallets", { method: "POST", body: { name: "Trust Wallet", addresses: `${EVM}\n${BTC}, ${TRON}  ${SOL}\n${EVM.toUpperCase().replace("0X", "0x")}` } });
+    assert.equal(r.status, 201);
+    const w = await r.json();
+    assert.deepEqual(w.addresses.map((a) => a.chain), ["evm", "btc", "tron", "sol"]); // the repeated EVM one only once
+    assert.equal(synced, 1); // the old unique index is dropped before the first write
 });
 
-test("values every coin in rupees and dollars, leaving out empty ones", async () => {
+test("refuses a bad address, an empty list, and an address already in another wallet", async () => {
+    const bad = await req("/crypto/wallets", { method: "POST", body: { name: "Bad", addresses: [EVM.replace("0x1", "0x2"), "not-an-address-at-all"] } });
+    assert.equal(bad.status, 400);
+    assert.match((await bad.json()).message, /not-an-address-at-all/);
+    assert.equal((await req("/crypto/wallets", { method: "POST", body: { name: "Empty", addresses: "  " } })).status, 400);
+    assert.equal((await req("/crypto/wallets", { method: "POST", body: { name: "Again", addresses: [BTC] } })).status, 409);
+    assert.equal((await req("/crypto/wallets", { method: "POST", body: { name: "", addresses: [BTC] } })).status, 400);
+});
+
+test("values every coin across a wallet's addresses, leaving out empty ones", async () => {
     ethDown = true; // Ethereum's first endpoint fails; the second one answers
     const { wallets: out } = await (await req("/crypto/wallets")).json();
-    const by = Object.fromEntries(out.map((w) => [w.name, w]));
+    const w = out.find((x) => x.name === "Trust Wallet");
+    assert.equal(w.addresses.length, 4);
+    const by = Object.fromEntries(w.addresses.map((a) => [a.chain, a]));
+    assert.deepEqual(by.evm.holdings.map((h) => `${h.network}:${h.symbol}`).sort(), ["Ethereum:ETH", "Ethereum:USDT"]);
+    assert.equal(by.evm.inr, 250000 + 250 * 96);
+    assert.equal(by.btc.inr, 8000000);
+    assert.deepEqual(by.tron.holdings.map((h) => [h.symbol, h.amount]), [["USDT", 12.5], ["TRX", 2.5]]);
+    assert.deepEqual(by.sol.holdings.map((h) => [h.symbol, h.amount]), [["SOL", 2.5], ["USDC", 40]]);
+    assert.equal(w.inr, by.evm.inr + by.btc.inr + by.tron.inr + by.sol.inr);
+    assert.equal(w.holdings[0].symbol, "BTC"); // the wallet's coins together, biggest first
+    assert.equal(w.error, null);
+});
 
-    const evm = by["Trust EVM"];
-    assert.deepEqual(evm.holdings.map((h) => `${h.network}:${h.symbol}`).sort(), ["Ethereum:ETH", "Ethereum:USDT"]);
-    assert.equal(evm.inr, 250000 + 250 * 96);
-    assert.equal(evm.usd, 2500 + 250);
-    assert.equal(evm.error, null);
-
-    assert.equal(by["Cold BTC"].holdings[0].amount, 1);
-    assert.equal(by["Cold BTC"].inr, 8000000);
-    assert.deepEqual(by["Tron USDT"].holdings.map((h) => [h.symbol, h.amount]), [["USDT", 12.5], ["TRX", 2.5]]);
-    assert.deepEqual(by.Phantom.holdings.map((h) => [h.symbol, h.amount]), [["SOL", 2.5], ["USDC", 40]]);
+test("reads a wallet saved before addresses were grouped, and moves it to the list when edited", async () => {
+    wallets.push({ _id: "f".repeat(24), name: "Old BTC", address: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa", chain: "btc", createdAt: new Date().toISOString() });
+    const { wallets: out } = await (await req("/crypto/wallets")).json();
+    const old = out.find((x) => x.name === "Old BTC");
+    assert.deepEqual(old.addresses.map((a) => a.chain), ["btc"]);
+    const put = await req(`/crypto/wallets/${"f".repeat(24)}`, { method: "PUT", body: { addresses: ["1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa", "3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy"] } });
+    assert.equal(put.status, 200);
+    const doc = wallets.find((x) => x.name === "Old BTC");
+    assert.equal(doc.address, undefined);
+    assert.equal(doc.addresses.length, 2);
 });
 
 test("renames and removes a wallet", async () => {
     const id = wallets[0]._id;
     assert.equal((await (await req(`/crypto/wallets/${id}`, { method: "PUT", body: { name: "Trust main" } })).json()).name, "Trust main");
+    assert.equal((await req(`/crypto/wallets/${id}`, { method: "PUT", body: { addresses: [TRON, "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"] } })).status, 409); // that one's in Old BTC
     assert.equal((await req(`/crypto/wallets/${id}`, { method: "DELETE" })).status, 200);
     assert.equal((await req(`/crypto/wallets/${id}`, { method: "DELETE" })).status, 404);
 });
