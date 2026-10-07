@@ -19,6 +19,14 @@ import { syncPrices, loadLegs, makePriceSource } from './sources/prices.js';
 import { writeOutputs } from './lib/output.js';
 import { DATA_DIR, ROOT, readJson, writeJson, readText, log } from './lib/store.js';
 
+// Local runs read keys from .env in this folder (gitignored); GitHub Actions passes them as
+// secrets instead, and a variable already set always wins over the file.
+try {
+  process.loadEnvFile(join(ROOT, '.env'));
+} catch {
+  /* no .env: nothing to load */
+}
+
 const args = new Set(process.argv.slice(2));
 const nowMs = Date.now();
 const EVENTS_PATH = join(DATA_DIR, 'events.json');
