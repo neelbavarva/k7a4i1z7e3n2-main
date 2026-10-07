@@ -27,7 +27,11 @@ export function demoMt5() {
         fetchedAt: new Date().toISOString(),
         accounts: [
             {
-                id: "demo-exness",
+                id: "mt5-81234567",
+                login: "81234567",
+                source: "addon",
+                live: true,
+                updatedAt: new Date().toISOString(),
                 label: "Exness",
                 server: "Exness-MT5Real8",
                 prop: false,
@@ -40,7 +44,11 @@ export function demoMt5() {
                 error: null,
             },
             {
-                id: "demo-fundingpips",
+                id: "mt5-5512345",
+                login: "5512345",
+                source: "myfxbook",
+                live: false,
+                updatedAt: new Date(Date.now() - 6 * 60e3).toISOString(),
                 label: "FundingPips",
                 server: "FundingPips-Live",
                 prop: true,

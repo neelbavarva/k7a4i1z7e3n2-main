@@ -9,6 +9,9 @@ process.env.SERVER_KEY = "test-key";
 process.env.GROWW_API_KEY = "groww-key";
 process.env.GROWW_API_SECRET = "groww-secret";
 process.env.METAAPI_TOKEN = "meta-token";
+process.env.MT5_PUSH_TOKEN = "push-token-123";
+process.env.MYFXBOOK_EMAIL = "me@example.com";
+process.env.MYFXBOOK_PASSWORD = "p&ss word";
 const KEY = "test-key";
 
 const fake = (path, exports) => {
@@ -63,7 +66,19 @@ fake("../schema/Mt5Setting", {
     }),
 });
 
+// the add-on's reports, in memory
+const snapshots = new Map();
+fake("../schema/Mt5Snapshot", {
+    find: () => ({ lean: async () => [...snapshots.values()].map(copy) }),
+    findByIdAndUpdate: async (id, u) => {
+        snapshots.set(id, { _id: id, ...u.$set });
+        return copy(snapshots.get(id));
+    },
+});
+
 // the outside world
+let fxSession = "S1";
+let fxLogins = 0;
 let approved = true;
 let issued = 0;
 const seenGroww = [];
@@ -93,6 +108,24 @@ function outside(url, init = {}) {
         if (u.pathname === "/v1/positions/user")
             return json(200, { status: "SUCCESS", payload: { positions: u.searchParams.get("segment") === "FNO" ? [{ trading_symbol: "NIFTY", quantity: 75, realised_pnl: 1200 }] : [] } });
         if (u.pathname === "/v1/margins/detail/user") return json(200, { status: "SUCCESS", payload: { clear_cash: 5000, net_margin_used: 1000 } });
+    }
+    if (u.host === "www.myfxbook.com") {
+        if (u.pathname === "/api/login.json") {
+            assert.equal(u.searchParams.get("password"), "p&ss word"); // encoded on the way, intact on arrival
+            fxLogins++;
+            return json(200, { error: false, message: "", session: fxSession });
+        }
+        if (u.searchParams.get("session") !== fxSession) return json(200, { error: true, message: "Invalid session." });
+        if (u.pathname === "/api/get-my-accounts.json")
+            return json(200, {
+                error: false,
+                accounts: [
+                    { id: 901, name: "Exness live", accountId: 81234567, balance: 1000, equity: 1040, currency: "USD", lastUpdateDate: "10/07/2026 14:05", server: { name: "Exness-MT5Real8" } },
+                    { id: 902, name: "FP 10k", accountId: 7700001, balance: 10000, equity: 10100, currency: "USD", lastUpdateDate: "10/07/2026 14:00", server: { name: "FundingPips-Live" } },
+                ],
+            });
+        if (u.pathname === "/api/get-open-trades.json")
+            return json(200, { error: false, openTrades: u.searchParams.get("id") === "902" ? [{ symbol: "GBPJPY", action: "Sell", sizing: { type: "lots", value: "0.30" }, openPrice: 196.4, profit: -24.4, swap: 0 }] : [] });
     }
     if (u.host === "mt-provisioning-api-v1.agiliumtrade.agiliumtrade.ai") {
         assert.equal(init.headers["auth-token"], "meta-token");
@@ -187,26 +220,63 @@ test("Groww: trades the key for a token once, encrypts it, and values holdings w
     assert.deepEqual([status.configured, status.connected], [true, true]);
 });
 
-test("MT5: lists every MetaApi account by itself, reads each in its region, and starts a prop firm one as not counted", async () => {
-    const r = await (await req("/mt5/accounts")).json();
-    const by = Object.fromEntries(r.accounts.map((a) => [a.id, a]));
-    assert.equal(by["acc-exness-1"].label, "My Exness");
-    assert.equal(by["acc-exness-1"].counted, true);
-    assert.equal(by["acc-exness-1"].info.equity, 1050.5);
-    assert.equal(by["acc-exness-1"].positions[0].symbol, "EURUSD");
-    assert.equal(by["acc-fp-0001"].counted, false); // FundingPips server
-    assert.equal(by["acc-fp-0001"].prop, true);
-    assert.equal(by["acc-fp-0001"].info.equity, 10250);
-    assert.match(by["acc-off-0001"].error, /Not deployed/);
+const push = (body, token = "push-token-123") =>
+    realFetch(`${base}/mt5/push`, { method: "POST", headers: { "Content-Type": "application/json", "x-push-token": token }, body: JSON.stringify(body) });
+const accounts = async () => Object.fromEntries((await (await req("/mt5/accounts?fresh=1")).json()).accounts.map((a) => [a.login, a]));
+
+test("MT5: the add-on's report needs its token and lands as a live account", async () => {
+    const report = {
+        login: "81234567",
+        server: "Exness-MT5Real8",
+        company: "Exness",
+        currency: "USD",
+        balance: 1000,
+        equity: 1055.25,
+        margin: 100,
+        freeMargin: 955.25,
+        positions: [{ ticket: 5, symbol: "XAUUSD", type: "buy", volume: 0.05, openPrice: 2641.2, currentPrice: 2652.9, profit: 58.5, swap: -1.2 }],
+    };
+    assert.equal((await push(report, "wrong")).status, 401);
+    assert.equal((await push(report, "")).status, 401);
+    assert.equal((await push({ ...report, equity: "lots" })).status, 400);
+    assert.equal((await push(report)).status, 200);
+
+    const by = await accounts();
+    const ex = by["81234567"];
+    assert.equal(ex.source, "addon"); // the live report wins over Myfxbook's copy of the same login
+    assert.deepEqual(ex.also.sort(), ["metaapi", "myfxbook"]);
+    assert.equal(ex.live, true);
+    assert.equal(ex.info.equity, 1055.25);
+    assert.equal(ex.positions[0].type, "POSITION_TYPE_BUY");
+    assert.equal(ex.counted, true);
 });
 
-test("MT5: remembers a name and whether an account counts", async () => {
-    const put = await req("/mt5/accounts/acc-fp-0001", { method: "PUT", body: { label: "FundingPips 10k", counted: true } });
+test("MT5: Myfxbook accounts come in with open trades, logging in again when the session goes", async () => {
+    fxSession = "S2"; // the old session stops working
+    require("../routes/mt5Route").forgetCaches();
+    const before = fxLogins;
+    const by = await accounts();
+    const fp = by["7700001"];
+    assert.ok(fxLogins > before);
+    assert.equal(fp.source, "myfxbook");
+    assert.equal(fp.info.equity, 10100);
+    assert.equal(fp.positions[0].type, "POSITION_TYPE_SELL");
+    assert.equal(fp.positions[0].volume, 0.3);
+    assert.equal(fp.counted, false); // FundingPips server: not counted to start with
+});
+
+test("MT5: MetaApi accounts are read in their own region", async () => {
+    const by = await accounts();
+    assert.equal(by["5512345"].source, "metaapi");
+    assert.equal(by["5512345"].info.equity, 10250);
+    assert.match(by["1"].error, /Not deployed/);
+});
+
+test("MT5: remembers a name and whether an account counts, by login", async () => {
+    const put = await req("/mt5/accounts/mt5-7700001", { method: "PUT", body: { label: "FundingPips 10k", counted: true } });
     assert.equal(put.status, 200);
-    assert.equal((await req("/mt5/accounts/bad id!", { method: "PUT", body: { counted: true } })).status, 400);
-    const r = await (await req("/mt5/accounts")).json(); // the change clears the cache
-    const fp = r.accounts.find((a) => a.id === "acc-fp-0001");
+    assert.equal((await req("/mt5/accounts/acc-x", { method: "PUT", body: { counted: true } })).status, 400);
+    const fp = (await accounts())["7700001"];
     assert.equal(fp.label, "FundingPips 10k");
     assert.equal(fp.counted, true);
-    assert.equal(fp.prop, false);
 });

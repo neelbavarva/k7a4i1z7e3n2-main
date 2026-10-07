@@ -52,14 +52,18 @@ The vault's **Trades → Net worth** page adds these up with Zerodha. All need t
 | `GET /worth/fx` | US dollar in rupees (ECB rate via Frankfurter, cached an hour). |
 | `GET, POST /worth/manual`, `PUT, DELETE /worth/manual/:id` | Entries typed in by hand: bank balances, deposits, cash, loans. |
 | `GET /groww/status`, `GET /groww/account` | Groww holdings (valued with delayed Yahoo Finance prices; Groww's free API has none), positions and funds. |
-| `GET /mt5/accounts`, `PUT /mt5/accounts/:id` | Every MetaApi account's balance, equity, margin and open positions; its name here and whether it counts. |
+| `GET /mt5/accounts`, `PUT /mt5/accounts/:id`, `POST /mt5/push` | Every MT5 account's balance, equity, margin and open positions; its name here and whether it counts; the add-on's reports. |
 
 | Variable | Value |
 |---|---|
 | `GROWW_API_KEY`, `GROWW_API_SECRET` | From Groww Cloud. Approve the key there once a day; the first read after that gets the day's token. |
-| `METAAPI_TOKEN` | A MetaApi API token (MetaApi → API Access). |
+| `MYFXBOOK_EMAIL`, `MYFXBOOK_PASSWORD` | Your Myfxbook login. Connect each MT5 account on Myfxbook with its investor password first. Free; read every 10 minutes at most. |
+| `MT5_PUSH_TOKEN` | A long random string. Paste the same one into the Kaizen Reporter add-on (`k7a4i1z7e3n2-vault/public/KaizenReporter.mq5`, downloadable from the vault). |
+| `METAAPI_TOKEN` | Optional, paid: a MetaApi API token. |
 
-Every account on your MetaApi login shows up by itself and is read in its own region. In the vault you can
-rename each one and choose whether it counts in net worth (`PUT /mt5/accounts/:id`, kept in Mongo); one
-whose server or name looks like a prop firm (FundingPips, FTMO, …) starts out not counted.
-Add each MT5 account to MetaApi with its investor (read-only) password.
+MT5 accounts come from any of three places, all read only: the **Kaizen Reporter** add-on in your MT5 terminal
+(`POST /mt5/push` every minute with `x-push-token`; live while MT5 runs, and works logged in with the investor
+password), **Myfxbook**, and **MetaApi**. The same login from two places shows once, the add-on's report first
+while it's under three minutes old. In the vault you can rename each account and choose whether it counts in net
+worth (`PUT /mt5/accounts/mt5-<login>`, kept in Mongo); one that looks like a prop firm (FundingPips, FTMO, …)
+starts out not counted.

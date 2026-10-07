@@ -112,7 +112,7 @@ export default function NetWorth() {
                     account: a,
                     status: a.error
                         ? a.error
-                        : `${a.info?.currency === "USC" ? `${num(a.info.equity)} US¢` : usd(a.info?.equity)} equity · ${a.positions.length} open${w.counted ? "" : " · not counted"}`,
+                        : `${a.info?.currency === "USC" ? `${num(a.info.equity)} US¢` : usd(a.info?.equity)} equity · ${a.positions.length} open · ${a.source === "addon" ? (a.live ? "live" : "add-on offline") : a.source === "myfxbook" ? "Myfxbook" : "MetaApi"}${w.counted ? "" : " · not counted"}`,
                     tone: a.error ? "warn" : w.counted ? "ok" : "",
                 });
             }
@@ -120,7 +120,7 @@ export default function NetWorth() {
             list.push({
                 id: "mt5",
                 name: "MT5 accounts",
-                kind: "Exness, FundingPips, through MetaApi",
+                kind: "Exness, FundingPips",
                 worth: null,
                 status: { loading: "Loading…", unset: "Not set up yet", error: mt5.message }[mt5.state] || "No accounts on MetaApi yet",
                 tone: mt5.state === "loading" ? "" : "warn",
@@ -434,14 +434,13 @@ function Mt5Panel({ src, account, rate, demo, onPreview }) {
     if (src.state === "loading") return <div className="sk sk-rows" aria-busy="true" />;
     if (src.state === "unset" || (src.state === "ready" && !account))
         return (
-            <Setup title={src.state === "unset" ? "MT5 accounts aren’t set up yet" : "No MT5 accounts on MetaApi yet"} onPreview={onPreview}>
-                {src.state === "unset" ? (
-                    <>
-                        Give the API server a <code>METAAPI_TOKEN</code> (MetaApi → API Access). Every account you add on MetaApi then shows up here by itself.
-                    </>
-                ) : (
-                    <>Add an account on MetaApi (MT Accounts → add, with its investor password) and it shows up here.</>
-                )}
+            <Setup title={src.state === "unset" ? "MT5 accounts aren’t set up yet" : "No MT5 accounts yet"} onPreview={onPreview}>
+                Two free, read-only ways, use either or both: <b>Myfxbook</b> (connect your accounts there with their investor passwords, then add <code>MYFXBOOK_EMAIL</code> and{" "}
+                <code>MYFXBOOK_PASSWORD</code> to the API server), or the{" "}
+                <a href="/KaizenReporter.mq5" download>
+                    Kaizen Reporter add-on
+                </a>{" "}
+                for MT5 (live while MT5 is open; set <code>MT5_PUSH_TOKEN</code> on the server and paste the same token into the add-on).
             </Setup>
         );
     if (src.state === "error" || !account)
@@ -464,9 +463,14 @@ function Mt5Panel({ src, account, rate, demo, onPreview }) {
     const k = perUnit(a.currency, rate);
     const money = (x, o) => (a.currency === "USC" ? `${num(x)} US¢` : a.currency === "INR" ? inr(x, o) : usd(x, o));
     const floating = (a.equity || 0) - (a.balance || 0);
+    const has = (x) => x != null;
     return (
         <div className="kt">
             <AccountSettings key={account.id} src={src} account={account} demo={demo} />
+            <p className={`nw-source${account.source === "addon" && !account.live ? " is-stale" : ""}`}>
+                <i aria-hidden="true" />
+                {sourceLine(account)}
+            </p>
             {!account.counted && account.prop && (
                 <p className="kt-note nw-prop">A funded account trades the firm’s money, so it isn’t counted in your net worth. Only your profit split is yours once it’s paid out.</p>
             )}
@@ -488,10 +492,16 @@ function Mt5Panel({ src, account, rate, demo, onPreview }) {
                 </div>
                 <div className="brief-cell">
                     <dt>Free margin</dt>
-                    <dd className="brief-num sm">{money(a.freeMargin)}</dd>
+                    <dd className="brief-num sm">{has(a.freeMargin) ? money(a.freeMargin) : <span className="muted">—</span>}</dd>
                     <dd className="brief-sub">
-                        Used {money(a.margin)}
-                        {a.marginLevel ? ` · level ${num(a.marginLevel, 0)}%` : ""}
+                        {has(a.margin) ? (
+                            <>
+                                Used {money(a.margin)}
+                                {a.marginLevel ? ` · level ${num(a.marginLevel, 0)}%` : ""}
+                            </>
+                        ) : (
+                            "Myfxbook doesn’t report margin"
+                        )}
                     </dd>
                 </div>
             </dl>
@@ -511,8 +521,8 @@ function Mt5Panel({ src, account, rate, demo, onPreview }) {
                         <Sym key="s" title={r.symbol} sub={r.swap ? `Swap ${money(r.swap, { sign: true })}` : ""} />,
                         <SideTag key="d" side={String(r.type).includes("BUY") ? "BUY" : "SELL"} />,
                         <span key="v" className="kt-num">{num(r.volume)}</span>,
-                        <span key="o" className="kt-num">{num(r.openPrice, 5)}</span>,
-                        <span key="c" className="kt-num">{num(r.currentPrice, 5)}</span>,
+                        <span key="o" className="kt-num">{has(r.openPrice) ? num(r.openPrice, 5) : "—"}</span>,
+                        <span key="c" className="kt-num">{has(r.currentPrice) ? num(r.currentPrice, 5) : "—"}</span>,
                         <span key="p" className={`kt-num pnl ${sideOf(r.profit)}`}>{money(r.profit, { sign: true })}</span>,
                     ]}
                 />
@@ -521,6 +531,15 @@ function Mt5Panel({ src, account, rate, demo, onPreview }) {
             )}
         </div>
     );
+}
+
+/** Where this account's numbers came from, and how fresh they are. */
+function sourceLine(a) {
+    const when = a.updatedAt ? new Date(a.updatedAt) : null;
+    const at = when && Number.isFinite(when.getTime()) ? when.toLocaleString(undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "";
+    if (a.source === "addon") return a.live ? "Live from your MT5, through the Kaizen Reporter add-on" : `Last sent by the add-on ${at}; MT5 isn’t running it right now`;
+    if (a.source === "myfxbook") return `From Myfxbook${at ? `, updated ${at}` : ""}; it refreshes every few minutes`;
+    return "From MetaApi";
 }
 
 /** This vault's settings for one MT5 account: its name here, and whether it counts. */
