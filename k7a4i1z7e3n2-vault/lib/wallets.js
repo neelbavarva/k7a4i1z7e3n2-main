@@ -3,20 +3,94 @@
 // phone over WalletConnect. Nothing here asks a wallet to sign or send anything; connecting only
 // shares addresses, and the WalletConnect session is closed as soon as they arrive.
 
-/** The wallet apps on offer. `rdns` matches what an installed extension announces (EIP-6963). */
+/**
+ * The wallet apps on offer, most used first. `icon` names one in lib/icons.js; `rdns` matches what
+ * an installed extension announces (EIP-6963); `also` is extra words the search knows.
+ */
 export const WALLETS = [
-    { id: "trust", name: "Trust Wallet", color: "#3375BB", rdns: ["com.trustwallet.app"], chains: ["evm", "btc", "sol", "tron"], phone: true },
-    { id: "metamask", name: "MetaMask", color: "#E2761B", rdns: ["io.metamask", "io.metamask.flask"], chains: ["evm"], phone: true },
-    { id: "phantom", name: "Phantom", color: "#7C6FE0", rdns: ["app.phantom"], chains: ["sol", "evm", "btc"], phone: true },
-    { id: "coinbase", name: "Coinbase Wallet", color: "#0052FF", rdns: ["com.coinbase.wallet"], chains: ["evm", "sol"], phone: true },
-    { id: "okx", name: "OKX Wallet", color: "#3a3a3a", rdns: ["com.okex.wallet"], chains: ["evm", "sol", "btc", "tron"], phone: true },
-    { id: "rabby", name: "Rabby", color: "#6F7FF5", rdns: ["io.rabby"], chains: ["evm"], phone: false },
-    { id: "exodus", name: "Exodus", color: "#5A4FCF", rdns: ["com.exodus.web3-wallet"], chains: ["evm", "sol", "btc"], phone: true },
-    { id: "ledger", name: "Ledger", color: "#2b2b2b", rdns: ["com.ledger"], chains: ["evm", "btc", "sol", "tron"], phone: true },
-    { id: "other", name: "Another wallet", color: "#7c837a", rdns: [], chains: ["evm", "btc", "sol", "tron"], phone: true },
+    { id: "trust", name: "Trust Wallet", icon: "trust", color: "#0500FF", rdns: ["com.trustwallet.app"], chains: ["evm", "btc", "sol", "tron"], phone: true, popular: true },
+    { id: "metamask", name: "MetaMask", icon: "metamask", color: "#FF5C16", rdns: ["io.metamask", "io.metamask.flask"], chains: ["evm"], phone: true, popular: true },
+    { id: "phantom", name: "Phantom", icon: "phantom", color: "#AB9FF2", rdns: ["app.phantom"], chains: ["sol", "evm", "btc"], phone: true, popular: true },
+    { id: "coinbase", name: "Coinbase Wallet", icon: "coinbase", color: "#0052FF", rdns: ["com.coinbase.wallet"], chains: ["evm", "sol"], phone: true, popular: true, also: "base" },
+    { id: "okx", name: "OKX Wallet", icon: "okx", color: "#111111", rdns: ["com.okex.wallet"], chains: ["evm", "sol", "btc", "tron"], phone: true, popular: true },
+    { id: "exodus", name: "Exodus", icon: "exodus", color: "#5A4FCF", rdns: ["com.exodus.web3-wallet"], chains: ["evm", "sol", "btc"], phone: true },
+    { id: "ledger", name: "Ledger", icon: "ledger", color: "#1c1c1c", rdns: ["com.ledger"], chains: ["evm", "btc", "sol", "tron"], phone: true, also: "hardware live" },
+    { id: "trezor", name: "Trezor", icon: "trezor", color: "#1c1c1c", rdns: [], chains: ["evm", "btc", "sol"], phone: false, also: "hardware suite" },
+    { id: "rabby", name: "Rabby", icon: "rabby", color: "#7084FF", rdns: ["io.rabby"], chains: ["evm"], phone: false },
+    { id: "rainbow", name: "Rainbow", icon: "rainbow", color: "#174299", rdns: ["me.rainbow"], chains: ["evm"], phone: true },
+    { id: "backpack", name: "Backpack", icon: "backpack", color: "#E33E3F", rdns: ["app.backpack"], chains: ["sol", "evm"], phone: true },
+    { id: "solflare", name: "Solflare", icon: "solflare", color: "#FC7227", rdns: ["com.solflare"], chains: ["sol"], phone: true },
+    { id: "atomic", name: "Atomic Wallet", icon: "atomic", color: "#1F6FEB", rdns: [], chains: ["evm", "btc", "sol", "tron"], phone: false },
+    { id: "zerion", name: "Zerion", icon: "zerion", color: "#2962EF", rdns: ["io.zerion.wallet"], chains: ["evm", "sol"], phone: true },
+    { id: "safe", name: "Safe", icon: "safe", color: "#12FF80", rdns: [], chains: ["evm"], phone: true, also: "gnosis multisig" },
+    { id: "imtoken", name: "imToken", icon: "imtoken", color: "#11C4D1", rdns: ["im.token"], chains: ["evm", "btc", "tron"], phone: true },
+    { id: "token-pocket", name: "TokenPocket", icon: "token-pocket", color: "#2980FE", rdns: ["pro.tokenpocket"], chains: ["evm", "sol", "tron", "btc"], phone: true },
+    { id: "coin98", name: "Coin98", icon: "coin98", color: "#D9B432", rdns: ["coin98.com"], chains: ["evm", "sol", "tron"], phone: true },
+    { id: "bitbox", name: "BitBox", icon: "bitbox", color: "#1c1c1c", rdns: [], chains: ["evm", "btc"], phone: false, also: "hardware" },
+    { id: "argent", name: "Argent", icon: "argent", color: "#FF875B", rdns: [], chains: ["evm"], phone: true },
+    { id: "other", name: "Another wallet", icon: null, color: "#7c837a", rdns: [], chains: ["evm", "btc", "sol", "tron"], phone: true, also: "other custom" },
 ];
 
 export const walletOf = (id) => WALLETS.find((w) => w.id === id) || WALLETS[WALLETS.length - 1];
+
+const words = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
+/** Wallets matching a search, best first: names that start with it, then ones that contain it. */
+export function searchWallets(query) {
+    const q = words(query);
+    if (!q) return WALLETS;
+    return WALLETS.filter((w) => words(`${w.name} ${w.also || ""}`).includes(q)).sort((a, b) => Number(!words(a.name).startsWith(q)) - Number(!words(b.name).startsWith(q)));
+}
+
+/**
+ * The coins a wallet's addresses are read for. Each lives on one chain; one EVM address covers
+ * every EVM coin, so picking a second EVM coin needs no new address.
+ */
+export const COINS = [
+    { id: "btc", symbol: "BTC", name: "Bitcoin", token: "BTC", network: "bitcoin", chain: "btc" },
+    { id: "eth", symbol: "ETH", name: "Ethereum", token: "ETH", network: "ethereum", chain: "evm", also: "erc20" },
+    { id: "usdt-tron", symbol: "USDT", name: "Tether", net: "Tron", token: "USDT", network: "tron", chain: "tron", also: "trc20 trc 20" },
+    { id: "sol", symbol: "SOL", name: "Solana", token: "SOL", network: "solana", chain: "sol" },
+    { id: "bnb", symbol: "BNB", name: "BNB", net: "BNB Chain", token: "BNB", network: "bsc", chain: "evm", also: "binance bsc bep20" },
+    { id: "trx", symbol: "TRX", name: "Tron", token: "TRX", network: "tron", chain: "tron" },
+    { id: "pol", symbol: "POL", name: "Polygon", token: "POL", network: "polygon", chain: "evm", also: "matic" },
+    { id: "usdt-eth", symbol: "USDT", name: "Tether", net: "Ethereum", token: "USDT", network: "ethereum", chain: "evm", also: "erc20" },
+    { id: "usdt-bsc", symbol: "USDT", name: "Tether", net: "BNB Chain", token: "USDT", network: "bsc", chain: "evm", also: "bep20 bsc binance" },
+    { id: "usdt-polygon", symbol: "USDT", name: "Tether", net: "Polygon", token: "USDT", network: "polygon", chain: "evm" },
+    { id: "usdt-arbitrum", symbol: "USDT", name: "Tether", net: "Arbitrum", token: "USDT", network: "arbitrum", chain: "evm" },
+    { id: "usdt-optimism", symbol: "USDT", name: "Tether", net: "Optimism", token: "USDT", network: "optimism", chain: "evm" },
+    { id: "usdt-sol", symbol: "USDT", name: "Tether", net: "Solana", token: "USDT", network: "solana", chain: "sol", also: "spl" },
+    { id: "usdc-eth", symbol: "USDC", name: "USD Coin", net: "Ethereum", token: "USDC", network: "ethereum", chain: "evm", also: "erc20" },
+    { id: "usdc-sol", symbol: "USDC", name: "USD Coin", net: "Solana", token: "USDC", network: "solana", chain: "sol", also: "spl" },
+    { id: "usdc-base", symbol: "USDC", name: "USD Coin", net: "Base", token: "USDC", network: "base", chain: "evm" },
+    { id: "usdc-bsc", symbol: "USDC", name: "USD Coin", net: "BNB Chain", token: "USDC", network: "bsc", chain: "evm", also: "bep20 bsc" },
+    { id: "usdc-polygon", symbol: "USDC", name: "USD Coin", net: "Polygon", token: "USDC", network: "polygon", chain: "evm" },
+    { id: "usdc-arbitrum", symbol: "USDC", name: "USD Coin", net: "Arbitrum", token: "USDC", network: "arbitrum", chain: "evm" },
+    { id: "usdc-optimism", symbol: "USDC", name: "USD Coin", net: "Optimism", token: "USDC", network: "optimism", chain: "evm" },
+    { id: "eth-arbitrum", symbol: "ETH", name: "Ether", net: "Arbitrum", token: "ETH", network: "arbitrum", chain: "evm" },
+    { id: "eth-base", symbol: "ETH", name: "Ether", net: "Base", token: "ETH", network: "base", chain: "evm" },
+    { id: "eth-optimism", symbol: "ETH", name: "Ether", net: "Optimism", token: "ETH", network: "optimism", chain: "evm" },
+];
+
+/** Coins matching a search: symbol, name, network or a nickname like "trc20" or "matic". */
+export function searchCoins(query) {
+    const q = words(query);
+    if (!q) return COINS;
+    const score = (c) => (words(c.symbol) === q ? 0 : words(c.symbol).startsWith(q) || words(c.name).startsWith(q) ? 1 : 2);
+    return COINS.filter((c) => words(`${c.symbol} ${c.name} ${c.net || ""} ${c.also || ""}`).includes(q)).sort((a, b) => score(a) - score(b));
+}
+
+/** What one address on each chain is read for, for showing an address as coins. */
+export const CHAIN_INFO = {
+    evm: { name: "Ethereum and EVM", token: "ETH", networks: ["ethereum", "bsc", "polygon", "arbitrum", "base", "optimism"], coins: "ETH, BNB, POL, USDT, USDC", hint: "starts with 0x", example: "0x…" },
+    btc: { name: "Bitcoin", token: "BTC", networks: ["bitcoin"], coins: "BTC", hint: "starts with bc1, 1 or 3", example: "bc1…" },
+    tron: { name: "Tron", token: "TRX", networks: ["tron"], coins: "TRX, USDT", hint: "starts with T", example: "T…" },
+    sol: { name: "Solana", token: "SOL", networks: ["solana"], coins: "SOL, USDT, USDC", hint: "a 32 to 44 letter key", example: "Solana address" },
+};
+
+/** The icon for a network as the server names it ("BNB Chain" → bsc). */
+export const NETWORK_KEY = { Ethereum: "ethereum", "BNB Chain": "bsc", Polygon: "polygon", Arbitrum: "arbitrum", Base: "base", Optimism: "optimism", Solana: "solana", Tron: "tron", Bitcoin: "bitcoin" };
+export const NATIVE = { ethereum: "ETH", bsc: "BNB", polygon: "POL", arbitrum: "ETH", base: "ETH", optimism: "ETH", solana: "SOL", tron: "TRX", bitcoin: "BTC" };
 
 export const CHAIN_SHORT = { evm: "EVM", btc: "Bitcoin", tron: "Tron", sol: "Solana" };
 export const CHAIN_LONG = { evm: "Ethereum, BNB Chain, Polygon, Arbitrum, Base, Optimism", btc: "Bitcoin", tron: "Tron", sol: "Solana" };

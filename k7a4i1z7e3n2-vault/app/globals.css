@@ -7122,6 +7122,599 @@ fieldset.bare:disabled {
   }
 }
 
+/* ---------- Crypto icons and the add-wallet dialog, take two ---------- */
+
+/* icons from lib/icons.js */
+.ci {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: var(--cs);
+  height: var(--cs);
+  vertical-align: middle;
+}
+.ci svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.coin {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: var(--cs);
+  height: var(--cs);
+}
+.coin-letter {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  font-weight: 700;
+  font-size: calc(var(--cs) * 0.42);
+  color: var(--ink2);
+  background: var(--page);
+  border: 1px solid var(--line);
+  border-radius: 50%;
+}
+.coin-badge {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  display: grid;
+  place-items: center;
+  padding: 1.5px;
+  background: var(--raised);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--line);
+}
+.ci-stack {
+  display: inline-flex;
+  align-items: center;
+}
+.ci-stack .ci + .ci {
+  margin-left: -4px;
+}
+.ci-stack .ci {
+  border-radius: 50%;
+  box-shadow: 0 0 0 1.5px var(--raised);
+  background: var(--raised);
+}
+
+/* a wallet app on a soft tile */
+.wi {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--ws);
+  height: var(--ws);
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: calc(var(--ws) * 0.3);
+  box-shadow: 0 1px 2px rgba(22, 26, 22, 0.05);
+}
+.wi-svg,
+.wi img {
+  display: block;
+  width: 64%;
+  height: 64%;
+}
+.wi-svg svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.wi > svg {
+  width: 50%;
+  height: 50%;
+  color: var(--ink2);
+}
+
+/* a broker, bank or MT5 account: a solid brand tile */
+.bm {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--bs);
+  height: var(--bs);
+  font-family: var(--font);
+  font-size: calc(var(--bs) * 0.44);
+  font-weight: 700;
+  color: #fff;
+  background: var(--bc);
+  border-radius: calc(var(--bs) * 0.3);
+}
+.bm svg {
+  width: 50%;
+  height: 50%;
+}
+
+/* the dialog */
+.modal.aw {
+  max-width: 560px;
+}
+.aw-in {
+  padding: 18px 18px 18px;
+}
+.aw-head {
+  align-items: center;
+  gap: 8px;
+}
+.aw-close {
+  margin-left: auto;
+  align-self: flex-start;
+}
+.aw-title {
+  padding: 2px 0 0 6px;
+}
+.aw-title h2 {
+  font-size: 23px;
+}
+.aw-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 42px;
+  margin-top: 16px;
+  padding: 0 14px;
+  background: var(--page);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  transition: border-color 0.15s, box-shadow 0.15s, background-color 0.15s;
+}
+.aw-search:focus-within {
+  background: var(--raised);
+  border-color: var(--focus);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--focus) 14%, transparent);
+}
+.aw-search svg {
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+  flex: none;
+}
+.aw-search input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  outline: 0;
+}
+.aw-search input::placeholder {
+  color: var(--muted);
+}
+.aw-list {
+  display: grid;
+  gap: 2px;
+  max-height: min(420px, 55vh);
+  margin: 10px -6px 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.aw-list > li {
+  animation: fade-up 0.3s var(--ease) both;
+  animation-delay: calc(min(var(--i, 0), 12) * 18ms);
+}
+.aw-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 10px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: 11px;
+  cursor: pointer;
+  transition: background-color 0.12s;
+}
+.aw-row:hover,
+.aw-row:focus-visible {
+  background: var(--page);
+  outline-offset: -2px;
+}
+.aw-row-text {
+  flex: 1;
+  min-width: 0;
+}
+.aw-row-text b {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+}
+.aw-row-text b .muted {
+  font-weight: 500;
+}
+.aw-row-text small {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.aw-on {
+  color: var(--ok) !important;
+  font-weight: 500;
+}
+.aw-on::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  margin-right: 2px;
+  border-radius: 50%;
+  background: #4f9a5b;
+}
+.aw-row-nets {
+  opacity: 0.9;
+}
+.aw-go {
+  width: 15px;
+  height: 15px;
+  color: var(--axis);
+  flex: none;
+  transition: transform 0.2s var(--ease), color 0.15s;
+}
+.aw-row:hover .aw-go {
+  color: var(--ink2);
+  transform: translateX(2px);
+}
+.aw-empty {
+  padding: 18px 10px;
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+}
+.aw-pill {
+  flex: none;
+  height: 22px;
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 20px;
+  color: color-mix(in srgb, var(--ok) 85%, var(--ink));
+  background: color-mix(in srgb, var(--ok) 8%, var(--raised));
+  border: 1px solid color-mix(in srgb, var(--ok) 28%, var(--line));
+  border-radius: 99px;
+}
+
+/* step two: the wallet's identity, then its coins */
+.aw-ident {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  padding-left: 2px;
+}
+.aw-ident-text {
+  flex: 1;
+  min-width: 0;
+}
+.aw-name {
+  width: 100%;
+  padding: 2px 6px;
+  margin-left: -6px;
+  font-family: var(--serif);
+  font-size: 23px;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  outline: 0;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+.aw-name:hover {
+  background: var(--page);
+}
+.aw-name:focus {
+  background: var(--raised);
+  border-color: var(--focus);
+}
+.aw-ident-text p {
+  font-size: 12.5px;
+  color: var(--ink2);
+}
+.aw-connect {
+  margin-top: 16px;
+  padding: 12px 14px;
+  background: color-mix(in srgb, var(--bull) 4%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--bull) 22%, var(--line));
+  border-radius: 12px;
+}
+.aw-connect-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.aw-connect-text {
+  flex: 1;
+  min-width: 0;
+}
+.aw-connect-text b {
+  display: block;
+  font-size: 13.5px;
+}
+.aw-connect-text small {
+  font-size: 12px;
+  color: var(--ink2);
+}
+.aw-connect-actions {
+  display: flex;
+  gap: 6px;
+}
+.aw-qr {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 12px;
+}
+.aw-qr p {
+  font-size: 12.5px;
+  color: var(--ink2);
+}
+.aw-qr-code {
+  flex: none;
+  width: 168px;
+  height: 168px;
+  padding: 10px;
+}
+.aw-coins {
+  margin-top: 18px;
+}
+.aw-coins-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.aw-coins-head h3 {
+  font-size: 13px;
+}
+.aw-coins-head .count {
+  font-size: 12px;
+  color: var(--muted);
+}
+.aw-addrs {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.aw-addrs li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: auto;
+  padding: 10px 8px 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  animation: fade-up 0.25s var(--ease) both;
+}
+.aw-addr-text {
+  flex: 1;
+  min-width: 0;
+}
+.aw-addr-text b {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.aw-addr-text small {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.aw-addr-short {
+  font-size: 12px;
+  color: var(--ink2);
+}
+.aw-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 44px;
+  margin-top: 8px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink2);
+  background: none;
+  border: 1px dashed var(--axis);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+.aw-add:hover {
+  color: var(--ink);
+  background: var(--surface);
+  border-style: solid;
+}
+.aw-add svg {
+  width: 15px;
+  height: 15px;
+}
+.aw-picker {
+  margin-top: 8px;
+  padding: 10px 10px 6px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  animation: fade-up 0.25s var(--ease) both;
+}
+.aw-picker-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.aw-picker-head .aw-search,
+.aw-picker .aw-search {
+  flex: 1;
+  margin-top: 0;
+  background: var(--raised);
+}
+.aw-coin-list {
+  max-height: 280px;
+  margin: 8px -4px 0;
+}
+.aw-coin-chosen {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.aw-address {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 46px;
+  margin-top: 10px;
+  padding: 0 6px 0 14px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.aw-address:focus-within {
+  border-color: var(--focus);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--focus) 14%, transparent);
+}
+.aw-address.is-ok {
+  border-color: color-mix(in srgb, var(--ok) 50%, var(--line));
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--ok) 12%, transparent);
+}
+.aw-address.is-bad {
+  border-color: color-mix(in srgb, var(--bear) 50%, var(--line));
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--bear) 10%, transparent);
+}
+.aw-address input {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  outline: 0;
+}
+.aw-address-ok {
+  width: 16px;
+  height: 16px;
+  color: var(--ok);
+  flex: none;
+}
+.aw-hint {
+  margin: 8px 4px 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.aw-hint.is-bad {
+  color: var(--bear-ink);
+}
+.aw-covered {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0 4px;
+  padding: 10px 12px;
+  font-size: 12.5px;
+  color: var(--ink2);
+  background: color-mix(in srgb, var(--ok) 6%, var(--raised));
+  border: 1px solid color-mix(in srgb, var(--ok) 26%, var(--line));
+  border-radius: 10px;
+}
+.aw-covered > svg {
+  width: 16px;
+  height: 16px;
+  color: var(--ok);
+  flex: none;
+}
+.aw-covered span {
+  flex: 1;
+}
+.aw-none {
+  padding: 14px;
+  font-size: 12.5px;
+  color: var(--muted);
+  text-align: center;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+}
+.aw-foot {
+  margin-top: 18px;
+}
+.nw-coin {
+  gap: 12px;
+}
+.nw-wallet-addrs li {
+  padding: 0 10px 0 6px;
+}
+
+@media (max-width: 600px) {
+  .aw-row-nets {
+    display: none;
+  }
+  .aw-connect-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .aw-connect-actions .btn {
+    flex: 1;
+  }
+  .aw-qr {
+    flex-direction: column;
+    text-align: center;
+  }
+  .aw-addr-short {
+    display: none;
+  }
+}
+
+/* the filled icons: coins and networks as circles, wallets as rounded app icons */
+.ci {
+  border-radius: 50%;
+  overflow: hidden;
+}
+.wi {
+  overflow: hidden;
+  background: none;
+  border: 0;
+  box-shadow: 0 1px 2px rgba(22, 26, 22, 0.08), inset 0 0 0 1px rgba(22, 26, 22, 0.06);
+}
+.wi-svg {
+  width: 100%;
+  height: 100%;
+}
+.wi img {
+  width: 100%;
+  height: 100%;
+}
+.wi > svg {
+  width: 100%;
+  height: 100%;
+  padding: 24%;
+  color: var(--ink2);
+  background: var(--page);
+}
+.ci-stack .ci {
+  box-shadow: 0 0 0 1.5px var(--raised);
+}
+
 /* ---------- Responsive ---------- */
 
 @media (max-width: 1000px) {

@@ -1,16 +1,17 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Pencil, Plus, RefreshCw, Trash2, X } from "lucide-react";
+import { CandlestickChart, Landmark, Pencil, Plus, RefreshCw, Trash2, Wallet, X } from "lucide-react";
 import { toast } from "sonner";
 import { http } from "@/lib/http";
 import { hasHandoff, inr, num, pct } from "@/lib/kite";
 import { sideOf } from "@/lib/format";
 import { CATS, combine, cryptoWorth, growwWorth, manualWorth, mt5Worth, perUnit, zerodhaWorth } from "@/lib/worth";
 import { demoCrypto, demoFx, demoGroww, demoHistory, demoManual, demoMt5 } from "@/lib/worthDemo";
-import { CHAIN_SHORT, chainOf, shortAddress, walletOf } from "@/lib/wallets";
+import { CHAIN_INFO, CHAIN_SHORT, NETWORK_KEY, chainOf, shortAddress, walletOf } from "@/lib/wallets";
+import { CoinIcon, NetworkStack, WalletIcon } from "./k7/CryptoIcons";
 import Zerodha, { Rupees, SideTag, Sym, Table, useZerodha } from "./Zerodha";
-import AddWallet, { WalletMark } from "./AddWallet";
+import AddWallet from "./AddWallet";
 import Seg from "./k7/Seg";
 
 // Everything you own in one number: Zerodha, Groww, the MT5 forex accounts and what's typed in
@@ -65,11 +66,13 @@ const inrShort = (x) => {
 // brand-ish flat colours for the marks; only a tint and an initial, no logos
 const SOURCE_COLOR = { zerodha: "#387ED1", groww: "#00A67E", mt5: "#C9971C", prop: "#7C5CE0", manual: "#2F8F8A", crypto: "#D0782C" };
 
+/** An account's mark: a wallet's own icon, or a solid brand tile with an initial or a symbol. */
 function SourceMark({ source, size = 38 }) {
-    if (source.wallet) return <WalletMark id={source.wallet} size={size} />;
+    if (source.wallet) return <WalletIcon id={source.wallet} size={size} />;
+    const glyph = source.glyph === "bank" ? <Landmark /> : source.glyph === "forex" ? <CandlestickChart /> : source.glyph === "wallet" ? <Wallet /> : <span>{source.name.slice(0, 1)}</span>;
     return (
-        <span className="wm" style={{ "--wc": source.color, "--ws": `${size}px` }} aria-hidden="true">
-            <span>{source.name.slice(0, 1)}</span>
+        <span className="bm" style={{ "--bc": source.color, "--bs": `${size}px` }} aria-hidden="true">
+            {glyph}
         </span>
     );
 }
@@ -151,6 +154,7 @@ export default function NetWorth() {
     } else {
         sources.push({
             id: "mt5",
+            glyph: "forex",
             name: "MT5 accounts",
             kind: "Exness, FundingPips",
             color: SOURCE_COLOR.mt5,
@@ -178,6 +182,7 @@ export default function NetWorth() {
     } else {
         sources.push({
             id: "crypto",
+            glyph: "wallet",
             name: "Crypto wallets",
             kind: "Trust Wallet, MetaMask, Phantom…",
             color: SOURCE_COLOR.crypto,
@@ -191,6 +196,7 @@ export default function NetWorth() {
     const mw = ready(manual) ? manualWorth(entries, rate) : null;
     sources.push({
         id: "manual",
+        glyph: "bank",
         name: "Bank and cash",
         kind: "Typed in by hand",
         color: SOURCE_COLOR.manual,
@@ -913,13 +919,16 @@ function WalletPanel({ wallet, src, onAdd, onEdit, onRemove }) {
         <div className="kt">
             <div className="nw-wallet-bar">
                 <ul className="nw-wallet-addrs" aria-label="Addresses">
-                    {(w.addresses || []).map((a) => (
-                        <li key={a.address} className={a.error ? "is-warn" : ""} title={`${a.address}${a.error ? `\n${a.error}` : ""}`}>
-                            <span className="aw-chain">{CHAIN_SHORT[a.chain]}</span>
-                            <span className="nw-mono">{shortAddress(a.address)}</span>
-                            <b>{inrShort(a.inr || 0)}</b>
-                        </li>
-                    ))}
+                    {(w.addresses || []).map((a) => {
+                        const info = CHAIN_INFO[a.chain];
+                        return (
+                            <li key={a.address} className={a.error ? "is-warn" : ""} title={`${a.address}\n${info.coins}${a.error ? `\n${a.error}` : ""}`}>
+                                {a.chain === "evm" ? <NetworkStack networks={info.networks.slice(0, 3)} size={20} /> : <CoinIcon token={info.token} size={20} />}
+                                <span className="nw-mono">{shortAddress(a.address)}</span>
+                                <b>{inrShort(a.inr || 0)}</b>
+                            </li>
+                        );
+                    })}
                 </ul>
                 <div className="nw-wallet-actions">
                     <button type="button" className="btn btn-sm" onClick={() => onEdit(w)}>
@@ -944,9 +953,7 @@ function WalletPanel({ wallet, src, onAdd, onEdit, onRemove }) {
                     rowKey={(h) => `${h.network}:${h.symbol}`}
                     render={(h) => [
                         <span key="s" className="nw-coin">
-                            <span className={`nw-coin-mark coin-${h.symbol.toLowerCase()}`} aria-hidden="true">
-                                {h.symbol.slice(0, 1)}
-                            </span>
+                            <CoinIcon token={h.symbol} network={NETWORK_KEY[h.network]} size={30} />
                             <Sym title={h.symbol} sub={h.network} />
                         </span>,
                         <span key="a" className="kt-num">{amount(h.amount)}</span>,

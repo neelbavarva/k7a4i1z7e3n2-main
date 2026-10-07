@@ -1,328 +1,430 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Check, Clipboard, Loader2, Plus, Puzzle, ScanLine, Smartphone, X } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, Check, ChevronRight, Loader2, Plus, Puzzle, Search, Smartphone, X } from "lucide-react";
 import Modal from "./k7/Modal";
+import { CoinIcon, NetworkIcon, NetworkStack, WalletIcon } from "./k7/CryptoIcons";
 import {
-    CHAIN_LONG,
-    CHAIN_SHORT,
-    WALLETS,
+    CHAIN_INFO,
+    chainOf,
     connectExtension,
     connectPhone,
     deepLink,
     discoverExtensions,
-    parseAddresses,
     qrSvg,
+    searchCoins,
+    searchWallets,
     shortAddress,
     uniqueAddresses,
     walletOf,
     wcProjectId,
 } from "@/lib/wallets";
 
-// Adding a crypto wallet: pick the app, connect it (extension or phone) so its public addresses
-// arrive by themselves, check them, name it, save. Pasting addresses is there as a fallback.
-// Editing opens straight at the last step.
-
-/** A wallet's mark: the extension's own icon when it's installed, else its initial on a flat tint. */
-export function WalletMark({ id, icon, size = 40 }) {
-    const w = walletOf(id);
-    return (
-        <span className="wm" style={{ "--wc": w.color, "--ws": `${size}px` }} aria-hidden="true">
-            {/* the extension's own icon, a data URL it hands over: nothing for next/image to optimise */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            {icon ? <img src={icon} alt="" /> : <span>{w.name.slice(0, 1)}</span>}
-        </span>
-    );
-}
+// Adding a crypto wallet, in two steps. Pick the app from a list you can search. Then either
+// connect it (extension or phone) so its addresses arrive by themselves, or add coins one at a
+// time: search a coin, paste its receive address. Editing opens straight at the second step.
+// Only public addresses ever: nothing here asks a wallet to sign anything.
 
 const isPhone = () => typeof navigator !== "undefined" && /Android|iPhone|iPad/i.test(navigator.userAgent);
 
+export { WalletIcon as WalletMark };
+
 export default function AddWallet({ open, onClose, initial, onSave, saving }) {
     return (
-        <Modal open={open} onClose={onClose} wide head={false} label="Add a crypto wallet" className="aw" busy={saving}>
+        <Modal open={open} onClose={onClose} head={false} label="Add a crypto wallet" className="aw" busy={saving}>
             {open && <Flow initial={initial} onClose={onClose} onSave={onSave} saving={saving} />}
         </Modal>
     );
 }
 
 function Flow({ initial, onClose, onSave, saving }) {
-    const [step, setStep] = useState(initial ? "review" : "pick");
-    const [walletId, setWalletId] = useState(initial?.kind || "trust");
+    const [walletId, setWalletId] = useState(initial ? initial.kind || "other" : null);
     const [extensions, setExtensions] = useState([]);
-    const [found, setFound] = useState(initial ? initial.addresses.map((a) => ({ address: a.address, chain: a.chain })) : []);
-    const [name, setName] = useState(initial?.name || "");
-    const wallet = walletOf(walletId);
-
     useEffect(() => discoverExtensions((ext) => setExtensions((list) => [...list, ext])), []);
     const extFor = (w) => extensions.find((e) => w.rdns.includes(e.rdns));
 
-    const pick = (id) => {
-        setWalletId(id);
-        setName((n) => n || walletOf(id).name);
-        setStep("connect");
-    };
-    const got = (addresses) => {
-        setFound((list) => uniqueAddresses([...list, ...addresses].map((a) => a.address)));
-        setStep("review");
-    };
+    if (!walletId) return <PickWallet extFor={extFor} onPick={setWalletId} onClose={onClose} />;
+    return (
+        <SetUp
+            wallet={walletOf(walletId)}
+            ext={extFor(walletOf(walletId))}
+            extensions={extensions}
+            initial={initial}
+            saving={saving}
+            onBack={initial ? null : () => setWalletId(null)}
+            onClose={onClose}
+            onSave={onSave}
+        />
+    );
+}
+
+// ---------- step 1: which wallet ----------
+
+function PickWallet({ extFor, onPick, onClose }) {
+    const [q, setQ] = useState("");
+    const list = useMemo(() => {
+        const found = searchWallets(q);
+        // installed ones first, then the order of the list (most used first)
+        return [...found].sort((a, b) => Number(!extFor(a)) - Number(!extFor(b)));
+    }, [q, extFor]);
 
     return (
         <div className="aw-in">
-            <div className="aw-head">
-                {step !== "pick" && !initial ? (
-                    <button type="button" className="btn btn-ghost btn-icon" onClick={() => setStep(step === "review" ? "connect" : "pick")} aria-label="Back">
-                        <ArrowLeft />
-                    </button>
-                ) : null}
-                <div className="aw-title">
-                    <h2>{initial ? `Edit ${initial.name}` : step === "pick" ? "Add a crypto wallet" : wallet.name}</h2>
-                    <p>{step === "pick" ? "Read only: it sees public addresses, never your keys or recovery phrase." : step === "connect" ? "Connect it and its addresses come in by themselves." : "Check the addresses and give it a name."}</p>
-                </div>
-                <button type="button" className="btn btn-ghost btn-icon" onClick={onClose} aria-label="Close">
-                    <X />
-                </button>
-            </div>
-
-            {step === "pick" && (
-                <ul className="aw-grid">
-                    {WALLETS.map((w, i) => {
-                        const ext = extFor(w);
-                        return (
-                            <li key={w.id} style={{ "--i": i }}>
-                                <button type="button" className="aw-wallet" onClick={() => pick(w.id)}>
-                                    <WalletMark id={w.id} icon={ext?.icon} />
-                                    <span className="aw-wallet-name">{w.name}</span>
-                                    <span className={`aw-wallet-sub${ext ? " is-on" : ""}`}>{ext ? "Installed here" : w.chains.map((c) => CHAIN_SHORT[c]).join(" · ")}</span>
-                                </button>
-                            </li>
-                        );
-                    })}
-                </ul>
-            )}
-
-            {step === "connect" && <Connect wallet={wallet} ext={extFor(wallet)} extensions={extensions} onGot={got} onPaste={() => setStep("review")} />}
-
-            {step === "review" && (
-                <Review
-                    wallet={wallet}
-                    name={name}
-                    setName={setName}
-                    found={found}
-                    setFound={setFound}
-                    saving={saving}
-                    editing={Boolean(initial)}
-                    onSave={() => onSave({ name: name.trim() || wallet.name, kind: wallet.id, addresses: found.map((a) => a.address) })}
+            <Head title="Add a crypto wallet" sub="Read only: it sees public addresses, never your keys or recovery phrase." onClose={onClose} />
+            <label className="aw-search">
+                <Search aria-hidden="true" />
+                <input
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && list[0] && onPick(list[0].id)}
+                    placeholder="Search wallets"
+                    aria-label="Search wallets"
+                    autoFocus
+                    data-own-escape={q ? "" : undefined}
                 />
-            )}
+            </label>
+            <ul className="aw-list" role="listbox" aria-label="Wallets">
+                {list.map((w, i) => {
+                    const ext = extFor(w);
+                    return (
+                        <li key={w.id} style={{ "--i": i }}>
+                            <button type="button" className="aw-row" onClick={() => onPick(w.id)}>
+                                <WalletIcon id={w.id} icon={ext?.icon} size={38} />
+                                <span className="aw-row-text">
+                                    <b>{w.name}</b>
+                                    {ext ? <small className="aw-on">Installed in this browser</small> : <small>{w.chains.map((c) => CHAIN_INFO[c].name.replace(" and EVM", "")).join(" · ")}</small>}
+                                </span>
+                                <span className="aw-row-nets">
+                                    <NetworkStack networks={w.chains.map((c) => CHAIN_INFO[c].networks[0])} size={16} />
+                                </span>
+                                <ChevronRight className="aw-go" aria-hidden="true" />
+                            </button>
+                        </li>
+                    );
+                })}
+                {!list.length && (
+                    <li className="aw-empty">
+                        No wallet called “{q}”.{" "}
+                        <button type="button" className="linkish" onClick={() => onPick("other")}>
+                            Add it as another wallet
+                        </button>
+                    </li>
+                )}
+            </ul>
         </div>
     );
 }
 
-function Connect({ wallet, ext, extensions, onGot, onPaste }) {
-    const [state, setState] = useState("idle"); // idle | ext | phone
-    const [problem, setProblem] = useState("");
-    // "Another wallet": any extension that's installed will do
-    const exts = ext ? [ext] : wallet.id === "other" ? extensions : [];
-
-    const fromExtension = async (e) => {
-        setState("ext");
-        setProblem("");
-        const { addresses, problems } = await connectExtension(e, wallet.id);
-        setState("idle");
-        if (addresses.length) onGot(addresses);
-        else setProblem(problems.join(" · ") || "The extension didn’t share any addresses.");
-    };
-
+function Head({ title, sub, onBack, onClose, children }) {
     return (
-        <div className="aw-ways">
-            <div className={`aw-way${exts.length ? "" : " is-off"}`}>
-                <span className="aw-way-icon">
-                    <Puzzle aria-hidden="true" />
-                </span>
-                <div className="aw-way-text">
-                    <h3>Browser extension</h3>
-                    <p>{exts.length ? "One click: it shares its public addresses. Nothing to sign." : `${wallet.name} isn’t installed in this browser.`}</p>
-                    {problem && <p className="aw-problem">{problem}</p>}
+        <div className="aw-head">
+            {onBack && (
+                <button type="button" className="btn btn-ghost btn-icon" onClick={onBack} aria-label="Back">
+                    <ArrowLeft />
+                </button>
+            )}
+            {children || (
+                <div className="aw-title">
+                    <h2>{title}</h2>
+                    {sub && <p>{sub}</p>}
                 </div>
-                {exts.map((e) => (
-                    <button key={e.uuid} type="button" className="btn btn-primary" onClick={() => fromExtension(e)} disabled={state === "ext"}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        {state === "ext" ? <Loader2 className="spin" aria-hidden="true" /> : e.icon ? <img className="aw-ext-icon" src={e.icon} alt="" /> : null}
-                        Connect {exts.length > 1 ? e.name : ""}
-                    </button>
-                ))}
-            </div>
-
-            {wallet.phone && <Phone wallet={wallet} onGot={onGot} />}
-
-            <button type="button" className="aw-paste-link" onClick={onPaste}>
-                <Clipboard aria-hidden="true" />
-                Paste addresses instead
+            )}
+            <button type="button" className="btn btn-ghost btn-icon aw-close" onClick={onClose} aria-label="Close">
+                <X />
             </button>
         </div>
     );
 }
 
-/** Scan with the phone: a WalletConnect QR that only asks to see accounts. */
-function Phone({ wallet, onGot }) {
-    const [state, setState] = useState("idle"); // idle | waiting | error
-    const [svg, setSvg] = useState("");
-    const [uri, setUri] = useState("");
-    const [error, setError] = useState("");
-    const run = useRef(null);
+// ---------- step 2: its coins ----------
 
+function SetUp({ wallet, ext, extensions, initial, saving, onBack, onClose, onSave }) {
+    const [name, setName] = useState(initial?.name || wallet.name);
+    const [addresses, setAddresses] = useState(initial ? initial.addresses.map((a) => ({ address: a.address, chain: a.chain })) : []);
+    const [adding, setAdding] = useState(!initial);
+    const exts = ext ? [ext] : wallet.id === "other" ? extensions : [];
+
+    const got = (list) => {
+        setAddresses((cur) => uniqueAddresses([...cur, ...list].map((a) => a.address)).filter((a) => a.chain));
+        setAdding(false);
+    };
+    const covered = new Map(addresses.map((a) => [a.chain, a.address]));
+
+    return (
+        <div className="aw-in">
+            <Head onBack={onBack} onClose={onClose}>
+                <div className="aw-ident">
+                    <WalletIcon id={wallet.id} icon={ext?.icon} size={46} />
+                    <div className="aw-ident-text">
+                        <input className="aw-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={40} aria-label="Wallet name" />
+                        <p>{initial ? "Edit its coins and name" : "Add its coins: connect it, or paste a receive address"}</p>
+                    </div>
+                </div>
+            </Head>
+
+            {(exts.length > 0 || (wallet.phone && wcProjectId)) && <Connect wallet={wallet} exts={exts} onGot={got} />}
+
+            <section className="aw-coins">
+                <div className="aw-coins-head">
+                    <h3>Coins</h3>
+                    <span className="count">{addresses.length ? `${addresses.length} ${addresses.length === 1 ? "address" : "addresses"}` : ""}</span>
+                </div>
+                {addresses.length > 0 ? (
+                    <ul className="aw-addrs">
+                        {addresses.map((a) => {
+                            const info = CHAIN_INFO[a.chain];
+                            return (
+                                <li key={a.address}>
+                                    <CoinIcon token={info.token} size={34} />
+                                    <span className="aw-addr-text">
+                                        <b>{info.name}</b>
+                                        <small>
+                                            {a.chain === "evm" && <NetworkStack networks={info.networks} size={14} />}
+                                            {info.coins}
+                                        </small>
+                                    </span>
+                                    <span className="nw-mono aw-addr-short" title={a.address}>
+                                        {shortAddress(a.address)}
+                                    </span>
+                                    <button type="button" className="aw-x" onClick={() => setAddresses((list) => list.filter((x) => x.address !== a.address))} aria-label={`Remove ${a.address}`}>
+                                        <X />
+                                    </button>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                ) : (
+                    !adding && <p className="aw-none">No coins yet.</p>
+                )}
+
+                {adding ? (
+                    <CoinPicker covered={covered} onAdd={(a) => got([a])} onCancel={addresses.length ? () => setAdding(false) : null} />
+                ) : (
+                    <button type="button" className="aw-add" onClick={() => setAdding(true)}>
+                        <Plus aria-hidden="true" />
+                        Add a coin
+                    </button>
+                )}
+            </section>
+
+            <div className="aw-foot">
+                <span className="muted">Public addresses only. Nothing is ever signed.</span>
+                <button type="button" className="btn btn-primary" onClick={() => onSave({ name: name.trim() || wallet.name, kind: wallet.id, addresses: addresses.map((a) => a.address) })} disabled={saving || !addresses.length}>
+                    {saving ? <Loader2 className="spin" aria-hidden="true" /> : <Check aria-hidden="true" />}
+                    {initial ? "Save" : "Add wallet"}
+                </button>
+            </div>
+        </div>
+    );
+}
+
+/** The quick way: an installed extension shares its addresses, or the phone does over WalletConnect. */
+function Connect({ wallet, exts, onGot }) {
+    const [busy, setBusy] = useState("");
+    const [problem, setProblem] = useState("");
+    const [qr, setQr] = useState(null); // { svg, uri } while waiting for the phone
+    const run = useRef(null);
     useEffect(() => () => run.current?.cancel(), []);
 
-    const start = async () => {
-        setState("waiting");
-        setError("");
-        setSvg("");
+    const fromExtension = async (e) => {
+        setBusy(e.uuid);
+        setProblem("");
+        const { addresses, problems } = await connectExtension(e, wallet.id);
+        setBusy("");
+        if (addresses.length) onGot(addresses);
+        else setProblem(problems.join(" · ") || "The extension didn’t share any addresses.");
+    };
+
+    const fromPhone = async () => {
+        if (qr) {
+            run.current?.cancel();
+            setQr(null);
+            return;
+        }
+        setProblem("");
+        setQr({ svg: "", uri: "" });
         const r = connectPhone({
-            onUri: async (u) => {
-                setUri(u);
-                setSvg(await qrSvg(u));
-                if (isPhone()) window.location.href = deepLink(wallet.id, u);
+            onUri: async (uri) => {
+                setQr({ uri, svg: await qrSvg(uri) });
+                if (isPhone()) window.location.href = deepLink(wallet.id, uri);
             },
         });
         run.current = r;
         try {
             const { addresses } = await r.done;
+            setQr(null);
             if (addresses.length) onGot(addresses);
-            else {
-                setState("error");
-                setError("The wallet connected but shared no addresses.");
-            }
+            else setProblem("The wallet connected but shared no addresses.");
         } catch (err) {
             if (String(err?.message) === "cancelled") return;
-            setState("error");
-            setError(/reject/i.test(String(err?.message)) ? "Declined in the app." : err?.message || "It didn’t connect.");
+            setQr(null);
+            setProblem(/reject/i.test(String(err?.message)) ? "Declined in the app." : err?.message || "It didn’t connect.");
         }
     };
 
-    if (!wcProjectId)
-        return (
-            <div className="aw-way is-off">
-                <span className="aw-way-icon">
-                    <Smartphone aria-hidden="true" />
-                </span>
-                <div className="aw-way-text">
-                    <h3>Scan with your phone</h3>
-                    <p>
-                        Needs a free WalletConnect project ID: add <code>NEXT_PUBLIC_WC_PROJECT_ID</code> to the vault on Vercel.
-                    </p>
-                </div>
-            </div>
-        );
-
     return (
-        <div className={`aw-way aw-phone${state === "waiting" ? " is-waiting" : ""}`}>
-            <span className="aw-way-icon">
-                <Smartphone aria-hidden="true" />
-            </span>
-            <div className="aw-way-text">
-                <h3>Scan with your phone</h3>
-                <p>
-                    {state === "waiting"
-                        ? `Open ${wallet.name} → scan (or Settings → WalletConnect), then approve. It only shares addresses.`
-                        : `Connect ${wallet.name} on your phone over WalletConnect. Read only.`}
-                </p>
-                {state === "error" && <p className="aw-problem">{error}</p>}
-            </div>
-            {state === "waiting" ? (
-                <div className="aw-qr">
-                    {svg ? <span className="aw-qr-code" dangerouslySetInnerHTML={{ __html: svg }} /> : <Loader2 className="spin" aria-label="Making the code" />}
-                    {uri && isPhone() && (
-                        <a className="btn btn-sm" href={deepLink(wallet.id, uri)}>
-                            Open {wallet.name}
-                        </a>
+        <section className="aw-connect">
+            <div className="aw-connect-row">
+                <span className="aw-connect-text">
+                    <b>Connect</b>
+                    <small>The addresses come in by themselves. Read only.</small>
+                </span>
+                <div className="aw-connect-actions">
+                    {exts.map((e) => (
+                        <button key={e.uuid} type="button" className="btn" onClick={() => fromExtension(e)} disabled={Boolean(busy)}>
+                            {busy === e.uuid ? <Loader2 className="spin" aria-hidden="true" /> : <Puzzle aria-hidden="true" />}
+                            {exts.length > 1 ? e.name : "Extension"}
+                        </button>
+                    ))}
+                    {wallet.phone && wcProjectId && (
+                        <button type="button" className={`btn${qr ? " btn-toggle" : ""}`} aria-pressed={Boolean(qr)} onClick={fromPhone}>
+                            <Smartphone aria-hidden="true" />
+                            {qr ? "Cancel" : "Phone"}
+                        </button>
                     )}
                 </div>
-            ) : (
-                <button type="button" className="btn" onClick={start}>
-                    <ScanLine aria-hidden="true" />
-                    Show code
-                </button>
+            </div>
+            {problem && <p className="aw-problem">{problem}</p>}
+            {qr && (
+                <div className="aw-qr">
+                    {qr.svg ? <span className="aw-qr-code" dangerouslySetInnerHTML={{ __html: qr.svg }} /> : <Loader2 className="spin" aria-label="Making the code" />}
+                    <p>
+                        Open {wallet.name}, scan this (Settings → WalletConnect), and approve. It only shares addresses.
+                        {qr.uri && isPhone() && (
+                            <>
+                                {" "}
+                                <a href={deepLink(wallet.id, qr.uri)}>Open {wallet.name}</a>
+                            </>
+                        )}
+                    </p>
+                </div>
             )}
-        </div>
+        </section>
     );
 }
 
-function Review({ wallet, name, setName, found, setFound, saving, editing, onSave }) {
-    const [text, setText] = useState("");
-    const parsed = parseAddresses(text);
-    const bad = parsed.filter((a) => !a.chain);
-    const add = () => {
-        if (!parsed.length || bad.length) return;
-        setFound((list) => uniqueAddresses([...list, ...parsed].map((a) => a.address)));
-        setText("");
-    };
-    const have = new Set(found.map((a) => a.chain));
-    const missing = wallet.chains.filter((c) => !have.has(c));
+/** Search a coin, then paste its receive address; an address already there covers its whole chain. */
+function CoinPicker({ covered, onAdd, onCancel }) {
+    const [q, setQ] = useState("");
+    const [coin, setCoin] = useState(null);
+    const [address, setAddress] = useState("");
+    const list = useMemo(() => searchCoins(q), [q]);
+    const input = useRef(null);
 
-    return (
-        <div className="aw-review">
-            <div className="field">
-                <label htmlFor="aw-name">Name</label>
-                <div className="aw-name">
-                    <WalletMark id={wallet.id} size={34} />
-                    <input id="aw-name" className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder={wallet.name} maxLength={40} />
+    useEffect(() => {
+        if (coin) input.current?.focus();
+    }, [coin]);
+
+    if (coin) {
+        const info = CHAIN_INFO[coin.chain];
+        const have = covered.get(coin.chain);
+        const chain = chainOf(address);
+        const ok = chain === coin.chain;
+        const wrong = address.trim() && !ok;
+        const add = () => ok && onAdd({ address: address.trim(), chain });
+        return (
+            <div className="aw-picker">
+                <div className="aw-coin-chosen">
+                    <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => setCoin(null)} aria-label="Pick another coin">
+                        <ArrowLeft />
+                    </button>
+                    <CoinIcon token={coin.token} network={coin.network} size={30} />
+                    <span className="aw-row-text">
+                        <b>
+                            {coin.symbol} <span className="muted">{coin.net || coin.name}</span>
+                        </b>
+                        <small>{have ? "Already read through this wallet’s address" : `Paste your ${coin.symbol} receive address`}</small>
+                    </span>
                 </div>
-            </div>
-
-            <div className="field">
-                <span className="field-label">Addresses</span>
-                {found.length ? (
-                    <ul className="aw-addrs">
-                        {found.map((a) => (
-                            <li key={a.address} title={`${a.address}\n${CHAIN_LONG[a.chain]}`}>
-                                <span className="aw-chain">{CHAIN_SHORT[a.chain]}</span>
-                                <span className="nw-mono">{shortAddress(a.address)}</span>
-                                <button type="button" className="aw-x" onClick={() => setFound((list) => list.filter((x) => x.address !== a.address))} aria-label={`Remove ${a.address}`}>
-                                    <X />
-                                </button>
-                            </li>
-                        ))}
-                    </ul>
+                {have ? (
+                    <div className="aw-covered">
+                        <Check aria-hidden="true" />
+                        <span>
+                            Covered by <span className="nw-mono">{shortAddress(have)}</span>, which also reads {info.coins}.
+                        </span>
+                        <button type="button" className="btn btn-sm" onClick={() => setCoin(null)}>
+                            Done
+                        </button>
+                    </div>
                 ) : (
-                    <p className="aw-none">No addresses yet. Paste one below.</p>
+                    <>
+                        <div className={`aw-address${ok ? " is-ok" : wrong ? " is-bad" : ""}`}>
+                            <input
+                                ref={input}
+                                className="nw-mono"
+                                value={address}
+                                onChange={(e) => setAddress(e.target.value)}
+                                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), add())}
+                                placeholder={`${coin.symbol} address (${info.example})`}
+                                spellCheck={false}
+                                autoComplete="off"
+                                aria-label={`${coin.symbol} address`}
+                            />
+                            {ok && <Check className="aw-address-ok" aria-hidden="true" />}
+                            <button type="button" className="btn btn-primary btn-sm" onClick={add} disabled={!ok}>
+                                Add
+                            </button>
+                        </div>
+                        <p className={`aw-hint${wrong ? " is-bad" : ""}`}>
+                            {wrong
+                                ? `That isn’t a ${info.name.replace(" and EVM", "")} address: it ${info.hint}.`
+                                : ok
+                                  ? `Good. It also reads ${info.coins}${coin.chain === "evm" ? " on all six networks" : ""}.`
+                                  : `In the wallet app: ${coin.symbol} → Receive → copy.${coin.chain === "evm" ? " One 0x address covers every EVM coin." : ""}`}
+                        </p>
+                    </>
                 )}
             </div>
+        );
+    }
 
-            <div className="field">
-                <label htmlFor="aw-more">{found.length ? "Add more" : "Paste addresses"}</label>
-                <div className="aw-more">
+    return (
+        <div className="aw-picker">
+            <div className="aw-picker-head">
+                <label className="aw-search">
+                    <Search aria-hidden="true" />
                     <input
-                        id="aw-more"
-                        className="input nw-mono"
-                        value={text}
-                        onChange={(e) => setText(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), add())}
-                        placeholder={missing.length ? `${missing.map((c) => CHAIN_SHORT[c]).join(", ")} address` : "Another address"}
-                        spellCheck={false}
-                        autoComplete="off"
-                        autoFocus={!found.length}
+                        value={q}
+                        onChange={(e) => setQ(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && list[0] && setCoin(list[0])}
+                        placeholder="Search coins: BTC, USDT TRC20, SOL…"
+                        aria-label="Search coins"
+                        autoFocus
+                        data-own-escape={q ? "" : undefined}
                     />
-                    <button type="button" className="btn" onClick={add} disabled={!parsed.length || bad.length > 0}>
-                        <Plus aria-hidden="true" />
-                        Add
+                </label>
+                {onCancel && (
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={onCancel}>
+                        Cancel
                     </button>
-                </div>
-                <span className={`field-hint${bad.length ? " aw-bad" : ""}`}>
-                    {bad.length
-                        ? "That isn’t a Bitcoin, EVM, Tron or Solana address."
-                        : missing.length && found.length
-                          ? `Holding ${missing.map((c) => CHAIN_SHORT[c]).join(" or ")} too? In the app: the coin → Receive → copy, and paste it here.`
-                          : "One 0x address covers Ethereum, BNB Chain, Polygon, Arbitrum, Base and Optimism."}
-                </span>
+                )}
             </div>
-
-            <div className="aw-foot">
-                <span className="muted">Public addresses only. The vault never asks for keys.</span>
-                <button type="button" className="btn btn-primary" onClick={onSave} disabled={saving || !found.length}>
-                    {saving ? <Loader2 className="spin" aria-hidden="true" /> : <Check aria-hidden="true" />}
-                    {editing ? "Save" : "Add wallet"}
-                </button>
-            </div>
+            <ul className="aw-list aw-coin-list" role="listbox" aria-label="Coins">
+                {list.map((c, i) => {
+                    const have = covered.has(c.chain);
+                    return (
+                        <li key={c.id} style={{ "--i": i }}>
+                            <button type="button" className="aw-row" onClick={() => setCoin(c)}>
+                                <CoinIcon token={c.token} network={c.network} size={32} />
+                                <span className="aw-row-text">
+                                    <b>{c.symbol}</b>
+                                    <small>
+                                        {c.name}
+                                        {c.net ? (
+                                            <>
+                                                {" · "}
+                                                <NetworkIcon network={c.network} size={12} /> {c.net}
+                                            </>
+                                        ) : null}
+                                    </small>
+                                </span>
+                                {have ? <span className="aw-pill">Covered</span> : <ChevronRight className="aw-go" aria-hidden="true" />}
+                            </button>
+                        </li>
+                    );
+                })}
+                {!list.length && <li className="aw-empty">No coin like “{q}” yet. This reads Bitcoin, the EVM chains, Tron and Solana.</li>}
+            </ul>
         </div>
     );
 }
