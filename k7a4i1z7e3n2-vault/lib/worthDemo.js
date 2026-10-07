@@ -71,3 +71,31 @@ export function demoManual() {
         { _id: "m5", name: "Credit card due", kind: "loan", amount: 18750, currency: "INR", note: "", updatedAt: now },
     ];
 }
+
+export function demoCrypto() {
+    const h = (network, symbol, amount, inr, usd, change24h = 0) => ({ network, symbol, amount, inr: amount * inr, usd: amount * usd, change24h });
+    const wallet = (_id, name, chain, address, holdings) => ({
+        _id,
+        name,
+        chain,
+        address,
+        holdings,
+        inr: holdings.reduce((a, x) => a + x.inr, 0),
+        usd: holdings.reduce((a, x) => a + x.usd, 0),
+        error: null,
+    });
+    return {
+        fetchedAt: new Date().toISOString(),
+        priceError: null,
+        wallets: [
+            wallet("c1", "Trust Wallet", "evm", "0x3f5CE5FBFe3E9af3971dD833D26bA9b5C936f0bE", [
+                h("BNB Chain", "USDT", 1250, 96.7, 1),
+                h("Ethereum", "ETH", 0.42, 248832, 2571.86, -4.3),
+                h("BNB Chain", "BNB", 1.8, 74590, 770.94, -1.1),
+                h("Polygon", "POL", 640, 9.92, 0.1025, 2.4),
+            ]),
+            wallet("c2", "Trust Wallet BTC", "btc", "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq", [h("Bitcoin", "BTC", 0.0185, 8082449, 83538, -2)]),
+            wallet("c3", "USDT on Tron", "tron", "TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL", [h("Tron", "USDT", 820, 96.7, 1), h("Tron", "TRX", 35.2, 32.45, 0.335)]),
+        ],
+    };
+}

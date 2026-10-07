@@ -8,6 +8,7 @@ export const CATS = [
     { key: "funds", label: "Mutual funds" },
     { key: "cash", label: "Broker cash" },
     { key: "forex", label: "Forex accounts" },
+    { key: "crypto", label: "Crypto" },
     { key: "bank", label: "Bank and cash" },
     { key: "other", label: "Other assets" },
     { key: "loans", label: "Loans" },
@@ -67,7 +68,7 @@ export function mt5Worth(acc, rate) {
     return { parts, total: sum(parts), value, counted, floating: acc?.info ? (acc.info.equity || 0) - (acc.info.balance || 0) : 0 };
 }
 
-const MANUAL_CAT = { bank: "bank", cash: "bank", deposit: "bank", crypto: "other", property: "other", other: "other", loan: "loans" };
+const MANUAL_CAT = { bank: "bank", cash: "bank", deposit: "bank", crypto: "crypto", property: "other", other: "other", loan: "loans" };
 
 /** Hand-typed entries; dollar ones at today's rate, loans taken off. */
 export function manualWorth(entries = [], rate) {
@@ -76,6 +77,13 @@ export function manualWorth(entries = [], rate) {
         const k = e.currency === "USD" ? rate || 0 : 1;
         parts[MANUAL_CAT[e.kind] || "other"] += (e.amount || 0) * k;
     }
+    return { parts, total: sum(parts) };
+}
+
+/** Crypto wallets: every coin at its CoinGecko price in rupees. */
+export function cryptoWorth(data) {
+    const parts = empty();
+    parts.crypto = (data?.wallets || []).reduce((a, w) => a + (w.inr || 0), 0);
     return { parts, total: sum(parts) };
 }
 

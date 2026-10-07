@@ -7,8 +7,8 @@ import { http } from "@/lib/http";
 import { hasHandoff } from "@/lib/kite";
 import { inr, num, pct } from "@/lib/kite";
 import { sideOf } from "@/lib/format";
-import { CATS, combine, growwWorth, manualWorth, mt5Worth, perUnit, zerodhaWorth } from "@/lib/worth";
-import { demoFx, demoGroww, demoManual, demoMt5 } from "@/lib/worthDemo";
+import { CATS, combine, cryptoWorth, growwWorth, manualWorth, mt5Worth, perUnit, zerodhaWorth } from "@/lib/worth";
+import { demoCrypto, demoFx, demoGroww, demoManual, demoMt5 } from "@/lib/worthDemo";
 import Zerodha, { Rupees, SideTag, Sym, Table, useZerodha } from "./Zerodha";
 import Seg from "./k7/Seg";
 
@@ -58,6 +58,7 @@ export default function NetWorth() {
     const groww = useSource("/groww/account", demo, demoGroww);
     const mt5 = useSource("/mt5/accounts", demo, demoMt5);
     const manual = useSource("/worth/manual", demo, demoManual);
+    const wallets = useSource("/crypto/wallets", demo, demoCrypto);
     const rate = fx.data?.rate || null;
 
     const [pick, setPick] = useState(() => {
@@ -127,6 +128,22 @@ export default function NetWorth() {
             });
         }
 
+        const ws = wallets.data?.wallets || [];
+        const cw = wallets.state === "ready" || wallets.state === "refreshing" ? cryptoWorth(wallets.data) : null;
+        const coins = [...new Set(ws.flatMap((w) => (w.holdings || []).map((h) => h.symbol)))];
+        list.push({
+            id: "crypto",
+            name: "Crypto wallets",
+            kind: "Trust Wallet and others, by address",
+            worth: cw,
+            status: cw
+                ? ws.length
+                    ? `${ws.length} ${ws.length === 1 ? "wallet" : "wallets"}${coins.length ? ` · ${coins.slice(0, 4).join(", ")}${coins.length > 4 ? "…" : ""}` : ""}${ws.some((w) => w.error) ? " · some chains didn’t answer" : ""}`
+                    : "Add a wallet by its public address"
+                : { loading: "Loading…", error: wallets.message, unset: "Server didn’t answer" }[wallets.state],
+            tone: cw && ws.length ? (ws.some((w) => w.error) ? "warn" : "ok") : "",
+        });
+
         const entries = manual.data || [];
         const mw = manual.state === "ready" || manual.state === "refreshing" ? manualWorth(entries, rate) : null;
         list.push({
@@ -152,6 +169,7 @@ export default function NetWorth() {
         groww.reload();
         mt5.reload();
         manual.reload();
+        wallets.reload();
     };
 
     return (
@@ -266,6 +284,8 @@ export default function NetWorth() {
                     <Zerodha z={z} onPreview={preview} />
                 ) : current.id === "groww" ? (
                     <GrowwPanel src={groww} onPreview={preview} />
+                ) : current.id === "crypto" ? (
+                    <CryptoPanel src={wallets} demo={demo} />
                 ) : current.id.startsWith("mt5") ? (
                     <Mt5Panel src={mt5} account={current.account} rate={rate} demo={demo} onPreview={preview} />
                 ) : (
@@ -601,6 +621,180 @@ function AccountSettings({ src, account, demo }) {
                 />
             </div>
             <p className="nw-fine nw-acc-meta">{[account.server, account.login ? `login ${account.login}` : "", account.region].filter(Boolean).join(" · ")}</p>
+        </div>
+    );
+}
+
+// ---------- Crypto wallets ----------
+
+const CHAINS = { evm: "EVM: Ethereum, BNB Chain, Polygon, Arbitrum, Base, Optimism", btc: "Bitcoin", tron: "Tron", sol: "Solana" };
+const CHAIN_SHORT = { evm: "EVM", btc: "Bitcoin", tron: "Tron", sol: "Solana" };
+
+/** The same rules as the server: which chain an address is on, from its format. */
+function chainOf(address) {
+    const a = address.trim();
+    if (/^0x[0-9a-fA-F]{40}$/.test(a)) return "evm";
+    if (/^bc1[02-9ac-hj-np-z]{11,71}$/.test(a)) return "btc";
+    if (/^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(a)) return "tron";
+    if (/^[13][1-9A-HJ-NP-Za-km-z]{25,34}$/.test(a)) return "btc";
+    if (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a)) return "sol";
+    return null;
+}
+
+const short = (a) => (a.length > 16 ? `${a.slice(0, 8)}…${a.slice(-6)}` : a);
+const amount = (x) => (x >= 1000 ? num(x, 2) : x >= 1 ? num(x, 4) : num(x, 8));
+
+function CryptoPanel({ src, demo }) {
+    const [adding, setAdding] = useState(false);
+    const [name, setName] = useState("");
+    const [address, setAddress] = useState("");
+    const [saving, setSaving] = useState(false);
+    const list = src.data?.wallets || [];
+    const chain = chainOf(address);
+
+    if (src.state === "loading") return <div className="sk sk-rows" aria-busy="true" />;
+    if (src.state === "error" || src.state === "unset")
+        return (
+            <Setup title="Wallets didn’t load" onRetry={src.reload}>
+                {src.message}
+            </Setup>
+        );
+
+    const add = async (e) => {
+        e.preventDefault();
+        if (!name.trim() || !chain) {
+            toast.error(!chain ? "That doesn’t look like a wallet address" : "Give the wallet a name");
+            return;
+        }
+        setSaving(true);
+        try {
+            if (demo) {
+                src.setData((d) => ({ ...d, wallets: [...d.wallets, { _id: `d${Date.now()}`, name: name.trim(), address: address.trim(), chain, holdings: [], inr: 0, usd: 0, error: null }] }));
+            } else {
+                await http("/crypto/wallets", { method: "POST", body: { name: name.trim(), address: address.trim() } });
+                src.reload();
+            }
+            setAdding(false);
+            setName("");
+            setAddress("");
+        } catch (err) {
+            toast.error("Didn’t add it", { description: err.detail || "Try again in a moment." });
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const remove = async (w) => {
+        try {
+            if (!demo) await http(`/crypto/wallets/${w._id}`, { method: "DELETE" });
+            src.setData((d) => ({ ...d, wallets: d.wallets.filter((x) => x._id !== w._id) }));
+        } catch {
+            toast.error("Didn’t remove it", { description: "Try again in a moment." });
+        }
+    };
+
+    const total = list.reduce((a, w) => a + (w.inr || 0), 0);
+    const totalUsd = list.reduce((a, w) => a + (w.usd || 0), 0);
+
+    return (
+        <div className="kt">
+            <div className="kt-sub-head nw-manual-head">
+                <span className="group-note">
+                    {list.length ? (
+                        <>
+                            {inr(total, { whole: true })} <span className="muted">· {usd(totalUsd)}</span>
+                        </>
+                    ) : (
+                        "Public addresses only: no keys or seed phrase, ever."
+                    )}
+                </span>
+                {!adding && (
+                    <button type="button" className="btn btn-sm" onClick={() => setAdding(true)}>
+                        <Plus aria-hidden="true" />
+                        Add wallet
+                    </button>
+                )}
+            </div>
+            {src.data?.priceError && <p className="kt-note">Prices didn’t load ({src.data.priceError}), so values may be missing.</p>}
+
+            {adding && (
+                <form className="nw-form" onSubmit={add}>
+                    <div className="nw-form-grid">
+                        <div className="field">
+                            <label htmlFor="cw-name">Name</label>
+                            <input id="cw-name" className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Trust Wallet" maxLength={40} autoFocus />
+                        </div>
+                        <div className="field">
+                            <label htmlFor="cw-address">Public address</label>
+                            <input
+                                id="cw-address"
+                                className="input nw-mono"
+                                value={address}
+                                onChange={(e) => setAddress(e.target.value)}
+                                placeholder="0x…, bc1…, T… or a Solana address"
+                                spellCheck={false}
+                                autoComplete="off"
+                            />
+                            <span className="field-hint">{address.trim() ? (chain ? CHAINS[chain] : "Not a Bitcoin, EVM, Tron or Solana address") : "In Trust Wallet: the coin → Receive → copy. Never your recovery phrase."}</span>
+                        </div>
+                    </div>
+                    <div className="nw-form-actions">
+                        <button type="button" className="btn btn-ghost" onClick={() => setAdding(false)}>
+                            Cancel
+                        </button>
+                        <button type="submit" className="btn btn-primary" disabled={saving || !chain || !name.trim()}>
+                            Add
+                        </button>
+                    </div>
+                </form>
+            )}
+
+            {list.map((w) => (
+                <div key={w._id} className="nw-wallet">
+                    <div className="nw-wallet-head">
+                        <span className="nw-wallet-name">
+                            <b>{w.name}</b>
+                            <span className="kt-chip muted">{CHAIN_SHORT[w.chain]}</span>
+                            <span className="nw-mono muted" title={w.address}>
+                                {short(w.address)}
+                            </span>
+                        </span>
+                        <span className="nw-wallet-total">
+                            <b>{inr(w.inr || 0, { whole: true })}</b>
+                            <small>{usd(w.usd || 0)}</small>
+                        </span>
+                        <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => remove(w)} aria-label={`Remove ${w.name}`}>
+                            <Trash2 aria-hidden="true" />
+                        </button>
+                    </div>
+                    {w.error && <p className="kt-note">Some chains didn’t answer: {w.error}</p>}
+                    {w.holdings.length ? (
+                        <Table
+                            label={`${w.name} coins`}
+                            cols="minmax(0, 1.3fr) 8rem 7rem 7.5rem 5rem"
+                            colsSm="minmax(0, 1fr) 7rem"
+                            hide={[1, 2, 4]}
+                            head={["Coin", "Amount", "Dollars", "Rupees", "24h"]}
+                            rows={w.holdings}
+                            rowKey={(h) => `${h.network}:${h.symbol}`}
+                            render={(h) => [
+                                <Sym key="s" title={h.symbol} sub={h.network} />,
+                                <span key="a" className="kt-num">{amount(h.amount)}</span>,
+                                <span key="u" className="kt-num">{h.usd != null ? usd(h.usd) : "—"}</span>,
+                                <span key="i" className="kt-num">{h.inr != null ? inr(h.inr, { whole: true }) : "—"}</span>,
+                                <span key="c" className={`kt-num ${sideOf(h.change24h)}`}>{/^USD[TC]$/.test(h.symbol) ? "—" : pct(h.change24h)}</span>,
+                            ]}
+                        />
+                    ) : (
+                        !w.error && <p className="empty-note">Nothing on this wallet yet, or only coins this page doesn’t read.</p>
+                    )}
+                </div>
+            ))}
+            {!list.length && !adding && <p className="empty-note">No wallets yet. Add one by its public address to count it.</p>}
+            <p className="nw-fine">
+                Read from public blockchains: Bitcoin; Ethereum, BNB Chain, Polygon, Arbitrum, Base and Optimism (the main coin, USDT and USDC); Tron (TRX, USDT); Solana (SOL, USDT, USDC). Prices from
+                CoinGecko. Coins on an exchange aren’t in a wallet address.
+            </p>
         </div>
     );
 }

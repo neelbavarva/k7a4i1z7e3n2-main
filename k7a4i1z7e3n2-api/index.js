@@ -18,6 +18,7 @@ const kiteRoute = require("./routes/kiteRoute");
 const worthRoute = require("./routes/worthRoute");
 const growwRoute = require("./routes/growwRoute");
 const mt5Route = require("./routes/mt5Route");
+const cryptoRoute = require("./routes/cryptoRoute");
 app.use("/passwords", passwordRoute);
 app.use("/cards", cardRoute);
 app.use("/otp", otpRoute);
@@ -28,6 +29,7 @@ app.use("/kite", kiteRoute);
 app.use("/worth", worthRoute);
 app.use("/groww", growwRoute);
 app.use("/mt5", mt5Route);
+app.use("/crypto", cryptoRoute);
 
 app.get("/", (req, res) => {
     res.status(200).json("Welcome to server project of @k7a4i1z7e3n2");

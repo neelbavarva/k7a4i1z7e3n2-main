@@ -5908,6 +5908,7 @@ fieldset.bare:disabled {
   --cat-funds: var(--ok);
   --cat-cash: #7a6fd0;
   --cat-forex: var(--medium);
+  --cat-crypto: #d0782c;
   --cat-bank: #2f8f8a;
   --cat-other: var(--muted);
   --cat-loans: var(--bear);
@@ -6006,6 +6007,7 @@ fieldset.bare:disabled {
 .cat-funds { --cc: var(--cat-funds); }
 .cat-cash { --cc: var(--cat-cash); }
 .cat-forex { --cc: var(--cat-forex); }
+.cat-crypto { --cc: var(--cat-crypto); }
 .cat-bank { --cc: var(--cat-bank); }
 .cat-other { --cc: var(--cat-other); }
 .cat-loans { --cc: var(--cat-loans); }
@@ -6121,7 +6123,11 @@ fieldset.bare:disabled {
 .nw-form-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  align-items: start;
   gap: 14px;
+}
+.nw-form-grid .field {
+  align-content: start;
 }
 .nw-span {
   grid-column: 1 / -1;
@@ -6177,6 +6183,48 @@ fieldset.bare:disabled {
 }
 .nw-source.is-stale i {
   background: var(--axis);
+}
+
+/* crypto wallets: one card per wallet, its coins underneath */
+.nw-mono {
+  font-family: var(--mono);
+  font-size: 12.5px;
+}
+.nw-wallet {
+  margin-top: 14px;
+}
+.nw-wallet-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.nw-wallet-name {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  min-width: 0;
+  flex: 1;
+}
+.nw-wallet-name b {
+  font-size: 14px;
+  font-weight: 600;
+}
+.nw-wallet-total {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.nw-wallet-total b {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+}
+.nw-wallet-total small {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.nw-wallet .kt-table {
+  margin-top: 8px;
 }
 
 @media (max-width: 900px) {
