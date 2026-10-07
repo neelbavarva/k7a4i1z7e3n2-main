@@ -104,25 +104,25 @@ export default function NetWorth() {
             for (const a of mt5.data.accounts) {
                 const w = mt5Worth(a, rate);
                 list.push({
-                    id: `mt5:${a.label}`,
+                    id: `mt5:${a.id || a.label}`,
                     name: a.label,
-                    kind: a.prop ? "MT5 · funded account" : "MT5 forex",
+                    kind: w.counted ? "MT5 forex" : "MT5 · not counted",
                     worth: w.counted ? w : null,
                     shown: w.value,
                     account: a,
                     status: a.error
                         ? a.error
-                        : `${a.info?.currency === "USC" ? `${num(a.info.equity)} US¢` : usd(a.info?.equity)} equity · ${a.positions.length} open${a.prop ? " · not counted" : ""}`,
-                    tone: a.error ? "warn" : a.prop ? "" : "ok",
+                        : `${a.info?.currency === "USC" ? `${num(a.info.equity)} US¢` : usd(a.info?.equity)} equity · ${a.positions.length} open${w.counted ? "" : " · not counted"}`,
+                    tone: a.error ? "warn" : w.counted ? "ok" : "",
                 });
             }
         } else {
             list.push({
                 id: "mt5",
-                name: "Exness and FundingPips",
-                kind: "MT5 forex, through MetaApi",
+                name: "MT5 accounts",
+                kind: "Exness, FundingPips, through MetaApi",
                 worth: null,
-                status: { loading: "Loading…", unset: "Not set up yet", error: mt5.message }[mt5.state] || "No accounts",
+                status: { loading: "Loading…", unset: "Not set up yet", error: mt5.message }[mt5.state] || "No accounts on MetaApi yet",
                 tone: mt5.state === "loading" ? "" : "warn",
             });
         }
@@ -267,7 +267,7 @@ export default function NetWorth() {
                 ) : current.id === "groww" ? (
                     <GrowwPanel src={groww} onPreview={preview} />
                 ) : current.id.startsWith("mt5") ? (
-                    <Mt5Panel src={mt5} account={current.account} rate={rate} onPreview={preview} />
+                    <Mt5Panel src={mt5} account={current.account} rate={rate} demo={demo} onPreview={preview} />
                 ) : (
                     <ManualPanel src={manual} demo={demo} rate={rate} />
                 )}
@@ -430,20 +430,34 @@ function GrowwPanel({ src, onPreview }) {
 
 // ---------- MT5 ----------
 
-function Mt5Panel({ src, account, rate, onPreview }) {
+function Mt5Panel({ src, account, rate, demo, onPreview }) {
     if (src.state === "loading") return <div className="sk sk-rows" aria-busy="true" />;
-    if (src.state === "unset" || !account)
+    if (src.state === "unset" || (src.state === "ready" && !account))
         return (
-            <Setup title="MT5 accounts aren’t set up yet" onPreview={onPreview}>
-                Add each MT5 account to MetaApi with its investor (read-only) password, then give the API server <code>METAAPI_TOKEN</code> and <code>METAAPI_ACCOUNTS</code> (like{" "}
-                <code>Exness:id,FundingPips:id</code>).
+            <Setup title={src.state === "unset" ? "MT5 accounts aren’t set up yet" : "No MT5 accounts on MetaApi yet"} onPreview={onPreview}>
+                {src.state === "unset" ? (
+                    <>
+                        Give the API server a <code>METAAPI_TOKEN</code> (MetaApi → API Access). Every account you add on MetaApi then shows up here by itself.
+                    </>
+                ) : (
+                    <>Add an account on MetaApi (MT Accounts → add, with its investor password) and it shows up here.</>
+                )}
+            </Setup>
+        );
+    if (src.state === "error" || !account)
+        return (
+            <Setup title="MT5 accounts didn’t load" onRetry={src.reload}>
+                {src.message}
             </Setup>
         );
     if (account.error)
         return (
-            <Setup title={`${account.label} didn’t load`} onRetry={src.reload}>
-                {account.error}. Check that the account is deployed on MetaApi.
-            </Setup>
+            <>
+                <AccountSettings key={account.id} src={src} account={account} demo={demo} />
+                <Setup title={`${account.label} didn’t load`} onRetry={src.reload}>
+                    {account.error}
+                </Setup>
+            </>
         );
 
     const a = account.info;
@@ -452,7 +466,10 @@ function Mt5Panel({ src, account, rate, onPreview }) {
     const floating = (a.equity || 0) - (a.balance || 0);
     return (
         <div className="kt">
-            {account.prop && <p className="kt-note nw-prop">A funded account trades the firm’s money, so it isn’t counted in your net worth. Only your profit split is yours once it’s paid out.</p>}
+            <AccountSettings key={account.id} src={src} account={account} demo={demo} />
+            {!account.counted && account.prop && (
+                <p className="kt-note nw-prop">A funded account trades the firm’s money, so it isn’t counted in your net worth. Only your profit split is yours once it’s paid out.</p>
+            )}
             <dl className="brief kt-brief">
                 <div className="brief-cell">
                     <dt>Equity</dt>
@@ -502,6 +519,54 @@ function Mt5Panel({ src, account, rate, onPreview }) {
             ) : (
                 <p className="empty-note">No open positions.</p>
             )}
+        </div>
+    );
+}
+
+/** This vault's settings for one MT5 account: its name here, and whether it counts. */
+function AccountSettings({ src, account, demo }) {
+    const [name, setName] = useState(account.label);
+    const [saving, setSaving] = useState(false);
+    const save = async (fields) => {
+        setSaving(true);
+        try {
+            if (!demo) await http(`/mt5/accounts/${encodeURIComponent(account.id)}`, { method: "PUT", body: fields });
+            src.setData((d) => ({
+                ...d,
+                accounts: d.accounts.map((x) => (x.id === account.id ? { ...x, ...fields, ...(fields.counted != null ? { prop: !fields.counted } : {}) } : x)),
+            }));
+        } catch {
+            toast.error("Didn’t save", { description: "Try again in a moment." });
+        } finally {
+            setSaving(false);
+        }
+    };
+    const rename = (e) => {
+        e.preventDefault();
+        const label = name.trim();
+        if (label && label !== account.label) save({ label });
+    };
+    return (
+        <div className="nw-acc-settings">
+            <form className="nw-acc-name" onSubmit={rename}>
+                <label htmlFor={`nw-acc-${account.id}`} className="field-label">
+                    Name here
+                </label>
+                <input id={`nw-acc-${account.id}`} className="input" value={name} onChange={(e) => setName(e.target.value)} onBlur={rename} maxLength={40} disabled={saving} />
+            </form>
+            <div className="nw-acc-count">
+                <span className="field-label">In net worth</span>
+                <Seg
+                    label="Count in net worth"
+                    value={account.counted ? "yes" : "no"}
+                    onChange={(v) => save({ counted: v === "yes" })}
+                    options={[
+                        { value: "yes", label: "Counted" },
+                        { value: "no", label: "Not counted" },
+                    ]}
+                />
+            </div>
+            <p className="nw-fine nw-acc-meta">{[account.server, account.login ? `login ${account.login}` : "", account.region].filter(Boolean).join(" · ")}</p>
         </div>
     );
 }

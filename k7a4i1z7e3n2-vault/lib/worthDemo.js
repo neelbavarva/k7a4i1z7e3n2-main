@@ -27,8 +27,11 @@ export function demoMt5() {
         fetchedAt: new Date().toISOString(),
         accounts: [
             {
+                id: "demo-exness",
                 label: "Exness",
+                server: "Exness-MT5Real8",
                 prop: false,
+                counted: true,
                 info: { name: "Demo Trader", login: 81234567, broker: "Exness Technologies Ltd", server: "Exness-MT5Real8", platform: "mt5", currency: "USD", balance: 2480.12, equity: 2536.84, margin: 412.3, freeMargin: 2124.54, leverage: 500, marginLevel: 615.3 },
                 positions: [
                     { id: "1", symbol: "XAUUSD", type: "POSITION_TYPE_BUY", volume: 0.05, openPrice: 2641.2, currentPrice: 2652.9, profit: 58.5, swap: -1.2 },
@@ -37,8 +40,11 @@ export function demoMt5() {
                 error: null,
             },
             {
+                id: "demo-fundingpips",
                 label: "FundingPips",
+                server: "FundingPips-Live",
                 prop: true,
+                counted: false,
                 info: { name: "Demo Trader", login: 5512345, broker: "FundingPips", server: "FundingPips-Live", platform: "mt5", currency: "USD", balance: 10412.5, equity: 10388.1, margin: 220, freeMargin: 10168.1, leverage: 100, marginLevel: 4721.8 },
                 positions: [{ id: "3", symbol: "GBPJPY", type: "POSITION_TYPE_BUY", volume: 0.3, openPrice: 196.42, currentPrice: 196.31, profit: -24.4, swap: 0 }],
                 error: null,

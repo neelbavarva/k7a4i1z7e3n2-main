@@ -52,13 +52,14 @@ The vault's **Trades → Net worth** page adds these up with Zerodha. All need t
 | `GET /worth/fx` | US dollar in rupees (ECB rate via Frankfurter, cached an hour). |
 | `GET, POST /worth/manual`, `PUT, DELETE /worth/manual/:id` | Entries typed in by hand: bank balances, deposits, cash, loans. |
 | `GET /groww/status`, `GET /groww/account` | Groww holdings (valued with delayed Yahoo Finance prices; Groww's free API has none), positions and funds. |
-| `GET /mt5/accounts` | Each MT5 account's balance, equity, margin and open positions, through MetaApi. |
+| `GET /mt5/accounts`, `PUT /mt5/accounts/:id` | Every MetaApi account's balance, equity, margin and open positions; its name here and whether it counts. |
 
 | Variable | Value |
 |---|---|
 | `GROWW_API_KEY`, `GROWW_API_SECRET` | From Groww Cloud. Approve the key there once a day; the first read after that gets the day's token. |
-| `METAAPI_TOKEN` | A MetaApi API token. |
-| `METAAPI_ACCOUNTS` | `Label:accountId` pairs, comma separated, e.g. `Exness:abc,FundingPips:def`. Funded prop accounts (FundingPips, or any pair ending `:prop`) are shown but not counted. |
-| `METAAPI_REGION` | The accounts' MetaApi region, e.g. `london` or `new-york` (default). |
+| `METAAPI_TOKEN` | A MetaApi API token (MetaApi → API Access). |
 
+Every account on your MetaApi login shows up by itself and is read in its own region. In the vault you can
+rename each one and choose whether it counts in net worth (`PUT /mt5/accounts/:id`, kept in Mongo); one
+whose server or name looks like a prop firm (FundingPips, FTMO, …) starts out not counted.
 Add each MT5 account to MetaApi with its investor (read-only) password.

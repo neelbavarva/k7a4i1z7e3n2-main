@@ -56,14 +56,15 @@ export function perUnit(currency, rate) {
     return null;
 }
 
-/** One MT5 account: its equity in rupees. Prop accounts are shown but `counted` is false. */
+/** One MT5 account: its equity in rupees. A funded (prop) one is shown but not counted. */
 export function mt5Worth(acc, rate) {
     const parts = empty();
     const k = perUnit(acc?.info?.currency, rate);
     const equity = acc?.info?.equity;
     const value = equity != null && k != null ? equity * k : null;
-    if (value != null && !acc.prop) parts.forex = value;
-    return { parts, total: sum(parts), value, counted: !acc?.prop, floating: acc?.info ? (acc.info.equity || 0) - (acc.info.balance || 0) : 0 };
+    const counted = acc?.counted ?? !acc?.prop;
+    if (value != null && counted) parts.forex = value;
+    return { parts, total: sum(parts), value, counted, floating: acc?.info ? (acc.info.equity || 0) - (acc.info.balance || 0) : 0 };
 }
 
 const MANUAL_CAT = { bank: "bank", cash: "bank", deposit: "bank", crypto: "other", property: "other", other: "other", loan: "loans" };
