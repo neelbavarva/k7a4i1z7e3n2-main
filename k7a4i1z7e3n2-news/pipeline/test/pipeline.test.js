@@ -538,7 +538,7 @@ test('official statistics: values from the release itself, never the one before'
     const u = String(url);
     const ok = (body) => ({ ok: true, status: 200, json: async () => body });
     // FRED: updated minutes after the release, payrolls in thousands
-    if (u.includes('/fred/series?')) return ok({ seriess: [{ last_updated: '2026-10-02 07:35:10-05' }] });
+    if (u.includes('/fred/series?')) return ok({ seriess: [{ last_updated: '2026-10-02 07:35:10-05' }] }); // also the key check
     if (u.includes('/fred/series/observations')) return ok({ observations: [{ date: '2026-09-01', value: '159650' }, { date: '2026-08-01', value: '159531' }] });
     // ONS: still on the September release, so October's isn't out yet
     if (u.includes('ons.gov.uk')) return ok({ months: [{ date: '2026 AUG', value: '3.1' }], description: { releaseDate: '2026-09-15T23:00:00.000Z' } });

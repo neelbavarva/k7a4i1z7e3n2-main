@@ -120,7 +120,16 @@ export function formatLike(e, full) {
 
 export async function fillFromOfficial(store, nowMs, { fredKey, isDriver }) {
   const todo = needsLookup(store, nowMs, isDriver).filter((e) => OFFICIAL[`${e.currency}|${e.title}`]);
-  const out = { tried: todo.length, filled: 0, byAgency: {}, errors: {}, waiting: 0, skipped: {} };
+  const out = { tried: todo.length, filled: 0, byAgency: {}, errors: {}, waiting: 0, skipped: {}, fredKey: null };
+  // one small request a run, so a wrong or missing key shows up before a US release needs it
+  if (fredKey) {
+    try {
+      await json(`https://api.stlouisfed.org/fred/series?series_id=UNRATE&api_key=${encodeURIComponent(fredKey)}&file_type=json`);
+      out.fredKey = 'ok';
+    } catch (err) {
+      out.fredKey = `not accepted (${err.message})`;
+    }
+  } else out.skipped.fred = 'no FRED_API_KEY';
   if (!todo.length) return out;
 
   // Statistics Canada answers many vectors in one request

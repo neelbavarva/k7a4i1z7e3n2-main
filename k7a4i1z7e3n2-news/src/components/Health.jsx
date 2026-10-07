@@ -107,11 +107,12 @@ async function runChecks() {
       const noFred = of.skipped?.fred;
       const got = Object.entries(of.byAgency ?? {}).map(([a, n]) => `${n} from ${AG[a] ?? a}`);
       checks.official = {
-        state: errs.length ? 'warn' : noFred && !LOCAL ? 'warn' : 'ok',
+        state: of.fredKey && of.fredKey !== 'ok' ? 'fail' : errs.length ? 'warn' : noFred && !LOCAL ? 'warn' : 'ok',
         detail: [
           of.tried ? `Filled ${of.filled} of the ${of.tried} waiting that it covers${got.length ? ` (${got.join(', ')})` : ''}` : 'Nothing waiting that it covers',
           of.waiting ? `${of.waiting} not published by the agency yet` : null,
           noFred ? `US figures skipped: no FRED_API_KEY${LOCAL ? ' on this machine' : ''}` : null,
+          of.fredKey === 'ok' ? 'FRED key works' : of.fredKey ? `FRED key ${of.fredKey}` : null,
           ...errs,
         ]
           .filter(Boolean)
