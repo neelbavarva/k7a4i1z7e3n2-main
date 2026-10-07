@@ -30,6 +30,10 @@ export async function writeOutputs({ events, nowMs, pricesFor, demo = false, sou
       events: list.length,
       released: list.filter((e) => Date.parse(e.time) <= nowMs && !e.skip && e.weight > 0).length,
       withActual: list.filter((e) => e.actual != null).length,
+      // released releases that count, and how they're counted: real value, or at forecast
+      counted: 0,
+      real: 0,
+      atForecast: 0,
     },
     pairs: [],
   };
@@ -55,8 +59,17 @@ export async function writeOutputs({ events, nowMs, pricesFor, demo = false, sou
       // where the score is heading in 7 days if upcoming releases match their forecasts
       future: s.path.score,
       futureLabel: s.path.label,
+      // the score for each of the next 48 hours, assuming releases come in at forecast: if an update
+      // is late, the site shows the hour it's in rather than a score from hours ago
+      hourly: result.series.filter((p) => p.t >= Math.floor(nowMs / HOUR) * HOUR).slice(0, 49).map((p) => p.s),
     });
   }
+  const counted = list.filter(
+    (e) => !e.skip && e.weight > 0 && e.forecast != null && (e.impact === 'High' || e.impact === 'Medium') && Date.parse(e.time) <= nowMs - MODEL.assumeAfterHours * HOUR && Date.parse(e.time) > nowMs - MODEL.provisionalDays * 24 * HOUR,
+  );
+  meta.counts.counted = counted.length;
+  meta.counts.real = counted.filter((e) => e.actual != null).length;
+  meta.counts.atForecast = meta.counts.counted - meta.counts.real;
   await writeJson(join(PUBLIC_DATA_DIR, 'calendar.json'), savedCalendar(list, { nowMs, demo, source: sources.calendar }));
   await writeJson(join(PUBLIC_DATA_DIR, 'meta.json'), meta, { pretty: true });
   return meta;

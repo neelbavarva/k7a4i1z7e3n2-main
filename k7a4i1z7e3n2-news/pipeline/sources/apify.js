@@ -67,7 +67,13 @@ async function budget(token) {
 
 export async function fillFromApify(store, nowMs, { token }) {
   const todo = waitingForApify(store, nowMs);
-  const out = { tried: todo.length, filled: 0, runs: 0, results: 0, used: null, limit: null, error: null, paused: null };
+  // releases it stopped asking about after maxTries: they're counted at forecast until a number comes
+  const gaveUp = Object.values(store).filter(
+    (e) =>
+      !e.skip && (e.impact === 'High' || e.impact === 'Medium') && e.actual == null && e.forecast != null &&
+      (e.apifyTries ?? 0) >= APIFY.maxTries && Date.parse(e.time) >= nowMs - APIFY.lookbackDays * DAY,
+  ).length;
+  const out = { tried: todo.length, filled: 0, runs: 0, results: 0, used: null, limit: null, error: null, paused: null, gaveUp };
   if (!todo.length) {
     // still report the month's spend, so the status page can show it
     const b = await budget(token).catch(() => null);

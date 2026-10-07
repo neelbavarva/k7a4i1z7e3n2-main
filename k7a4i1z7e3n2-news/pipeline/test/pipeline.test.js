@@ -211,12 +211,19 @@ test('consensus path: expectations build up before a release, surprises land at 
   assert.equal(future.events[0].c, null);
   near(future.summary.path.score, at(future, 7 * 24).s, 0);
 
-  // Released 2 h ago, no actual yet -> the expectation stays (provisional)
+  // Released 2 h ago, no actual yet -> counted as if it came in at forecast
   const time = new Date(now - 2 * H).toISOString();
   const pending = computePair(pair, [ev({ id: 'p', time })], stats, now);
   assert.ok(at(pending, 0).s > 0);
-  assert.equal(pending.summary.provisional, 1);
-  assert.equal(pending.events[0].prov, true);
+  assert.equal(pending.summary.assumed, 1);
+  assert.equal(pending.events[0].as, true);
+  // …and still counted a week later (it fades, it isn't dropped)
+  const old = computePair(pair, [ev({ id: 'p', time: new Date(now - 9 * 24 * H).toISOString() })], stats, now);
+  assert.ok(at(old, 0).s > 0);
+  // in its first hour it's still provisional
+  const fresh = computePair(pair, [ev({ id: 'p', time: new Date(now - 0.5 * H).toISOString() })], stats, now);
+  assert.equal(fresh.summary.provisional, 1);
+  assert.equal(fresh.events[0].prov, true);
 
   // In-line print: lands exactly where the expectation had it, no jump at the release
   const inline = computePair(pair, [ev({ id: 'p', time, actual: 3.7, actualRaw: '3.7%' })], stats, now);

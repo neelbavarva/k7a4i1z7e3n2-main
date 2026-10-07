@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { fmtRelative } from '../format.js';
-import { REFRESH_COOLDOWN_S, STALE_HOURS } from '../constants.js';
+import { REFRESH_COOLDOWN_S } from '../constants.js';
+import { freshness } from '../freshness.js';
 import MarketIcon from './MarketIcon.jsx';
 
 const BASE = import.meta.env.BASE_URL;
@@ -163,22 +164,33 @@ function useTick(ms) {
  * Top-of-page status: when the scores were last updated (amber if that is more than
  * a few hours ago), any refresh result, and the Refresh button with its 1-minute cooldown.
  */
-export function StatusBar({ generatedAt, onRefresh, refreshing, busyLabel, message, cooldownUntil }) {
+export function StatusBar({ generatedAt, counts, onRefresh, refreshing, busyLabel, message, cooldownUntil }) {
   useTick(30 * 1000);
-  const hours = (Date.now() - Date.parse(generatedAt)) / 3.6e6;
-  const stale = hours > STALE_HOURS;
+  const f = freshness(generatedAt);
+  // what the scores on screen are made of: real numbers, and releases counted at their forecasts
+  const c = counts?.counted ? counts : null;
+  const gaps = !c
+    ? null
+    : c.atForecast
+      ? `${c.real} of ${c.counted} recent releases have their number; ${c.atForecast} counted at forecast.`
+      : `All ${c.counted} recent releases have their number.`;
   return (
-    <div className={`statusbar${stale ? ' is-stale' : ''}${message ? ' has-msg' : ''}`} role="status">
+    <div className={`statusbar${f.projected || f.old ? ' is-stale' : ''}${message ? ' has-msg' : ''}`} role="status">
       <i aria-hidden="true" />
       <p>
         {message ??
-          (stale
-            ? `Scores were last updated ${fmtRelative(generatedAt)}, so they may be out of date.`
-            : (
-              <>
-                Scores updated {fmtRelative(generatedAt)}.<span className="sb-extra"> They update every hour.</span>
-              </>
-            ))}
+          (f.old ? (
+            `Scores were last updated ${fmtRelative(generatedAt)}, so they may be out of date.`
+          ) : f.projected ? (
+            <>
+              Last update {fmtRelative(generatedAt)}, so scores are projected to now, with releases since counted at forecast.
+              {gaps && <span className="sb-extra"> {gaps}</span>}
+            </>
+          ) : (
+            <>
+              Scores updated {fmtRelative(generatedAt)}.{gaps ? ` ${gaps}` : <span className="sb-extra"> They update twice an hour.</span>}
+            </>
+          ))}
       </p>
       <RefreshButton onRefresh={onRefresh} refreshing={refreshing} busyLabel={busyLabel} cooldownUntil={cooldownUntil} />
     </div>

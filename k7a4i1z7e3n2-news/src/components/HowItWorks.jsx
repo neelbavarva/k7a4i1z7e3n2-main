@@ -15,6 +15,7 @@ import { CATEGORIES, LOWER_IS_BETTER, NO_SIGNAL, RATE_DECISION } from '../../pip
 import { CAL_CACHE_MINUTES, COLLECT_REST_MINUTES, POLL_MINUTES, REFRESH_COOLDOWN_S, STALE_HOURS } from '../constants.js';
 import { Contents, useActiveSection } from './Doc.jsx';
 import { DataFlow, LiveStatus, useHealth } from './Health.jsx';
+import { PROJECT_MAX_HOURS } from '../freshness.js';
 
 // Every number on this page is read from the pipeline's own settings (pipeline/config.js
 // and pipeline/rules.js), so the explanation can't drift from what the site computes.
@@ -130,7 +131,7 @@ export default function HowItWorks({ meta }) {
                 Apify. Twelve Data supplies hourly prices. The keys live in GitHub Secrets.
               </li>
               <li>
-                <b>The hourly job.</b> GitHub Actions runs <code>pipeline/run.js</code> every hour at :07 UTC, and right away
+                <b>The hourly job.</b> GitHub Actions runs <code>pipeline/run.js</code> twice an hour, at :17 and :47 UTC, and right away
                 when someone presses <b>Refresh</b>. It fetches all three sources, scores every market for every hour,
                 commits what it learned to the repository's <code>data/</code> folder (the site's only database), then
                 builds the site and deploys it with the fresh JSON.
@@ -164,7 +165,7 @@ export default function HowItWorks({ meta }) {
           <section id="pipeline">
             <h2>The hourly pipeline</h2>
             <p>
-              A Node.js job runs once an hour on GitHub Actions (and whenever someone presses Refresh), writes the results
+              A Node.js job runs twice an hour on GitHub Actions (and whenever someone presses Refresh), writes the results
               as static JSON files, and Vercel serves them to the website. Each run does five steps, in this order:
             </p>
             <ol className="steps">
@@ -289,7 +290,7 @@ export default function HowItWorks({ meta }) {
                     </td>
                     <td data-label="Used for">Runs the hourly job, then builds and deploys the site.</td>
                     <td data-label="How it's called">
-                      Cron <code>7 * * * *</code>: every hour at :07 UTC, plus a manual “Run workflow” button.
+                      Cron <code>17,47 * * * *</code>: twice an hour (GitHub sometimes skips a scheduled run, so the second covers it), plus a manual “Run workflow” button.
                     </td>
                     <td data-label="Limits">Free for public repositories. Runs never overlap.</td>
                   </tr>
@@ -368,8 +369,10 @@ export default function HowItWorks({ meta }) {
             </ol>
             <p>
               Every value from JBlanked or Apify must be the same kind of number as the forecast (same unit, a plausible size) before
-              it's accepted. A release still waiting for its value keeps its expected change for up to{' '}
-              {MODEL.provisionalDays} days and is marked “expected” in the tables.
+              it's accepted. A release out for {MODEL.assumeAfterHours} hour with no value yet is counted as if it came in
+              exactly at forecast, which is just how an in-line print counts: its expected change stays, with no surprise.
+              The tables mark it “at forecast”, the bar at the top says how many there are, and it fades like any release;
+              when the real number arrives, the score moves only by how far it is from the forecast.
             </p>
           </section>
 
@@ -901,7 +904,7 @@ export default function HowItWorks({ meta }) {
           <section id="updates">
             <h2>Updates and Refresh</h2>
             <ul>
-              <li>New scores are published every hour, a few minutes after :07 UTC.</li>
+              <li>New scores are published twice an hour, a few minutes after :17 and :47 UTC. Prices are fetched once an hour.</li>
               <li>
                 A page left open checks for new scores every {POLL_MINUTES} minutes, and again when you come back to the tab.
               </li>
@@ -913,8 +916,11 @@ export default function HowItWorks({ meta }) {
                 you see are already the latest. After each use the button rests for {REFRESH_COOLDOWN_S} seconds.
               </li>
               <li>
-                The bar at the top turns amber if the last update is more than {STALE_HOURS} hours old, which means the
-                hourly job has stalled.
+                The bar at the top says what the scores are made of (how many recent releases have their real number,
+                and how many are counted at forecast). If the last update is more than {STALE_HOURS} hours old it turns
+                amber, and every score shown becomes the projection for the hour you're in: the last update carried
+                forward, with releases since counted at forecast. After {PROJECT_MAX_HOURS} hours it just says the scores
+                may be out of date.
               </li>
               <li>All times on the site are shown in your own time zone.</li>
             </ul>
@@ -994,7 +1000,8 @@ export default function HowItWorks({ meta }) {
                     ['Rate decision half-life', `${MODEL.rateHalfLifeHours} h`, 'Rate decisions fade over about 10 days.'],
                     ['Consensus weight', MODEL.consensusWeight, 'The expected change counts at this share of a real surprise.'],
                     ['Build-up period', `${lead} h`, 'The expected change is priced in over this long before a release.'],
-                    ['Waiting for a value', `${MODEL.provisionalDays} days`, 'How long a release with no actual yet keeps its expected push.'],
+                    ['Counted at forecast', `after ${MODEL.assumeAfterHours} h`, 'A release still without its value counts as an in-line print until the number arrives.'],
+                    ['Late update', `${STALE_HOURS} h`, `After this, scores are projected to the hour you're in (up to ${PROJECT_MAX_HOURS} h).`],
                     ['Chart history', `${MODEL.historyDays} days`, 'How far back the chart goes.'],
                     ['Projection', `${MODEL.forwardDays} days`, 'How far ahead the dotted line goes.'],
                     [

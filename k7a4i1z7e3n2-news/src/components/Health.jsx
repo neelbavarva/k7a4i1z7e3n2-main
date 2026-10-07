@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { fmtRelative, fmtTime } from '../format.js';
 import { STALE_HOURS } from '../constants.js';
+import { PROJECT_MAX_HOURS } from '../freshness.js';
 
 const BASE = import.meta.env.BASE_URL;
 const MIN = 60 * 1000;
@@ -52,8 +53,10 @@ async function runChecks() {
     const age = Date.now() - Date.parse(m.generatedAt);
     const kind = m.demo ? 'sample data' : 'real data';
     checks.files = {
-      state: m.demo ? 'warn' : age <= 75 * MIN ? 'ok' : age <= STALE_HOURS * 60 * MIN ? 'warn' : 'fail',
-      detail: `Generated ${fmtRelative(m.generatedAt)} · ${plural(m.pairs.length, 'market')} · ${kind}`,
+      state: m.demo ? 'warn' : age <= STALE_HOURS * 60 * MIN ? 'ok' : age <= PROJECT_MAX_HOURS * 60 * MIN ? 'warn' : 'fail',
+      detail: `Generated ${fmtRelative(m.generatedAt)} · ${plural(m.pairs.length, 'market')} · ${kind}${
+        age > STALE_HOURS * 60 * MIN && age <= PROJECT_MAX_HOURS * 60 * MIN ? '. The site shows scores projected to now until the next update' : ''
+      }`,
       ms: meta.ms,
     };
   }
@@ -120,12 +123,12 @@ async function runChecks() {
           : ap.paused
             ? { state: 'warn', detail: `Paused: ${ap.paused}. Values wait for the feed until the credit resets · ${values}` }
             : {
-                state: ap.tried && ap.filled < ap.tried ? 'warn' : 'ok',
+                state: (ap.tried && ap.filled < ap.tried) || ap.gaveUp ? 'warn' : 'ok',
                 detail: `${
                   ap.tried
                     ? `Filled ${ap.filled} of ${ap.tried} waiting in ${plural(ap.runs, 'run')}${ap.filled < ap.tried ? '; the rest are asked for again next hour' : ''}`
                     : 'Nothing waiting'
-                }${credit} · ${values}`,
+                }${ap.gaveUp ? ` · ${ap.gaveUp} given up after ${plural(3, 'try')}, counted at forecast` : ''}${credit} · ${values}`,
               };
 
     const p = r.prices;
@@ -133,7 +136,10 @@ async function runChecks() {
       ? noReport
       : p.skipped
         ? { state: LOCAL ? 'off' : 'warn', detail: `Skipped: no TWELVE_DATA_KEY${LOCAL ? ' on this machine' : ''}, so the price charts stay empty.` }
-        : { state: p.updated === p.total ? 'ok' : p.updated ? 'warn' : 'fail', detail: `${p.updated} of ${p.total} price series updated${p.error ? ` · last error ${p.error}` : ''}` };
+        : {
+            state: p.updated === p.total ? 'ok' : p.updated ? 'warn' : 'fail',
+            detail: `${p.updated} of ${p.total} price series updated${p.recent ? ` ${fmtRelative(p.at)} (prices are fetched once an hour)` : ''}${p.error ? ` · last error ${p.error}` : ''}`,
+          };
   }
 
   // the live calendar the Calendar page reads
@@ -259,7 +265,7 @@ export function DataFlow({ checks }) {
       <Arrow />
       <div className="fl-col">
         <span className="fl-label">2 · Hourly job</span>
-        <Node id="actions" name="GitHub Actions" sub="Every hour at :07, or when you press Refresh" />
+        <Node id="actions" name="GitHub Actions" sub="Twice an hour (:17 and :47), or when you press Refresh" />
         <div className="fl-note">
           Fetch → fill values → prices → score every market → commit <code>data/</code> → deploy
         </div>

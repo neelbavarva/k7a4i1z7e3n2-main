@@ -142,6 +142,9 @@ export const MODEL = {
   expectationLeadHours: 24,
   // A release with no actual value yet keeps its expected push for up to this many days.
   provisionalDays: 7,
+  // A release out this long with no actual value is counted as if it came in at forecast (exactly as
+  // an in-line print counts), fading like any release, until the real number arrives.
+  assumeAfterHours: 1,
   historyDays: 30,
   forwardDays: 7,
 };

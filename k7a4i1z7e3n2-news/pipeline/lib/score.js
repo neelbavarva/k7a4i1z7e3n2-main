@@ -200,8 +200,12 @@ export function computePair(pair, allEvents, stats, nowMs) {
     // "good for that currency's economy", at this market's weight
     const unit = e.dir * eff.weight;
     const released = e.actual != null && e.forecast != null && tMs <= nowMs;
+    // out for a while with no number: counted as if it came in exactly at forecast. That is what an
+    // in-line print does (its expected change stays, no surprise), so the real number, when it
+    // comes, moves the score only by how far it is from forecast; it fades like any release
+    const assumed = !released && e.actual == null && ez && tMs <= nowMs - MODEL.assumeAfterHours * HOUR;
     const recent = tMs > nowMs - MODEL.provisionalDays * 24 * HOUR;
-    if (!released && !(e.actual == null && tMs <= end + lead && ez && (recent || tMs > nowMs))) continue;
+    if (!released && !assumed && !(e.actual == null && tMs <= end + lead && ez && (recent || tMs > nowMs))) continue;
     const z = released ? surprise(e, stats).z : 0;
     contributions.push({
       e,
@@ -213,8 +217,9 @@ export function computePair(pair, allEvents, stats, nowMs) {
       m: eff.m,
       group: eff.group,
       halfLife: e.halfLife,
-      expected: !released,
-      provisional: !released && tMs <= nowMs,
+      expected: !released && !assumed,
+      assumed,
+      provisional: !released && !assumed && tMs <= nowMs,
     });
   }
   contributions.sort((a, b) => a.from - b.from);
@@ -289,7 +294,7 @@ export function computePair(pair, allEvents, stats, nowMs) {
   // (by its surprise alone, so the sentence "came in above forecast" always matches its push).
   const surpriseNow = (k) => k.m * k.uSur * 0.5 ** ((nowHour - k.tMs) / HOUR / k.halfLife);
   const driverK = contributions
-    .filter((k) => !k.expected && k.uSur && Math.sign(surpriseNow(k)) === Math.sign(current?.r ?? 0))
+    .filter((k) => !k.expected && !k.assumed && k.uSur && Math.sign(surpriseNow(k)) === Math.sign(current?.r ?? 0))
     .sort((a, b) => Math.abs(surpriseNow(b)) - Math.abs(surpriseNow(a)))[0];
   const driverPart = driverK && { v: round(surpriseNow(driverK)) };
   const effImpact = (e) => {
@@ -328,11 +333,13 @@ export function computePair(pair, allEvents, stats, nowMs) {
         src: e.actualSource || null,
         url: e.actualSourceUrl || null,
         skip: !eff,
-        z: k && !k.expected ? round(k.z) : null,
+        z: k && !k.expected && !k.assumed ? round(k.z) : null,
         // c: the surprise's push at release (always the way it beat or missed);
-        // ec: the expected change's push, for releases still waiting for a number
-        c: k && !k.expected ? round(k.m * k.uSur) : null,
-        ec: k?.expected ? round(k.m * k.uExp) : null,
+        // ec: the expected change's push, for releases still waiting for a number, and for
+        // releases counted at forecast (as: true) the push of that assumed move
+        c: k && !k.expected && !k.assumed ? round(k.m * k.uSur) : null,
+        ec: k?.expected || k?.assumed ? round(k.m * k.uExp) : null,
+        as: k?.assumed ? true : undefined,
         // market effect of a 1-sigma surprise above forecast, for the scenario columns
         sc: eff && e.forecast != null ? round(eff.m * e.dir * eff.weight) : null,
         prov: k?.provisional ? true : undefined,
@@ -372,6 +379,7 @@ export function computePair(pair, allEvents, stats, nowMs) {
       next: next ? { id: next.id, title: next.title, currency: next.currency, time: next.time, impact: effImpact(next) } : null,
       path: { t: last.t, score: last.s, label: labelFor(last.s) },
       provisional: contributions.filter((k) => k.provisional).length,
+      assumed: contributions.filter((k) => k.assumed).length,
       check: biasCheck(ahead),
       drivers,
     },

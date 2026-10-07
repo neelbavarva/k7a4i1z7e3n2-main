@@ -3,6 +3,7 @@ import { fmtRelative, signed } from '../format.js';
 import { KINDS, matchesMarket, normalise, subName } from '../markets.js';
 import MarketIcon from './MarketIcon.jsx';
 import Sections from './Sections.jsx';
+import { scoreNow } from '../freshness.js';
 
 const GROUPS = [
   { key: 'bull', title: 'Bullish', range: 'Score +15 and up', zone: [15, 100], test: (s) => s >= 15, sort: (a, b) => b.score - a.score, empty: 'No market leans bullish right now' },
@@ -41,13 +42,16 @@ export default function Overview({ meta }) {
   const input = useRef(null);
   const q = normalise(query);
   const kindOf = (p) => p.kind ?? 'fx';
-  const pairs = meta.pairs.filter((p) => (kind === 'all' || kindOf(p) === kind) && matchesMarket(p, q));
+  // when the latest update is late, each market shows its projected score for the hour we're in
+  const now = Date.now();
+  const all = meta.pairs.map((p) => ({ ...p, ...scoreNow(p, meta.generatedAt, now) }));
+  const pairs = all.filter((p) => (kind === 'all' || kindOf(p) === kind) && matchesMarket(p, q));
   const counts = Object.fromEntries(KINDS.map((k) => [k.key, meta.pairs.filter((p) => k.key === 'all' || kindOf(p) === k.key).length]));
   // how each asset class splits between bullish, balanced and bearish, for the bar under its tab
   const mixes = Object.fromEntries(
     KINDS.map((k) => {
       const m = { bull: 0, flat: 0, bear: 0 };
-      meta.pairs.forEach((p) => (k.key === 'all' || kindOf(p) === k.key) && m[sideOf(p.score)]++);
+      all.forEach((p) => (k.key === 'all' || kindOf(p) === k.key) && m[sideOf(p.score)]++);
       return [k.key, m];
     }),
   );

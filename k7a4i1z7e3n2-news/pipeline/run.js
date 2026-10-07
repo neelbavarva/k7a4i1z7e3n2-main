@@ -22,6 +22,8 @@ import { DATA_DIR, ROOT, readJson, writeJson, readText, log } from './lib/store.
 const args = new Set(process.argv.slice(2));
 const nowMs = Date.now();
 const EVENTS_PATH = join(DATA_DIR, 'events.json');
+const PRICES_SYNCED = join(DATA_DIR, 'prices', 'synced.json');
+const PRICE_EVERY_MIN = 50;
 
 async function main() {
   const events = await readJson(EVENTS_PATH, {});
@@ -89,10 +91,18 @@ async function main() {
 
   await writeJson(EVENTS_PATH, events);
 
-  // 3. Prices
+  // 3. Prices, once an hour although the job runs twice: hourly bars only change hourly, and it
+  // keeps Twelve Data inside its free daily credits
   const twelveKey = process.env.TWELVE_DATA_KEY;
-  if (twelveKey && !args.has('--skip-prices')) {
+  const synced = await readJson(PRICES_SYNCED, null);
+  const recently = synced && nowMs - Date.parse(synced.at) < PRICE_EVERY_MIN * 60 * 1000;
+  if (twelveKey && !args.has('--skip-prices') && recently) {
+    report.prices = { ...synced.report, at: synced.at, recent: true };
+    sources.prices = 'Twelve Data';
+    log(`prices: fetched ${Math.round((nowMs - Date.parse(synced.at)) / 60000)} min ago; next time`);
+  } else if (twelveKey && !args.has('--skip-prices')) {
     report.prices = await syncPrices(nowMs, { apiKey: twelveKey });
+    await writeJson(PRICES_SYNCED, { at: new Date(nowMs).toISOString(), report: report.prices });
     sources.prices = 'Twelve Data';
   } else {
     log('prices: skipped (no TWELVE_DATA_KEY)');

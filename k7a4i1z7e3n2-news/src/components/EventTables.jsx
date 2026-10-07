@@ -144,6 +144,10 @@ export function SurprisesTable({ data }) {
                       ) : (
                         e.a
                       )
+                    ) : e.as ? (
+                      <span className="muted" title="No number yet: counted as if it came in at forecast">
+                        ≈ forecast
+                      </span>
                     ) : (
                       <span className="muted">pending</span>
                     )}
@@ -153,8 +157,8 @@ export function SurprisesTable({ data }) {
                     {e.c != null ? (
                       <Push v={e.c} />
                     ) : e.ec != null ? (
-                      <span title="No actual yet: using the forecast vs previous until it arrives">
-                        <Push v={e.ec} /> <span className="muted small">expected</span>
+                      <span title={e.as ? 'No number yet: counted as if it came in at forecast' : 'No actual yet: using the forecast vs previous until it arrives'}>
+                        <Push v={e.ec} /> <span className="muted small">{e.as ? 'at forecast' : 'expected'}</span>
                       </span>
                     ) : (
                       '—'

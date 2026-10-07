@@ -12,6 +12,7 @@ import MarketIcon from './components/MarketIcon.jsx';
 import Outlook from './components/Outlook.jsx';
 import { NotFound, ErrorState, Skeleton, StatusBar } from './components/States.jsx';
 import { fmtDayTime, fmtRelative, zone, signed } from './format.js';
+import { summaryNow } from './freshness.js';
 import { isFx, KIND_LABEL, subName } from './markets.js';
 
 // The chart library is the heaviest part of the bundle; load it only on pair pages.
@@ -284,6 +285,7 @@ export default function App() {
       {meta && !notFound && section === 'news' && (
         <StatusBar
           generatedAt={meta.generatedAt}
+          counts={meta.counts}
           onRefresh={refresh}
           refreshing={refreshing}
           busyLabel={refreshMsg === COLLECTING ? 'Collecting…' : undefined}
@@ -322,6 +324,8 @@ const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigat
 
 function Dashboard({ data, meta, onPick }) {
   const { pair, summary } = data;
+  // when the latest update is late, the headline is the projected score for the hour we're in
+  const live = summaryNow(summary, data.series, meta.generatedAt);
   const byId = new Map(data.events.map((e) => [e.id, e]));
   return (
     <main className="fade-in">
@@ -360,8 +364,8 @@ function Dashboard({ data, meta, onPick }) {
             {pair.name} · {KIND_LABEL[pair.kind]}
           </p>
         )}
-        <Meter pair={pair} score={summary.score} label={summary.label} future={summary.path?.score} />
-        <Brief pair={pair} s={summary} />
+        <Meter pair={pair} score={live.score} label={live.label} future={summary.path?.score} />
+        <Brief pair={pair} s={live} />
         {pair.note && <p className="pair-note">{pair.note}</p>}
       </section>
 
@@ -445,6 +449,12 @@ function Brief({ pair, s }) {
           )}
         </div>
       </dl>
+      {s.assumed > 0 && (
+        <p className="brief-note">
+          {s.assumed} recent release{s.assumed > 1 ? 's have' : ' has'} no actual value yet and {s.assumed > 1 ? 'are' : 'is'}{' '}
+          counted as if {s.assumed > 1 ? 'they' : 'it'} came in at forecast, until the real number arrives.
+        </p>
+      )}
       {s.provisional > 0 && (
         <p className="brief-note">
           {s.provisional} recent release{s.provisional > 1 ? 's are' : ' is'} still waiting for an actual value and counted
