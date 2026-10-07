@@ -456,6 +456,7 @@ function Mt5Panel({ src, account, rate, demo, onPreview }) {
                 <Setup title={`${account.label} didn’t load`} onRetry={src.reload}>
                     {account.error}
                 </Setup>
+                <AddMt5 />
             </>
         );
 
@@ -529,7 +530,21 @@ function Mt5Panel({ src, account, rate, demo, onPreview }) {
             ) : (
                 <p className="empty-note">No open positions.</p>
             )}
+            <AddMt5 />
         </div>
+    );
+}
+
+/** How to bring in another MT5 account; shown under every account so the add-on is always at hand. */
+function AddMt5() {
+    return (
+        <p className="nw-fine">
+            Another MT5 account: connect it on Myfxbook with its investor password, or run the{" "}
+            <a href="/KaizenReporter.mq5" download>
+                Kaizen Reporter add-on
+            </a>{" "}
+            in MT5 (any broker or server, live while MT5 is open).
+        </p>
     );
 }
 
