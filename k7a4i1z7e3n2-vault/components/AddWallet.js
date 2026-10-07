@@ -9,9 +9,11 @@ import {
     WALLETS,
     chainOf,
     connectExtension,
+    connectInWindow,
     connectPhone,
     deepLink,
     discoverExtensions,
+    isFramed,
     qrSvg,
     searchCoins,
     searchWallets,
@@ -269,7 +271,8 @@ function Connect({ wallet, exts, onGot }) {
     const fromExtension = async (e) => {
         setBusy(e.uuid);
         setProblem("");
-        const { addresses, problems } = await connectExtension(e, wallet.id);
+        // in the split view's frame the extension won't connect: a window of the vault's own does it
+        const { addresses, problems } = isFramed() ? await connectInWindow(wallet.id, e.rdns) : await connectExtension(e, wallet.id);
         setBusy("");
         if (addresses.length) onGot(addresses);
         else setProblem(problems.join(" · ") || "The extension didn’t share any addresses.");

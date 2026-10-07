@@ -189,6 +189,47 @@ export async function connectExtension(ext, walletId) {
     return { addresses: uniqueAddresses(found).filter((a) => a.chain), problems };
 }
 
+/** Whether this page is inside a frame (the Kaizen split view). */
+export const isFramed = () => typeof window !== "undefined" && window.self !== window.top;
+
+/** The message the connect window sends back. */
+export const CONNECT_MESSAGE = "k7-wallet-addresses";
+
+/**
+ * Inside a frame, wallet extensions refuse to connect ("can't make this request from an embedded
+ * frame", their guard against clickjacking). So the asking happens in a small window of the vault's
+ * own (app/connect), at the top level, which hands back only the public addresses and closes.
+ * Must be called straight from a click, or the browser blocks the window.
+ */
+export function connectInWindow(walletId, rdns) {
+    return new Promise((resolve) => {
+        const url = `/connect?wallet=${encodeURIComponent(walletId)}&rdns=${encodeURIComponent(rdns || "")}`;
+        const popup = window.open(url, "k7-connect", "popup,width=440,height=600");
+        if (!popup) {
+            resolve({ addresses: [], problems: ["The browser blocked the connect window. Allow pop-ups for the vault and try again."] });
+            return;
+        }
+        let finished = false;
+        const finish = (result) => {
+            if (finished) return;
+            finished = true;
+            window.removeEventListener("message", onMessage);
+            clearInterval(watch);
+            resolve(result);
+        };
+        // only the window opened here, on this site, is listened to
+        const onMessage = (e) => {
+            if (e.origin !== window.location.origin || e.source !== popup || e.data?.type !== CONNECT_MESSAGE) return;
+            const list = Array.isArray(e.data.addresses) ? e.data.addresses.filter((a) => typeof a === "string") : [];
+            finish({ addresses: uniqueAddresses(list).filter((a) => a.chain), problems: Array.isArray(e.data.problems) ? e.data.problems.map(String) : [] });
+        };
+        window.addEventListener("message", onMessage);
+        const watch = setInterval(() => {
+            if (popup.closed) finish({ addresses: [], problems: ["The connect window was closed before the wallet answered."] });
+        }, 600);
+    });
+}
+
 // ---------- phones, over WalletConnect ----------
 
 export const wcProjectId = process.env.NEXT_PUBLIC_WC_PROJECT_ID || "";

@@ -8632,6 +8632,52 @@ fieldset.bare:disabled {
   }
 }
 
+/* the small window that connects a wallet extension for the vault in the split view (app/connect) */
+.cw {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  max-width: 360px;
+  margin: 0 auto;
+  padding: 72px 24px 40px;
+  text-align: center;
+}
+.cw h1 {
+  margin: 8px 0 0;
+  font-family: var(--serif);
+  font-size: 26px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+.cw-text {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--ink2);
+}
+.cw-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--ink2);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.cw-status svg {
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+.cw-status.is-done {
+  color: var(--ok);
+}
+.cw-status.is-problem {
+  color: var(--warn);
+}
+
 /* ---------- Responsive ---------- */
 
 @media (max-width: 1000px) {
