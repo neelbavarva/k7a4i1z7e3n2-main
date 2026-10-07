@@ -10,8 +10,8 @@ import { WalletIcon } from "./CryptoIcons";
 
 const BRANDS = {
     zerodha: { src: "/brands/zerodha.svg", name: "Zerodha" },
-    groww: { src: "/brands/groww.png", name: "Groww" },
-    exness: { src: "/brands/exness.png", name: "Exness" },
+    groww: { src: "/brands/groww.png", name: "Groww", round: true },
+    exness: { src: "/brands/exness.png", name: "Exness", round: true },
 };
 
 /** Which broker a name, server or company belongs to, if it's one with a logo here. */
@@ -30,11 +30,14 @@ export function bankIn(name) {
     return BANKS.find((b) => words.includes(norm(b.short)) || n.startsWith(norm(b.name)) || (b.aliases || []).some((a) => n.includes(norm(a)))) || null;
 }
 
-/** A broker's logo on a white app tile; `full` ones fill the tile edge to edge. */
+/**
+ * A broker's logo on the same white tile as every other mark. A round logo is drawn a little
+ * larger than a square one, so the two look the same size.
+ */
 export function BrandMark({ brand, size = 40 }) {
     const b = BRANDS[brand];
     return (
-        <span className={`brm${b?.full ? " is-full" : ""}`} style={{ "--ms": `${size}px` }} aria-hidden="true">
+        <span className={`brm${b?.round ? " is-round" : ""}`} style={{ "--ms": `${size}px` }} aria-hidden="true">
             {/* a small local file; nothing for next/image to gain */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             {b ? <img src={b.src} alt="" /> : <CandlestickChart />}

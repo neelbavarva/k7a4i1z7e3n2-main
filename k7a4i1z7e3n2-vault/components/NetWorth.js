@@ -17,6 +17,7 @@ import AddWallet from "./AddWallet";
 import BalanceDialog, { balanceInfo } from "./BalanceDialog";
 
 import Seg from "./k7/Seg";
+import { useCountUp } from "./k7/hooks";
 
 // Everything you own in one number: Zerodha, Groww, the MT5 forex accounts and what's typed in
 // by hand (bank balances, deposits, loans). Each source loads on its own; the total counts the
@@ -66,6 +67,32 @@ const inrShort = (x) => {
     if (n >= 1e5) return `${sign}₹${(n / 1e5).toFixed(2)} L`;
     return `${sign}${inr(n, { whole: true })}`;
 };
+
+/**
+ * Money set for reading at a glance: lining figures, the rupee sign smaller and lighter, the
+ * paise smaller again. `short` uses lakh and crore (₹6.63 L).
+ */
+function Fig({ value, short, className = "" }) {
+    const n = Number(value) || 0;
+    const text = short ? inrShort(Math.abs(n)) : inr(Math.abs(n));
+    const m = text.match(/^[−-]?₹\s?([\d,]+)(\.\d+)?\s?(L|Cr)?$/);
+    if (!m) return <span className={`fig ${className}`}>{text}</span>;
+    return (
+        <span className={`fig ${className}${n < 0 ? " is-neg" : ""}`}>
+            {n < 0 ? <span className="fig-sign">−</span> : null}
+            <span className="fig-cur">₹</span>
+            <span className="fig-int">{m[1]}</span>
+            {m[2] ? <span className={short ? "fig-dec" : "fig-frac"}>{m[2]}</span> : null}
+            {m[3] ? <span className="fig-unit">{m[3]}</span> : null}
+        </span>
+    );
+}
+
+/** The total, counting up to a new value the way the journal's figures do. */
+function BigFig({ value }) {
+    const v = useCountUp(value);
+    return <Fig value={Math.round(v * 100) / 100} className="fig-big" />;
+}
 
 // brand-ish flat colours for the marks; only a tint and an initial, no logos
 const SOURCE_COLOR = { zerodha: "#387ED1", groww: "#00A67E", mt5: "#C9971C", prop: "#7C5CE0", manual: "#2F8F8A", crypto: "#D0782C" };
@@ -373,7 +400,7 @@ export default function NetWorth() {
                             <h2 id="nw-detail">{current.name}</h2>
                             <p>{current.kind}</p>
                         </div>
-                        {current.worth ? <span className="nw-detail-value">{inr(current.worth.total, { whole: true })}</span> : null}
+                        {current.worth ? <Fig value={current.worth.total} className="nw-detail-value" /> : null}
                     </div>
                     {current.id === "zerodha" ? (
                         <Zerodha z={z} onPreview={preview} />
@@ -516,13 +543,13 @@ function Picture({ lines, gross, current, onOpen }) {
                             >
                                 <span className="pic-in">
                                     <span className="pic-top">
-                                        <Mark mark={b.mark} size={big ? 30 : 24} />
+                                        <Mark mark={b.mark} size={big ? 36 : 30} />
                                         {big && <span className="pic-share">{pct(share, { sign: false })}</span>}
                                     </span>
                                     {(big || mid) && (
                                         <span className="pic-text">
                                             <b>{b.name}</b>
-                                            <span className="pic-val">{inrShort(b.value)}</span>
+                                            <Fig value={b.value} short className="pic-val" />
                                             {big && b.h > 150 && b.note ? <small className="pic-note">{b.note}</small> : null}
                                         </span>
                                     )}
@@ -543,18 +570,8 @@ function Picture({ lines, gross, current, onOpen }) {
 
 // ---------- the ledger ----------
 
-/** Rupees with the paise set smaller, the way a statement prints them. */
-function Amount({ value, whole }) {
-    const n = Number(value) || 0;
-    const [r, p] = inr(Math.abs(n), { whole }).split(".");
-    return (
-        <span className={`lg-amt${n < 0 ? " is-neg" : ""}`}>
-            {n < 0 ? "−" : ""}
-            {r}
-            {p ? <small>.{p}</small> : null}
-        </span>
-    );
-}
+/** A ledger figure. */
+const Amount = ({ value, whole }) => <Fig value={whole ? Math.round(value) : value} short={false} className="lg-amt" />;
 
 function Ledger({ lines, hidden, totals, current, balancesState, walletsState, onOpen, onPick, onAddWallet, onAddBalance }) {
     const gross = totals.gross || 0;
@@ -677,7 +694,7 @@ function Hero({ totals, rate, points, counted, sources, demo, onPreview, onRefre
                         Net worth{asOf ? ` · ${asOf}` : ""}
                     </p>
                     <p className="hx-big">
-                        <Rupees value={totals.total} />
+                        <BigFig value={totals.total} />
                     </p>
                     <div className="hx-facts">
                         {change != null && (

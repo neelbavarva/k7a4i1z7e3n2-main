@@ -8598,6 +8598,234 @@ fieldset.bare:disabled {
   }
 }
 
+/* ---------- Net worth, refined: one tile for every mark, lining figures, calmer blocks ---------- */
+
+/* every mark on the same white tile as the vault's bank marks; each logo scaled to look the same size */
+.wi,
+.brm {
+  background: var(--raised);
+  border: 0;
+  border-radius: 28%;
+  box-shadow:
+    inset 0 0 0 1px var(--line),
+    0 1px 2px rgb(22 26 22 / 0.06);
+  overflow: hidden;
+}
+/* the wallets' plain logos sit inside a 24-unit box with room around them: drawn larger to match */
+.wi-svg {
+  width: 76%;
+  height: 76%;
+}
+.wi img {
+  width: 64%;
+  height: 64%;
+  object-fit: contain;
+}
+.wi > svg {
+  width: 48%;
+  height: 48%;
+  padding: 0;
+  background: none;
+}
+.brm img {
+  width: 60%;
+  height: 60%;
+}
+/* a filled round logo carries more weight than an outline: a touch smaller than its box suggests */
+.brm.is-round img {
+  width: 64%;
+  height: 64%;
+}
+.brm.is-glyph > svg {
+  width: 48%;
+  height: 48%;
+}
+.mstack-item {
+  border-radius: 28%;
+}
+/* bank symbols on this page match the brokers' and wallets' weight */
+.nw .bank-mark-sym {
+  width: 68%;
+  height: 68%;
+}
+
+/* money: lining, tabular figures; the rupee sign smaller and lighter, paise smaller again */
+.fig {
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
+  white-space: nowrap;
+}
+.fig-cur {
+  margin-right: 0.06em;
+  font-weight: 400;
+  color: var(--ink2);
+}
+.fig-frac {
+  font-size: 0.72em;
+  color: var(--muted);
+}
+.fig-unit {
+  margin-left: 0.16em;
+  font-size: 0.6em;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+.fig.is-neg,
+.fig.is-neg .fig-cur {
+  color: var(--bear-ink);
+}
+.hx-big {
+  font-family: var(--font);
+  font-size: clamp(46px, 6.8vw, 82px);
+  line-height: 1;
+  letter-spacing: 0;
+}
+.fig-big {
+  font-weight: 600;
+  letter-spacing: -0.045em;
+  color: var(--ink);
+}
+.fig-big .fig-cur {
+  margin-right: 0.1em;
+  font-size: 0.5em;
+  font-weight: 400;
+  letter-spacing: 0;
+  vertical-align: 0.6em;
+  color: var(--ink2);
+}
+.fig-big .fig-frac {
+  margin-left: 0.04em;
+  font-size: 0.4em;
+  font-weight: 500;
+  letter-spacing: 0;
+  vertical-align: 0.84em;
+}
+
+/* where it sits: quieter blocks, the logo and share on top, the name and figure below */
+.pic-in {
+  padding: 16px;
+  background: color-mix(in srgb, var(--gc) 6%, var(--raised));
+  border: 1px solid color-mix(in srgb, var(--gc) 14%, var(--line));
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgb(22 26 22 / 0.03);
+}
+.pic-block:hover .pic-in {
+  background: color-mix(in srgb, var(--gc) 10%, var(--raised));
+  border-color: color-mix(in srgb, var(--gc) 28%, var(--line));
+  box-shadow: 0 10px 24px -14px color-mix(in srgb, var(--gc) 55%, transparent);
+}
+.pic-block.is-on .pic-in {
+  border-color: color-mix(in srgb, var(--gc) 50%, var(--line));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--gc) 14%, transparent);
+}
+.pic-top {
+  align-items: center;
+}
+.pic-share {
+  padding: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink2);
+  background: none;
+  border: 0;
+}
+.pic-text {
+  gap: 3px;
+}
+.pic-text b {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink2);
+}
+.pic-val {
+  font-size: 27px;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+.pic-val .fig-cur {
+  font-size: 0.7em;
+}
+.pic-val .fig-dec {
+  letter-spacing: -0.02em;
+}
+.pic-block.is-mid .pic-val {
+  font-size: 17px;
+  letter-spacing: -0.02em;
+}
+.pic-note {
+  margin-top: 2px;
+  color: var(--muted);
+}
+
+/* the ledger's figures */
+.lg-amt {
+  font-size: 15.5px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.lg-group-head .lg-amt {
+  font-size: 13.5px;
+  color: var(--ink2);
+}
+.lg-group-head .lg-amt .fig-frac {
+  display: none;
+}
+
+/* the total: a soft panel, not a rule */
+.lg-total {
+  align-items: center;
+  margin-top: 18px;
+  padding: 18px 22px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+}
+.lg-total > span:first-child {
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink2);
+}
+.lg-total .lg-amt {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+}
+.lg-total .lg-amt .fig-cur {
+  font-size: 0.66em;
+}
+.lg-total .lg-amt .fig-frac {
+  font-size: 0.55em;
+}
+
+/* the open account's heading and the dialogs' previews */
+.nw-detail-value {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+.nw-detail-value .fig-cur {
+  font-size: 0.7em;
+}
+.nw-detail-value .fig-frac {
+  font-size: 0.6em;
+}
+.bal-preview-amt {
+  font-family: var(--font);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
 /* ---------- Responsive ---------- */
 
 @media (max-width: 1000px) {
