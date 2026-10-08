@@ -1,45 +1,7 @@
-// Sample MT5, hand-typed and crypto data, shaped like the server's answers, at the size of a
+// Sample hand-typed and crypto data, shaped like the server's answers, at the size of a
 // real retail account rather than a showcase. Nothing here is real.
 
 export const demoFx = () => ({ rate: 96.73, date: new Date().toISOString().slice(0, 10), source: "Sample" });
-
-export function demoMt5() {
-    const ago = (ms) => new Date(Date.now() - ms).toISOString();
-    return {
-        fetchedAt: new Date().toISOString(),
-        sources: { addon: { ok: true, accounts: 2 } },
-        accounts: [
-            {
-                id: "mt5-81234567",
-                login: "81234567",
-                source: "addon",
-                live: true,
-                updatedAt: ago(40e3),
-                label: "Exness",
-                server: "Exness-MT5Real8",
-                prop: false,
-                counted: true,
-                info: { broker: "Exness Technologies Ltd", server: "Exness-MT5Real8", login: 81234567, currency: "USD", balance: 412.6, equity: 431.15, margin: 21.4, freeMargin: 409.75, leverage: 500, marginLevel: 2014.7 },
-                positions: [{ id: "1", symbol: "XAUUSD", type: "POSITION_TYPE_BUY", volume: 0.01, openPrice: 2641.2, currentPrice: 2659.75, profit: 18.55, swap: -0.12 }],
-                error: null,
-            },
-            {
-                id: "mt5-20935336",
-                login: "20935336",
-                source: "addon",
-                live: false,
-                updatedAt: ago(5 * 36e5),
-                label: "FundingPips 20935336",
-                server: "FundingPips-SIM1",
-                prop: true,
-                counted: false,
-                info: { broker: "FundingPips", server: "FundingPips-SIM1", login: 20935336, currency: "USD", balance: 5000, equity: 5000, margin: 0, freeMargin: 5000, leverage: 100, marginLevel: 0 },
-                positions: [],
-                error: null,
-            },
-        ],
-    };
-}
 
 export function demoManual() {
     const ago = (days) => new Date(Date.now() - days * 864e5).toISOString();
@@ -48,6 +10,8 @@ export function demoManual() {
         { _id: "m2", name: "SBI savings", kind: "bank", bank: "sbi", amount: 8950.75, currency: "INR", note: "", updatedAt: ago(9) },
         { _id: "m3", name: "SBI fixed deposit", kind: "deposit", bank: "sbi", amount: 25000, currency: "INR", note: "Matures March", updatedAt: ago(41) },
         { _id: "m4", name: "Wise USD balance", kind: "cash", bank: "wise", amount: 120, currency: "USD", note: "", updatedAt: ago(5) },
+        { _id: "m6", name: "Merrill", kind: "invest", bank: "bofa", amount: 1840, currency: "USD", note: "", updatedAt: ago(3) },
+        { _id: "m7", name: "Groww mutual funds", kind: "funds", bank: "Groww", amount: 31650, currency: "INR", note: "", updatedAt: ago(6) },
         { _id: "m5", name: "Credit card due", kind: "loan", bank: "icici", amount: 6420, currency: "INR", note: "", updatedAt: ago(1) },
     ];
 }

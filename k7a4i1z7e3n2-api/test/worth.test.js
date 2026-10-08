@@ -203,6 +203,13 @@ test("keeps hand-typed entries: add, change, list, remove, and checks what's sen
     assert.equal((await req(`/worth/manual/${_id}`, { method: "DELETE" })).status, 200);
     assert.equal((await req(`/worth/manual/${_id}`, { method: "DELETE" })).status, 404);
     assert.equal((await req("/worth/manual", { key: "wrong" })).status, 401);
+
+    // investment accounts (Merrill, say) and mutual funds (on Groww, say), typed in by hand
+    for (const kind of ["invest", "funds"]) {
+        const r = await req("/worth/manual", { method: "POST", body: { name: `x ${kind}`, kind, amount: 1, currency: "USD", bank: kind === "invest" ? "bofa" : "Groww" } });
+        assert.equal(r.status, 201);
+        assert.equal((await req(`/worth/manual/${(await r.json())._id}`, { method: "DELETE" })).status, 200);
+    }
 });
 
 test("Groww: asks for today's approval until it's given", async () => {

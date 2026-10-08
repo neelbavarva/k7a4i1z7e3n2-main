@@ -102,7 +102,7 @@ export const BANKS = [
 
     // United States
     { id: "chase", name: "Chase", short: "Chase", color: "#0b3d7a", region: "us", aliases: ["chase bank", "jpmorgan chase", "jpmorgan chase bank"] },
-    { id: "bofa", name: "Bank of America", short: "BofA", mark: "Bank of America", color: "#a3132c", region: "us", aliases: ["boa", "bofa", "b of a"] },
+    { id: "bofa", name: "Bank of America", short: "BofA", mark: "Bank of America", color: "#a3132c", region: "us", aliases: ["boa", "bofa", "b of a", "merrill", "merrill lynch", "merrill edge"] },
     { id: "wells", name: "Wells Fargo", short: "Wells Fargo", color: "#a1191f", region: "us", aliases: ["wf"] },
     { id: "capone", name: "Capital One", short: "Capital One", color: "#0b4a74", region: "us", aliases: ["capitalone", "cap one"] },
     { id: "usbank", name: "U.S. Bank", short: "U.S. Bank", color: "#0c2074", region: "us", aliases: ["us bank", "usbank"] },

@@ -4,6 +4,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Check, Plus, Search } from "lucide-react";
 import { BANK_GROUPS, BANKS, REGIONS, bankColor, findBank, guessRegion, regionsOf, searchBanks } from "@/lib/cards";
 import { BankMark } from "./BankLogo";
+import { Mark } from "./Marks";
 
 const byId = new Map(BANKS.map((b) => [b.id, b]));
 const regionLabel = (id) => REGIONS.find((r) => r.id === id)?.label || "";
@@ -41,8 +42,10 @@ const whereOf = (b) => (b.region ? regionLabel(b.region) : groupLabel(b.group));
  * typed in as is.
  * value: { id } for a listed bank, { name } for one typed in, or null.
  * mine: ids of the banks the person already has cards with, most used first.
+ * platforms: places that aren't banks ({ name, brand }, Groww for mutual funds), as tiles ahead of
+ * the banks; picking one is the same as typing its name.
  */
-export default function BankPicker({ value, onChange, mine = [] }) {
+export default function BankPicker({ value, onChange, mine = [], platforms = [] }) {
     const [home] = useState(() => guessRegion());
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState("");
@@ -53,10 +56,11 @@ export default function BankPicker({ value, onChange, mine = [] }) {
     const moreBtn = useRef(null);
     const chips = useRef(null);
 
-    const tiles = useMemo(() => tilesFor(mine, home), [mine, home]);
+    const tiles = useMemo(() => tilesFor(mine, home).slice(0, 4 - platforms.length), [mine, home, platforms.length]);
     const picked = value?.id ? byId.get(value.id) : null;
     const custom = value?.name || "";
-    const fromMore = (picked && !tiles.includes(picked)) || !!custom;
+    const onPlatform = platforms.some((p) => p.name.toLowerCase() === custom.toLowerCase());
+    const fromMore = (picked && !tiles.includes(picked)) || (!!custom && !onPlatform);
 
     const q = query.trim().replace(/·/g, "");
     const results = q ? searchBanks(q, home) : null;
@@ -163,6 +167,22 @@ export default function BankPicker({ value, onChange, mine = [] }) {
     return (
         <div className="bank-picker" ref={wrap}>
             <div className="bank-tiles" role="group" aria-label="Bank">
+                {platforms.map((p) => (
+                    <button
+                        key={p.name}
+                        type="button"
+                        aria-pressed={p.name.toLowerCase() === custom.toLowerCase()}
+                        className="bank-option"
+                        onClick={() => {
+                            onChange({ name: p.name });
+                            setOpen(false);
+                        }}
+                        title={p.name}
+                    >
+                        <Mark mark={{ brand: p.brand }} size={26} />
+                        <span className="bank-option-label">{p.name}</span>
+                    </button>
+                ))}
                 {tiles.map((b) => (
                     <button
                         key={b.id}

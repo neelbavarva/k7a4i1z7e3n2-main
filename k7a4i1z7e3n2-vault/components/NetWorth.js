@@ -1,23 +1,23 @@
 "use client";
 
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronDown, Copy, Download, Eye, Pencil, Plus, RefreshCw, Trash2, X } from "lucide-react";
+import { ChevronDown, Copy, Eye, Pencil, Plus, RefreshCw, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { http } from "@/lib/http";
 import { hasHandoff, inr, num, pct } from "@/lib/kite";
 import { fmtAgo, sideOf } from "@/lib/format";
-import { combine, cryptoWorth, manualWorth, mt5Worth, perUnit, zerodhaWorth } from "@/lib/worth";
-import { demoCrypto, demoFx, demoHistory, demoManual, demoMt5 } from "@/lib/worthDemo";
+import { combine, cryptoWorth, manualWorth, zerodhaWorth } from "@/lib/worth";
+import { demoCrypto, demoFx, demoHistory, demoManual } from "@/lib/worthDemo";
 import { CHAIN_INFO, CHAIN_SHORT, NETWORK_KEY, chainOf, shortAddress } from "@/lib/wallets";
 import { CoinIcon, NetworkStack } from "./k7/CryptoIcons";
-import { Mark, brandFor } from "./k7/Marks";
-import Zerodha, { SideTag, Sym, Table, useZerodha } from "./Zerodha";
+import { Mark } from "./k7/Marks";
+import Zerodha, { Sym, Table, useZerodha } from "./Zerodha";
 import AddWallet from "./AddWallet";
-import BalanceDialog, { balanceInfo } from "./BalanceDialog";
+import BalanceDialog, { balanceInfo, markOf } from "./BalanceDialog";
 import Seg from "./k7/Seg";
 import { useCountUp } from "./k7/hooks";
 
-// Everything you own in one number: Zerodha, MT5 accounts (read by the Kaizen Reporter add-on), crypto wallets and what's typed in by hand
+// Everything you own in one number: Zerodha, crypto wallets and what's typed in by hand
 // (bank balances, deposits, loans). Each source loads on its own; the total counts the ones that
 // answered, and the status line says which are still coming or need something from you.
 // Every account is a line in one ledger and opens in place, under its own line.
@@ -70,14 +70,6 @@ const inrShort = (x) => {
 /** Whole rupees for a line in a table; a few paise of dust reads as "<₹1", not "₹0". */
 const rupees = (x) => (x > 0 && x < 1 ? "<₹1" : inr(x, { whole: true }));
 
-/** An MT5 figure in the account's own currency: dollars, US cents (a cent account) or rupees. */
-const mt5Money = (x, currency, o = {}) => {
-    if (x == null) return "—";
-    const c = String(currency || "USD").toUpperCase();
-    if (c === "USC") return `${o.sign && x > 0 ? "+" : x < 0 ? "−" : ""}${num(Math.abs(x))} US¢`;
-    return c === "INR" ? inr(x, o) : usd(x, o);
-};
-
 /** "a, b and c" */
 const list = (items) => (items.length > 1 ? `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}` : items[0] || "");
 
@@ -125,13 +117,13 @@ function BigFig({ value }) {
 const GROUPS = [
     { key: "cash", label: "Bank and cash" },
     { key: "brokerage", label: "Brokerage" },
-    { key: "forex", label: "Forex" },
+    { key: "funds", label: "Mutual funds" },
     { key: "crypto", label: "Crypto" },
     { key: "other", label: "Other assets" },
     { key: "owed", label: "Owed" },
 ];
-const ALWAYS = ["cash", "brokerage", "crypto"];
-const BALANCE_GROUP = { bank: "cash", cash: "cash", deposit: "cash", crypto: "crypto", property: "other", other: "other", loan: "owed" };
+const ALWAYS = ["cash", "brokerage", "funds", "crypto"];
+const BALANCE_GROUP = { bank: "cash", cash: "cash", deposit: "cash", invest: "brokerage", funds: "funds", crypto: "crypto", property: "other", other: "other", loan: "owed" };
 
 /** Days since a stamp, or null. */
 const daysSince = (t) => {
@@ -146,14 +138,12 @@ export default function NetWorth() {
     const demo = Boolean(z.session?.demo);
     const fx = useSource("/worth/fx", demo, demoFx);
     const manual = useSource("/worth/manual", demo, demoManual);
-    const mt5 = useSource("/mt5/accounts", demo, demoMt5);
     const wallets = useSource("/crypto/wallets", demo, demoCrypto);
     const history = useSource("/worth/history?days=1825", demo, demoHistory);
     const rate = fx.data?.rate || null;
     const [adding, setAdding] = useState(null); // null | "new" | a wallet being edited
     const [balance, setBalance] = useState(null); // null | "new" | a balance being edited
     const [savingWallet, setSavingWallet] = useState(false);
-    const [guide, setGuide] = useState(false); // the MT5 add-on's how-to, asked for from the Forex group
 
     // the account open in the ledger; back from the Kite login, Zerodha
     const [open, setOpen] = useState(() => {
@@ -172,11 +162,6 @@ export default function NetWorth() {
         } catch {
             // storage blocked
         }
-    }, [open]);
-
-    // the MT5 how-to, asked for from the Forex group, goes again once it's closed
-    useEffect(() => {
-        if (open !== "mt5:guide") setGuide(false);
     }, [open]);
 
     // ---- every account as a line of the ledger ----
@@ -201,46 +186,6 @@ export default function NetWorth() {
             state: zw ? "ready" : z.phase === "loading" ? "loading" : "off",
             action: z.phase === "connect" ? "Log in" : z.phase === "offline" ? "Retry" : "",
             worth: zw,
-        });
-    }
-
-    // MT5: one line per account; a funded (prop) one is shown, not counted. Not set up, no accounts
-    // yet, or asked for from the Forex group: a line that opens the add-on's how-to.
-    const mt5Accounts = mt5.data?.accounts || [];
-    for (const a of mt5Accounts) {
-        const w = mt5Worth(a, rate);
-        const info = a.info || {};
-        const fresh = a.source !== "addon" || a.live;
-        const from = a.source === "addon" ? (a.live ? "live" : `last report ${fmtAgo(a.updatedAt)}`) : a.source === "myfxbook" ? "Myfxbook" : "MetaApi";
-        lines.push({
-            id: `mt5:${a.id}`,
-            kind: "mt5",
-            group: "forex",
-            mark: brandFor(`${a.label} ${a.server} ${info.broker}`) ? { brand: brandFor(`${a.label} ${a.server} ${info.broker}`) } : { glyph: "forex" },
-            name: a.label,
-            note: a.error ? a.error : [`${mt5Money(info.equity, info.currency)} equity`, `${(a.positions || []).length} open`, from].join(" · "),
-            tone: a.error || !fresh ? "warn" : "",
-            value: w.counted ? w.value : null,
-            shown: w.counted ? null : w.value,
-            state: a.error ? "off" : "ready",
-            action: a.error ? "Open" : "",
-            account: a,
-            worth: w.counted ? w : null,
-        });
-    }
-    if (mt5.state === "unset" || (mt5.state === "ready" && !mt5Accounts.length) || guide) {
-        const unsetMt5 = mt5.state === "unset";
-        lines.push({
-            id: "mt5:guide",
-            kind: "mt5guide",
-            group: "forex",
-            mark: { glyph: "forex" },
-            name: mt5Accounts.length ? "Add another MT5 account" : "MetaTrader 5",
-            note: unsetMt5 ? "Not set up: needs a push token on the API server" : "Free and read only, with the Kaizen Reporter add-on",
-            value: null,
-            state: "setup",
-            action: unsetMt5 ? "Set up" : "How",
-            unset: unsetMt5,
         });
     }
 
@@ -274,7 +219,7 @@ export default function NetWorth() {
             id: `bal:${e._id}`,
             kind: "balance",
             group: BALANCE_GROUP[e.kind] || "other",
-            mark: info.bank ? { bank: info.bank } : { glyph: "bank" },
+            mark: markOf(info),
             name: info.title,
             note: [info.line, dollars ? usd(e.amount) : "", age != null && age >= STALE_DAYS ? `updated ${age} days ago` : ""].filter(Boolean).join(" · "),
             tone: age != null && age >= STALE_DAYS ? "warn" : "",
@@ -291,9 +236,8 @@ export default function NetWorth() {
         z.phase === "loading" && "Zerodha",
         wallets.state === "loading" && "crypto wallets",
         manual.state === "loading" && "balances",
-        mt5.state === "loading" && "MT5",
     ].filter(Boolean);
-    const busy = [fx, manual, wallets, mt5].some((s) => s.state === "refreshing") || z.busy;
+    const busy = [fx, manual, wallets].some((s) => s.state === "refreshing") || z.busy;
     const settled = loadingNames.length === 0 && !busy;
     const firstLoad = loadingNames.length > 0 && !lines.some((l) => l.state === "ready");
 
@@ -353,7 +297,6 @@ export default function NetWorth() {
         fx.reload();
         manual.reload();
         wallets.reload();
-        mt5.reload();
     };
 
     // opening an account from a click brings its line to the top of the screen, the account under it
@@ -418,17 +361,6 @@ export default function NetWorth() {
     const detail = (l) => {
         if (l.kind === "zerodha") return <Zerodha z={z} onPreview={preview} />;
         if (l.kind === "setup") return <SetupNote onPreview={preview} />;
-        if (l.kind === "mt5guide") return <Mt5Guide unset={l.unset} demo={demo} onPreview={preview} />;
-        if (l.kind === "mt5")
-            return (
-                <Mt5Panel
-                    key={l.account.id}
-                    account={l.account}
-                    rate={rate}
-                    demo={demo}
-                    onSaved={(fields) => mt5.setData((d) => ({ ...d, accounts: d.accounts.map((x) => (x.id === l.account.id ? { ...x, ...fields, ...(fields.counted != null ? { prop: !fields.counted } : {}) } : x)) }))}
-                />
-            );
         if (l.kind === "wallet") return <WalletPanel wallet={l.wallet} src={wallets} demo={demo} onEdit={(w) => setAdding(w)} onReread={rereadWallets} onRemove={removeWallet} />;
         return (
             <BalancePanel
@@ -463,11 +395,7 @@ export default function NetWorth() {
                         detail={detail}
                         onOpen={openLine}
                         onAddWallet={() => setAdding("new")}
-                        onAddBalance={() => setBalance("new")}
-                        onAddMt5={() => {
-                            setGuide(true);
-                            openLine("mt5:guide", { toggle: false });
-                        }}
+                        onAddBalance={(kind) => setBalance(kind ? { kind } : "new")}
                     />
                 </>
             )}
@@ -475,7 +403,8 @@ export default function NetWorth() {
             <AddWallet open={Boolean(adding)} initial={adding && adding !== "new" ? adding : null} onClose={() => !savingWallet && setAdding(null)} onSave={saveWallet} saving={savingWallet} />
             <BalanceDialog
                 open={Boolean(balance)}
-                initial={balance && balance !== "new" ? balance : null}
+                initial={balance?._id ? balance : null}
+                kind={balance?._id ? undefined : balance?.kind}
                 demo={demo}
                 onClose={() => setBalance(null)}
                 onSaved={(doc, edited) => {
@@ -817,16 +746,17 @@ function Picture({ lines, gross, open, onOpen }) {
 /** A ledger figure. */
 const Amount = ({ value, whole }) => <Fig value={whole ? Math.round(value) : value} short={false} className="lg-amt" />;
 
-function Ledger({ lines, totals, open, jump, detail, onOpen, onAddWallet, onAddBalance, onAddMt5 }) {
+function Ledger({ lines, totals, open, jump, detail, onOpen, onAddWallet, onAddBalance }) {
     const gross = totals.gross || 0;
     const sum = (ls) => ls.reduce((a, l) => a + (l.value || 0), 0);
     // what each group adds, from its own heading; an empty group is one line that adds it
     const adders = {
-        cash: { label: "Add a bank balance", sub: "Savings, a deposit, cash or a loan, typed in", run: onAddBalance },
-        forex: { label: "Add an MT5 account", sub: "Free and read only, with the Kaizen Reporter add-on", run: onAddMt5 },
+        cash: { label: "Add a bank balance", sub: "Savings, a deposit, cash or a loan, typed in", run: () => onAddBalance() },
+        brokerage: { label: "Add an investment account", sub: "A broker the page can’t read, like Merrill, typed in", run: () => onAddBalance("invest") },
+        funds: { label: "Add mutual funds", sub: "What they’re worth today, on Groww or anywhere, typed in", run: () => onAddBalance("funds") },
         crypto: { label: "Add a crypto wallet", sub: "Read from its public addresses: no keys, nothing to sign", run: onAddWallet },
-        other: { label: "Add an asset", sub: "Anything else you own, typed in", run: onAddBalance },
-        owed: { label: "Add a loan", sub: "What you owe, taken off the total", run: onAddBalance },
+        other: { label: "Add an asset", sub: "Anything else you own, typed in", run: () => onAddBalance() },
+        owed: { label: "Add a loan", sub: "What you owe, taken off the total", run: () => onAddBalance() },
     };
     // bank, brokerage and crypto are always there to add to; biggest group first, what's owed last;
     // inside a group, biggest account first
@@ -874,7 +804,7 @@ function Ledger({ lines, totals, open, jump, detail, onOpen, onAddWallet, onAddB
                                     {g.lines.length > 1 && <span className="lg-group-count">{g.lines.length}</span>}
                                 </span>
                                 <span className="lg-group-sum">{valued ? <Amount value={subtotal} whole={Math.abs(subtotal) >= 1000} /> : null}</span>
-                                {add && g.lines.length && !g.lines.some((l) => l.kind === "mt5guide") ? (
+                                {add && g.lines.length ? (
                                     <button type="button" className="lg-plus" onClick={add.run} aria-label={add.label} title={add.label}>
                                         <Plus aria-hidden="true" />
                                     </button>
@@ -921,11 +851,6 @@ function Ledger({ lines, totals, open, jump, detail, onOpen, onAddWallet, onAddB
                                                         <span className="lg-wait" aria-label="Loading" />
                                                     ) : l.value != null ? (
                                                         <Amount value={l.value} />
-                                                    ) : l.shown != null ? (
-                                                        <span className="lg-uncounted" title="Shown, not counted in your net worth">
-                                                            <Amount value={l.shown} />
-                                                            <small>not counted</small>
-                                                        </span>
                                                     ) : (
                                                         <span className="lg-action">{l.action || "Open"}</span>
                                                     )}
@@ -980,217 +905,6 @@ function SetupNote({ onPreview }) {
                     <Eye aria-hidden="true" />
                     Preview with sample data
                 </button>
-            </div>
-        </div>
-    );
-}
-
-// ---------- MT5 ----------
-
-/** How to bring an MT5 account in: the Kaizen Reporter add-on, in three steps. */
-function Mt5Guide({ unset, demo, onPreview }) {
-    return (
-        <div className="src">
-            <div className="src-head">
-                <div>
-                    <h3>Read MT5 with the Kaizen Reporter</h3>
-                    <p>
-                        A small add-on that runs inside your MT5 and sends the account’s balance, equity and open trades here every minute. It never trades, and it works logged in with the
-                        investor password. Free; it reports while MT5 is open.
-                    </p>
-                </div>
-                <a className="btn btn-primary" href="/KaizenReporter.mq5" download>
-                    <Download aria-hidden="true" />
-                    Download the add-on
-                </a>
-            </div>
-            <ol className="src-steps">
-                {unset && (
-                    <li>
-                        <b>Give the server a push token.</b> On Render, set <code>MT5_PUSH_TOKEN</code> to a long random string (<code>openssl rand -hex 32</code> makes one). The add-on sends
-                        the same string.
-                    </li>
-                )}
-                <li>
-                    <b>Install it.</b> In MT5, File › Open Data Folder › MQL5 › Experts: put the file there, then right-click Expert Advisors in the Navigator › Refresh. Not listed? Double-click
-                    the file to open MetaEditor and press Compile.
-                </li>
-                <li>
-                    <b>Let it report.</b> Tools › Options › Expert Advisors: tick Allow WebRequest for listed URL and add <code>https://k7a4i1z7e3n2.onrender.com</code>
-                </li>
-                <li>
-                    <b>Start it.</b> Drag Kaizen Reporter onto any chart, paste the push token under Inputs, OK. The chart’s corner says when it last got through, and the account shows up here
-                    within a minute.
-                </li>
-            </ol>
-            {!demo && (
-                <p className="src-fine">
-                    One chart per account. To try the page first,{" "}
-                    <button type="button" className="linkish" onClick={onPreview}>
-                        see it with sample data
-                    </button>
-                    .
-                </p>
-            )}
-        </div>
-    );
-}
-
-/** One MT5 account: where its numbers come from, its figures, open trades, and this page's settings for it. */
-function Mt5Panel({ account: a, rate, demo, onSaved }) {
-    const [naming, setNaming] = useState(false);
-    const [name, setName] = useState(a.label);
-    const [saving, setSaving] = useState(false);
-    const info = a.info || {};
-    const cur = info.currency;
-    const k = perUnit(cur, rate);
-    const money = (x, o) => mt5Money(x, cur, o);
-    const positions = a.positions || [];
-    const floating = (info.equity || 0) - (info.balance || 0);
-    const live = a.source === "addon" && a.live;
-
-    const save = async (fields) => {
-        setSaving(true);
-        try {
-            if (!demo) await http(`/mt5/accounts/${encodeURIComponent(a.id)}`, { method: "PUT", body: fields });
-            onSaved(fields);
-            setNaming(false);
-        } catch {
-            toast.error("Didn’t save", { description: "Try again in a moment." });
-        } finally {
-            setSaving(false);
-        }
-    };
-    const rename = (e) => {
-        e.preventDefault();
-        const label = name.trim();
-        if (label && label !== a.label) save({ label });
-        else setNaming(false);
-    };
-
-    if (a.error)
-        return (
-            <Setup title={`${a.label} didn’t load`}>
-                {a.error}
-            </Setup>
-        );
-
-    const cells = [
-        <div key="eq" className="brief-cell">
-            <dt>Equity</dt>
-            <dd className="brief-num sm">{money(info.equity)}</dd>
-            <dd className="brief-sub">{k ? `${inr(info.equity * k, { whole: true })} at ₹${num(rate)}` : rate ? "No rupee rate for this currency" : "Waiting for the dollar rate"}</dd>
-        </div>,
-        <div key="bal" className="brief-cell">
-            <dt>Balance</dt>
-            <dd className="brief-num sm">{money(info.balance)}</dd>
-            <dd className="brief-sub">Closed trades only</dd>
-        </div>,
-        (positions.length > 0 || Math.abs(floating) >= 0.005) && (
-            <div key="fl" className="brief-cell">
-                <dt>Open P&amp;L</dt>
-                <dd className={`brief-num sm ${sideOf(floating)}`}>{money(floating, { sign: true })}</dd>
-                <dd className="brief-sub">
-                    {positions.length} open {positions.length === 1 ? "trade" : "trades"}
-                </dd>
-            </div>
-        ),
-        info.margin > 0 && (
-            <div key="mg" className="brief-cell">
-                <dt>Margin used</dt>
-                <dd className="brief-num sm">{money(info.margin)}</dd>
-                <dd className="brief-sub">
-                    Free {money(info.freeMargin)}
-                    {info.marginLevel ? ` · level ${num(info.marginLevel, 0)}%` : ""}
-                </dd>
-            </div>
-        ),
-    ].filter(Boolean);
-
-    const none = [!positions.length && "no open trades", !a.counted && (a.prop ? "not counted: a funded account trades the firm’s money" : "not counted in your net worth")].filter(Boolean);
-
-    return (
-        <div className="kt">
-            <div className={`statusbar kt-bar${live ? "" : " is-idle"}`} role="status">
-                <i aria-hidden="true" />
-                <p>
-                    {a.source === "addon" ? (
-                        a.live ? (
-                            <>
-                                <b>Live from MT5</b> <span className="muted">·</span> the Kaizen Reporter sent this {fmtAgo(a.updatedAt)}
-                            </>
-                        ) : (
-                            <>
-                                <b>MT5 isn’t reporting</b> <span className="muted">·</span> last report {fmtAgo(a.updatedAt)}; open MT5 with the add-on on a chart
-                            </>
-                        )
-                    ) : (
-                        <>
-                            <b>{a.source === "myfxbook" ? "From Myfxbook" : "From MetaApi"}</b>
-                            {a.updatedAt ? (
-                                <>
-                                    {" "}
-                                    <span className="muted">·</span> updated {fmtAgo(a.updatedAt)}
-                                </>
-                            ) : null}
-                        </>
-                    )}
-                </p>
-            </div>
-            <dl className="brief kt-brief" style={{ "--n": cells.length }}>
-                {cells}
-            </dl>
-            {positions.length > 0 && (
-                <Table
-                    label={`${a.label} open trades`}
-                    cols="minmax(0, 1.3fr) 4rem 4.5rem 6.5rem 6.5rem 7rem"
-                    colsSm="minmax(0, 1fr) 3.2rem 6rem"
-                    hide={[2, 3, 4]}
-                    head={["Symbol", "Side", "Lots", "Open", "Now", "Profit"]}
-                    rows={positions}
-                    rowKey={(r) => r.id}
-                    render={(r) => [
-                        <Sym key="s" title={r.symbol} sub={r.swap ? `Swap ${money(r.swap, { sign: true })}` : ""} />,
-                        <SideTag key="d" side={String(r.type).includes("SELL") ? "SELL" : "BUY"} />,
-                        <span key="v" className="kt-num">{num(r.volume)}</span>,
-                        <span key="o" className="kt-num">{r.openPrice != null ? num(r.openPrice, 5) : "—"}</span>,
-                        <span key="c" className="kt-num">{r.currentPrice != null ? num(r.currentPrice, 5) : "—"}</span>,
-                        <span key="p" className={`kt-num pnl ${sideOf(r.profit)}`}>{money(r.profit, { sign: true })}</span>,
-                    ]}
-                />
-            )}
-            {none.length > 0 && <p className="kt-none">{none.map((x, i) => (i ? x : x[0].toUpperCase() + x.slice(1))).join("; ")}.</p>}
-            <div className="nw-wal-foot">
-                <span className="nw-meta">{[info.server || a.server, a.login ? `login ${a.login}` : "", info.leverage ? `1:${info.leverage}` : ""].filter(Boolean).join(" · ")}</span>
-                {naming ? (
-                    <form className="nw-confirm" onSubmit={rename}>
-                        <input className="input nw-name-input" value={name} onChange={(e) => setName(e.target.value)} maxLength={40} autoFocus disabled={saving} aria-label="Name on this page" />
-                        <button type="button" className="btn btn-sm" onClick={() => (setName(a.label), setNaming(false))} disabled={saving}>
-                            Cancel
-                        </button>
-                        <button type="submit" className="btn btn-sm btn-primary" disabled={saving}>
-                            Save
-                        </button>
-                    </form>
-                ) : (
-                    <div className="tb" role="toolbar" aria-label={a.label}>
-                        <button type="button" className="tb-btn" onClick={() => setNaming(true)} title="The name it has on this page">
-                            <Pencil aria-hidden="true" />
-                            <span>Rename</span>
-                        </button>
-                        <button
-                            type="button"
-                            className={`tb-btn${a.counted ? " is-on" : ""}`}
-                            aria-pressed={a.counted}
-                            onClick={() => save({ counted: !a.counted })}
-                            disabled={saving}
-                            title={a.counted ? "Leave it out of your net worth" : "Count it in your net worth"}
-                        >
-                            {a.counted ? <Check aria-hidden="true" /> : <X aria-hidden="true" />}
-                            <span>{a.counted ? "Counted" : "Not counted"}</span>
-                        </button>
-                    </div>
-                )}
             </div>
         </div>
     );
@@ -1289,7 +1003,7 @@ function BalancePanel({ entry, rate, demo, onEdit, onSaved }) {
         <form className="nw-bal" onSubmit={save}>
             <div className="nw-bal-main">
                 <label className="nw-bal-label" htmlFor={`nw-bal-${entry._id}`}>
-                    {loan ? "Owed today" : "Balance today"}
+                    {loan ? "Owed today" : entry.kind === "invest" || entry.kind === "funds" ? "Value today" : "Balance today"}
                 </label>
                 <div className={`nw-bal-fig${changed ? " is-changed" : ""}`}>
                     <span className="nw-bal-cur" aria-hidden="true">
@@ -1349,7 +1063,7 @@ function BalancePanel({ entry, rate, demo, onEdit, onSaved }) {
                 <div>
                     <dt>{info.line ? info.line.split(" · ")[0] : "Balance"}</dt>
                     <dd>
-                        {info.bank ? <Mark mark={{ bank: info.bank }} size={18} /> : null}
+                        {info.bank || info.brand ? <Mark mark={markOf(info)} size={18} /> : null}
                         {held || "Not tied to a bank"}
                     </dd>
                 </div>

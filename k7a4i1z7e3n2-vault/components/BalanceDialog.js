@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Banknote, Ellipsis, HandCoins, Landmark, PiggyBank, Trash2 } from "lucide-react";
+import { Banknote, ChartPie, Ellipsis, HandCoins, Landmark, PiggyBank, Trash2, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 import { http } from "@/lib/http";
 import { findBank } from "@/lib/cards";
@@ -10,9 +10,10 @@ import Seg from "./k7/Seg";
 import BankPicker from "./k7/BankPicker";
 import { BANKS } from "@/lib/cards";
 import { inr } from "@/lib/kite";
-import { Mark, bankIn } from "./k7/Marks";
+import { Mark, bankIn, brandFor } from "./k7/Marks";
 
-// A balance typed in by hand (a bank account, a deposit, cash, a loan), added the way the vault
+// A balance typed in by hand (a bank account, a deposit, cash, an investment account like Merrill,
+// mutual funds on Groww, a loan), added the way the vault
 // adds a card: the card fills in above as you go, the bank comes from the same picker, and the
 // rest is a few fields. Opening one that exists edits it.
 
@@ -20,6 +21,8 @@ export const BALANCE_KINDS = [
     { value: "bank", label: "Savings", icon: <Landmark aria-hidden="true" />, line: "Savings account" },
     { value: "deposit", label: "Deposit", icon: <PiggyBank aria-hidden="true" />, line: "Fixed deposit" },
     { value: "cash", label: "Cash", icon: <Banknote aria-hidden="true" />, line: "Cash" },
+    { value: "invest", label: "Investments", icon: <TrendingUp aria-hidden="true" />, line: "Investment account" },
+    { value: "funds", label: "Mutual funds", icon: <ChartPie aria-hidden="true" />, line: "Mutual funds" },
     { value: "loan", label: "Loan", icon: <HandCoins aria-hidden="true" />, line: "Loan outstanding" },
     { value: "other", label: "Other", icon: <Ellipsis aria-hidden="true" />, line: "Other asset" },
 ];
@@ -35,28 +38,40 @@ export function balanceInfo(e) {
     const listed = bankById(e.bank) || findBank(e.bank) || (!e.bank ? bankIn(e.name) : null) || null;
     const typed = !listed && e.bank ? e.bank : "";
     const short = listed?.short || typed;
-    const kindWord = { bank: "Savings", deposit: "Deposit", cash: "Cash", loan: "Loan", other: "", crypto: "Crypto", property: "Property" }[e.kind] || "";
+    const kindWord = { bank: "Savings", deposit: "Deposit", cash: "Cash", invest: "Investments", funds: "Mutual funds", loan: "Loan", other: "", crypto: "Crypto", property: "Property" }[e.kind] || "";
     return {
         bank: listed,
         bankName: typed,
+        // a platform typed in that has a logo here (Groww), when it isn't a bank
+        brand: listed ? null : brandFor(typed || e.name),
         title: e.name?.trim() || [short, kindWord].filter(Boolean).join(" ") || "Balance",
         line: [LINE[e.kind] || "", e.note].filter(Boolean).join(" · "),
     };
 }
 
-export default function BalanceDialog({ open, initial, demo, onClose, onSaved, onDeleted }) {
+/** A balance's mark: its bank's logo, a platform's (Groww), or a plain bank glyph. */
+export const markOf = (info) => (info.bank ? { bank: info.bank } : info.brand ? { brand: info.brand } : { glyph: "bank" });
+
+// where mutual funds and investments are held that aren't banks (Zerodha's funds are read on their own)
+const PLATFORMS = [{ name: "Groww", brand: "groww" }];
+
+const ADD_TITLE = { invest: "Add an investment account", funds: "Add mutual funds" };
+
+/** `kind` starts a new balance as that kind (from the Brokerage or Mutual funds group's +). */
+export default function BalanceDialog({ open, initial, kind, demo, onClose, onSaved, onDeleted }) {
     const [busy, setBusy] = useState(false);
     return (
-        <Modal open={open} onClose={onClose} busy={busy} title={initial ? "Edit balance" : "Add a balance"} sub="Typed in by hand. Update it when it changes." className="manage">
-            <div className="modal-body">{open && <BalanceForm initial={initial} demo={demo} onBusy={setBusy} onClose={onClose} onSaved={onSaved} onDeleted={onDeleted} />}</div>
+        <Modal open={open} onClose={onClose} busy={busy} title={initial ? "Edit balance" : ADD_TITLE[kind] || "Add a balance"} sub="Typed in by hand. Update it when it changes." className="manage">
+            <div className="modal-body">{open && <BalanceForm initial={initial} preset={kind} demo={demo} onBusy={setBusy} onClose={onClose} onSaved={onSaved} onDeleted={onDeleted} />}</div>
         </Modal>
     );
 }
 
-function BalanceForm({ initial, demo, onBusy, onClose, onSaved, onDeleted }) {
+function BalanceForm({ initial, preset, demo, onBusy, onClose, onSaved, onDeleted }) {
     const start = initial ? balanceInfo(initial) : null;
     const [pick, setPick] = useState(start?.bank ? { id: start.bank.id } : start?.bankName ? { name: start.bankName } : null);
-    const [kind, setKind] = useState(initial?.kind && LINE[initial.kind] ? initial.kind : "bank");
+    const [kind, setKind] = useState(initial?.kind && LINE[initial.kind] ? initial.kind : LINE[preset] ? preset : "bank");
+    const held = kind === "invest" || kind === "funds"; // held with a broker or a platform, not only a bank
     const [amount, setAmount] = useState(initial ? String(initial.amount) : "");
     const [currency, setCurrency] = useState(initial?.currency || "INR");
     const [name, setName] = useState(initial?.name || "");
@@ -116,10 +131,10 @@ function BalanceForm({ initial, demo, onBusy, onClose, onSaved, onDeleted }) {
     return (
         <form className="form" onSubmit={save}>
             <div className="bal-preview" aria-hidden="true">
-                <Mark mark={info.bank ? { bank: info.bank } : { glyph: "bank" }} size={44} />
+                <Mark mark={markOf(info)} size={44} />
                 <span className="bal-preview-text">
                     <b>{info.title}</b>
-                    <small>{info.line || "Pick the bank and type the balance"}</small>
+                    <small>{info.line || (held ? "Pick where it’s held and type what it’s worth" : "Pick the bank and type the balance")}</small>
                 </span>
                 <span className={`bal-preview-amt${kind === "loan" ? " is-neg" : ""}`}>
                     {okAmount ? `${kind === "loan" ? "−" : ""}${currency === "USD" ? `$${value.toLocaleString("en-US", { maximumFractionDigits: 2 })}` : inr(value)}` : "—"}
@@ -127,19 +142,22 @@ function BalanceForm({ initial, demo, onBusy, onClose, onSaved, onDeleted }) {
             </div>
 
             <div className="field">
-                <span className="field-label">{kind === "cash" ? "Bank (optional)" : "Bank"}</span>
-                <BankPicker value={pick} onChange={setPick} />
+                <span className="field-label">
+                    {held ? "Held with" : kind === "cash" ? "Bank (optional)" : "Bank"}
+                    {held && <span className="field-note">a bank from the list, or type the platform, like Groww</span>}
+                </span>
+                <BankPicker value={pick} onChange={setPick} platforms={held ? PLATFORMS : []} mine={kind === "invest" ? ["bofa"] : []} />
             </div>
 
             <div className="field">
                 <span className="field-label">Kind</span>
-                <Seg wide className="seg-icons" label="Kind" options={BALANCE_KINDS} value={kind} onChange={setKind} />
+                <Seg wide className="seg-icons bal-kinds" label="Kind" options={BALANCE_KINDS} value={kind} onChange={setKind} />
             </div>
 
             <div className="form-grid">
                 <div className="field">
                     <label htmlFor="bal-amount" className="field-label">
-                        {kind === "loan" ? "Amount owed" : "Balance"}
+                        {kind === "loan" ? "Amount owed" : held ? "Current value" : "Balance"}
                     </label>
                     <div className="bal-amount">
                         <input id="bal-amount" className="input" value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="0" autoFocus={!initial} />

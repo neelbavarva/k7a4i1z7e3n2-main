@@ -16,7 +16,7 @@ router.get("/fx", apiKeyMiddleware, async (req, res) => {
     }
 });
 
-const KINDS = ["bank", "cash", "deposit", "crypto", "property", "other", "loan"];
+const KINDS = ["bank", "cash", "deposit", "invest", "funds", "crypto", "property", "other", "loan"];
 const fields = [
     body("name").isString().trim().isLength({ min: 1, max: 60 }),
     body("kind").isIn(KINDS),
