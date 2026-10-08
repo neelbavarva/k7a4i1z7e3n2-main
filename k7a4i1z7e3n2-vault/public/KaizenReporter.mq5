@@ -37,7 +37,7 @@ int OnInit()
       return(INIT_PARAMETERS_INCORRECT);
      }
    EventSetTimer(MathMax(15, EverySeconds));
-   Comment("Kaizen Reporter · starting");
+   Comment("Kaizen Reporter - starting");
    Send();
    return(INIT_SUCCEEDED);
   }
@@ -119,7 +119,7 @@ void Send()
       if(!reported)
          Print("Kaizen Reporter: account ", AccountInfoInteger(ACCOUNT_LOGIN), " is reporting to ", ApiUrl);
       reported = true;
-      Comment("Kaizen Reporter · sent ", when);
+      Comment("Kaizen Reporter - sent ", when);
       return;
      }
    string why;
@@ -132,5 +132,5 @@ void Send()
    else
       why = "the server answered " + IntegerToString(code) + ": " + CharArrayToString(result);
    Print("Kaizen Reporter: ", why);
-   Comment("Kaizen Reporter · not sent at ", when, " · ", why);
+   Comment("Kaizen Reporter - not sent at ", when, " - ", why);
   }
