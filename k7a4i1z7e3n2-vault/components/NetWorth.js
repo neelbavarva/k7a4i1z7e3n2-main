@@ -1,27 +1,26 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Pencil, Plus, RefreshCw, Trash2, X } from "lucide-react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { ChevronDown, Copy, Eye, Pencil, Plus, RefreshCw, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { http } from "@/lib/http";
 import { hasHandoff, inr, num, pct } from "@/lib/kite";
-import { sideOf } from "@/lib/format";
-import { combine, cryptoWorth, growwWorth, manualWorth, mt5Worth, perUnit, zerodhaWorth } from "@/lib/worth";
-import { demoCrypto, demoFx, demoGroww, demoHistory, demoManual, demoMt5 } from "@/lib/worthDemo";
+import { fmtAgo, sideOf } from "@/lib/format";
+import { combine, cryptoWorth, growwWorth, manualWorth, zerodhaWorth } from "@/lib/worth";
+import { demoCrypto, demoFx, demoGroww, demoHistory, demoManual } from "@/lib/worthDemo";
 import { CHAIN_INFO, CHAIN_SHORT, NETWORK_KEY, chainOf, shortAddress } from "@/lib/wallets";
 import { CoinIcon, NetworkStack } from "./k7/CryptoIcons";
-import { Mark, bankIn, brandFor } from "./k7/Marks";
-import { BANKS } from "@/lib/cards";
-import Zerodha, { Rupees, SideTag, Sym, Table, useZerodha } from "./Zerodha";
+import { Mark } from "./k7/Marks";
+import Zerodha, { Rupees, Sym, Table, useZerodha } from "./Zerodha";
 import AddWallet from "./AddWallet";
 import BalanceDialog, { balanceInfo } from "./BalanceDialog";
-
 import Seg from "./k7/Seg";
 import { useCountUp } from "./k7/hooks";
 
-// Everything you own in one number: Zerodha, Groww, the MT5 forex accounts and what's typed in
-// by hand (bank balances, deposits, loans). Each source loads on its own; the total counts the
-// ones that answered and says which didn't.
+// Everything you own in one number: Zerodha, Groww, crypto wallets and what's typed in by hand
+// (bank balances, deposits, loans). Each source loads on its own; the total counts the ones that
+// answered, and the status line says which are still coming or need something from you.
+// Every account is a line in one ledger and opens in place, under its own line.
 
 const usd = (x, { sign = false } = {}) => {
     const n = Number(x) || 0;
@@ -29,7 +28,7 @@ const usd = (x, { sign = false } = {}) => {
     return `${n < 0 ? "−" : sign && n > 0 ? "+" : ""}$${abs}`;
 };
 
-/** One source's answer: loading, ready, unset (not configured), approve (Groww), or error. */
+/** One source's answer: loading, ready, refreshing, unset (not configured), approve (Groww), or error. */
 function useSource(path, demo, sample) {
     const [s, setS] = useState({ state: "loading" });
     const [ask, setAsk] = useState(0); // bumped to load again
@@ -56,10 +55,12 @@ function useSource(path, demo, sample) {
     return { ...s, reload, setData: (fn) => setS((p) => ({ ...p, data: fn(p.data) })) };
 }
 
-const PICK_KEY = "worthSource";
+const ready = (s) => s.state === "ready" || s.state === "refreshing";
+
+const OPEN_KEY = "worthOpen";
 const POSTED_KEY = "worthPosted";
 
-/** Rupees the short way for big totals: ₹21.86 L, ₹1.24 Cr. */
+/** Rupees the short way for big sums: ₹21.86 L, ₹1.24 Cr; whole rupees below a lakh. */
 const inrShort = (x) => {
     const n = Math.abs(Number(x) || 0);
     const sign = x < 0 ? "−" : "";
@@ -67,6 +68,12 @@ const inrShort = (x) => {
     if (n >= 1e5) return `${sign}₹${(n / 1e5).toFixed(2)} L`;
     return `${sign}${inr(n, { whole: true })}`;
 };
+
+/** Whole rupees for a line in a table; a few paise of dust reads as "<₹1", not "₹0". */
+const rupees = (x) => (x > 0 && x < 1 ? "<₹1" : inr(x, { whole: true }));
+
+/** "a, b and c" */
+const list = (items) => (items.length > 1 ? `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}` : items[0] || "");
 
 const fmt2 = new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -109,19 +116,29 @@ function BigFig({ value }) {
     return <Fig value={Math.round(v * 100) / 100} paise="always" className="fig-big" />;
 }
 
-const bankById = (id) => BANKS.find((b) => b.id === id);
+const GROUPS = [
+    { key: "cash", label: "Bank and cash" },
+    { key: "brokerage", label: "Brokerage" },
+    { key: "crypto", label: "Crypto" },
+    { key: "other", label: "Other assets" },
+    { key: "owed", label: "Owed" },
+];
+const ALWAYS = ["cash", "brokerage", "crypto"];
+const BALANCE_GROUP = { bank: "cash", cash: "cash", deposit: "cash", crypto: "crypto", property: "other", other: "other", loan: "owed" };
 
-/** An account's mark, from its `mark` description (see components/k7/Marks.js). */
-function SourceMark({ source, size = 40 }) {
-    return <Mark mark={source.mark} size={size} />;
-}
+/** Days since a stamp, or null. */
+const daysSince = (t) => {
+    const ms = Date.parse(t);
+    return Number.isFinite(ms) ? Math.floor((Date.now() - ms) / 864e5) : null;
+};
+/** A typed-in balance this old is probably out of date. */
+const STALE_DAYS = 30;
 
 export default function NetWorth() {
     const z = useZerodha();
     const demo = Boolean(z.session?.demo);
     const fx = useSource("/worth/fx", demo, demoFx);
     const groww = useSource("/groww/account", demo, demoGroww);
-    const mt5 = useSource("/mt5/accounts", demo, demoMt5);
     const manual = useSource("/worth/manual", demo, demoManual);
     const wallets = useSource("/crypto/wallets", demo, demoCrypto);
     const history = useSource("/worth/history?days=1825", demo, demoHistory);
@@ -130,131 +147,132 @@ export default function NetWorth() {
     const [balance, setBalance] = useState(null); // null | "new" | a balance being edited
     const [savingWallet, setSavingWallet] = useState(false);
 
-    const [pick, setPick] = useState(() => {
-        if (typeof window === "undefined" || hasHandoff()) return "zerodha";
+    // the account open in the ledger; back from the Kite login, Zerodha
+    const [open, setOpen] = useState(() => {
+        if (typeof window === "undefined") return null;
+        if (hasHandoff()) return "zerodha";
         try {
-            return localStorage.getItem(PICK_KEY) || "zerodha";
+            return localStorage.getItem(OPEN_KEY) || null;
         } catch {
-            return "zerodha";
+            return null;
         }
     });
     useEffect(() => {
         try {
-            localStorage.setItem(PICK_KEY, pick);
+            if (open) localStorage.setItem(OPEN_KEY, open);
+            else localStorage.removeItem(OPEN_KEY);
         } catch {
             // storage blocked
         }
-    }, [pick]);
+    }, [open]);
 
-    const ready = (s) => s.state === "ready" || s.state === "refreshing";
+    // ---- every account as a line of the ledger ----
+    const lines = [];
+    // a broker the API server isn't set up for: a line of its own that opens to what it needs
+    const unset = (id, name, needs) => ({ id, kind: "setup", group: "brokerage", mark: { brand: id }, name, note: `Not set up: needs ${needs} on the API server`, value: null, state: "setup", action: "Set up" });
 
-    // ---- every source as a tile ----
-    const sources = [];
     const zw = z.phase === "ready" && z.account ? zerodhaWorth(z.account) : null;
-    sources.push({
-        id: "zerodha",
-        name: "Zerodha",
-        kind: "Stocks, F&O, Coin funds",
-        mark: { brand: "zerodha" },
-        worth: zw,
-        status: zw ? `Holdings ${inrShort(zw.parts.stocks)} · cash ${inrShort(zw.parts.cash)}` : { loading: "Loading…", connect: "Connect for today", unset: "Not set up yet", offline: "Server didn’t answer" }[z.phase] || "",
-        tone: zw ? "ok" : z.phase === "loading" ? "" : "warn",
-    });
-
-    const gw = ready(groww) && groww.data ? growwWorth(groww.data.sections) : null;
-    sources.push({
-        id: "groww",
-        name: "Groww",
-        kind: "Stocks and F&O",
-        mark: { brand: "groww" },
-        worth: gw,
-        status: gw
-            ? `${groww.data.sections.holdings?.data?.length || 0} holdings · delayed prices`
-            : { loading: "Loading…", unset: "Not set up yet", approve: "Approve today on Groww Cloud", error: groww.message }[groww.state],
-        tone: gw ? "ok" : groww.state === "loading" ? "" : "warn",
-    });
-
-    if (mt5.data?.accounts?.length) {
-        for (const a of mt5.data.accounts) {
-            const w = mt5Worth(a, rate);
-            sources.push({
-                id: `mt5:${a.id || a.label}`,
-                name: a.label,
-                kind: w.counted ? "MT5 forex" : "MT5 · funded, not counted",
-                mark: brandFor(`${a.label} ${a.server} ${a.info?.broker}`) ? { brand: brandFor(`${a.label} ${a.server} ${a.info?.broker}`) } : { glyph: "forex" },
-                worth: w.counted ? w : null,
-                shown: w.value,
-                account: a,
-                status: a.error
-                    ? a.error
-                    : `${a.info?.currency === "USC" ? `${num(a.info.equity)} US¢` : usd(a.info?.equity)} · ${a.positions.length} open · ${a.source === "addon" ? (a.live ? "live" : "add-on offline") : a.source === "myfxbook" ? "Myfxbook" : "MetaApi"}`,
-                tone: a.error ? "warn" : a.source === "addon" && a.live ? "live" : "ok",
-            });
-        }
-    } else {
-        sources.push({
-            id: "mt5",
-            mark: { brand: "exness" },
-            name: "Exness",
-            kind: "Exness and other MT5 brokers",
-            worth: null,
-            status: { loading: "Loading…", unset: "Not set up yet", error: mt5.message }[mt5.state] || "No accounts yet",
-            tone: mt5.state === "loading" ? "" : "warn",
+    if (z.phase === "unset") lines.push(unset("zerodha", "Zerodha", "a Kite Connect app"));
+    else if (z.phase !== "loading" || z.session) {
+        const p = zw?.parts;
+        lines.push({
+            id: "zerodha",
+            kind: "zerodha",
+            group: "brokerage",
+            mark: { brand: "zerodha" },
+            name: "Zerodha",
+            note: zw
+                ? [p.stocks ? `Holdings ${inrShort(p.stocks)}` : "No holdings", p.funds ? `funds ${inrShort(p.funds)}` : "", `cash ${inrShort(p.cash)}`].filter(Boolean).join(" · ")
+                : { loading: "Reading…", connect: "Log in for today: Kite logins end at 6 AM", offline: "The server didn’t answer" }[z.phase] || "",
+            value: zw ? zw.total : null,
+            state: zw ? "ready" : z.phase === "loading" ? "loading" : "off",
+            action: z.phase === "connect" ? "Log in" : z.phase === "offline" ? "Retry" : "",
+            worth: zw,
         });
     }
 
-    const walletList = wallets.data?.wallets || [];
-    if (walletList.length) {
-        for (const w of walletList) {
-            const coins = [...new Set((w.holdings || []).map((h) => h.symbol))];
-            sources.push({
-                id: `crypto:${w._id}`,
-                name: w.name,
-                kind: `Crypto · ${(w.addresses || []).map((a) => CHAIN_SHORT[a.chain]).join(", ")}`,
-                wallet: w.kind || "other",
-                mark: { wallet: w.kind || "other" },
-                worth: cryptoWorth({ wallets: [w] }),
-                status: w.error ? "Some chains didn’t answer" : coins.length ? coins.slice(0, 4).join(", ") + (coins.length > 4 ? "…" : "") : "Nothing on these addresses yet",
-                tone: w.error ? "warn" : "ok",
-                cryptoWallet: w,
-            });
-        }
-    } else {
-        sources.push({
-            id: "crypto",
-            mark: { stack: [{ wallet: "trust" }, { wallet: "metamask" }, { wallet: "phantom" }] },
-            name: "Crypto wallets",
-            kind: "Trust Wallet, MetaMask, Phantom…",
-            worth: ready(wallets) ? cryptoWorth(wallets.data) : null,
-            status: { loading: "Loading…", error: wallets.message, unset: "Server didn’t answer" }[wallets.state] || "Add a wallet: no keys, read only",
-            tone: "",
+    const gw = ready(groww) && groww.data ? growwWorth(groww.data.sections) : null;
+    if (groww.state === "unset") lines.push(unset("groww", "Groww", "a Groww Cloud key"));
+    else if (groww.state !== "loading") {
+        lines.push({
+            id: "groww",
+            kind: "groww",
+            group: "brokerage",
+            mark: { brand: "groww" },
+            name: "Groww",
+            note: gw ? `${groww.data.sections.holdings?.data?.length || "No"} holdings · delayed prices` : groww.state === "approve" ? "Approve the API key on Groww Cloud for today" : groww.message,
+            value: gw ? gw.total : null,
+            state: gw ? "ready" : "off",
+            action: groww.state === "approve" ? "Approve" : gw ? "" : "Retry",
+            worth: gw,
+        });
+    }
+
+    for (const w of wallets.data?.wallets || []) {
+        const coins = [...new Set((w.holdings || []).map((h) => h.symbol))];
+        const worth = cryptoWorth({ wallets: [w] });
+        lines.push({
+            id: `crypto:${w._id}`,
+            kind: "wallet",
+            group: "crypto",
+            mark: { wallet: w.kind || "other" },
+            name: w.name,
+            note: w.error
+                ? "Some chains didn’t answer"
+                : `${coins.length ? coins.slice(0, 3).join(", ") + (coins.length > 3 ? ` +${coins.length - 3}` : "") : "Empty"} · ${(w.addresses || []).map((a) => CHAIN_SHORT[a.chain]).join(", ")}`,
+            tone: w.error ? "warn" : "",
+            value: worth.total,
+            state: "ready",
+            wallet: w,
+            worth,
         });
     }
 
     const entries = manual.data || [];
-    const mw = ready(manual) ? manualWorth(entries, rate) : null;
-    sources.push({
-        id: "manual",
-        mark: (() => {
-            const banks = [...new Set(entries.map((e) => bankIn(e.name)?.id).filter(Boolean))].map(bankById);
-            return { stack: (banks.length ? banks : ["hdfc", "sbi", "icici"].map(bankById)).filter(Boolean).map((bank) => ({ bank })) };
-        })(),
-        name: "Bank and cash",
-        kind: "Typed in by hand",
-        worth: mw,
-        status: mw ? (entries.length ? `${entries.length} ${entries.length === 1 ? "entry" : "entries"}${entries.some((e) => e.kind === "loan") ? ", loans taken off" : ""}` : "Add HDFC, SBI and the rest") : { loading: "Loading…", error: manual.message, unset: "Server didn’t answer" }[manual.state],
-        tone: mw && entries.length ? "ok" : "",
-    });
+    for (const e of entries) {
+        const info = balanceInfo(e);
+        const dollars = e.currency === "USD";
+        const value = (e.amount || 0) * (dollars ? rate || 0 : 1);
+        const age = daysSince(e.updatedAt);
+        lines.push({
+            id: `bal:${e._id}`,
+            kind: "balance",
+            group: BALANCE_GROUP[e.kind] || "other",
+            mark: info.bank ? { bank: info.bank } : { glyph: "bank" },
+            name: info.title,
+            note: [info.line, dollars ? usd(e.amount) : "", age != null && age >= STALE_DAYS ? `updated ${age} days ago` : ""].filter(Boolean).join(" · "),
+            tone: age != null && age >= STALE_DAYS ? "warn" : "",
+            value: e.kind === "loan" ? -value : value,
+            state: "ready",
+            entry: e,
+            worth: manualWorth([e], rate),
+        });
+    }
 
-    const totals = combine(sources.map((s) => s.worth));
-    const hidden = []; // accounts on the page but not counted (funded ones)
-    const counted = sources.filter((s) => s.worth && s.worth.total).length;
-    const current = sources.find((s) => s.id === pick) || sources[0];
-    const settled = z.phase !== "loading" && [fx, groww, mt5, manual, wallets].every((s) => s.state !== "loading" && s.state !== "refreshing");
+    const totals = combine(lines.map((l) => l.worth));
+    const counted = lines.filter((l) => l.state === "ready").length;
+    const loadingNames = [
+        z.phase === "loading" && "Zerodha",
+        groww.state === "loading" && "Groww",
+        wallets.state === "loading" && "crypto wallets",
+        manual.state === "loading" && "balances",
+    ].filter(Boolean);
+    const busy = [fx, groww, manual, wallets].some((s) => s.state === "refreshing") || z.busy;
+    const settled = loadingNames.length === 0 && !busy;
+    const firstLoad = loadingNames.length > 0 && !lines.some((l) => l.state === "ready");
+
+    // when everything last finished reading, for the status line
+    const [readAt, setReadAt] = useState(null);
+    useEffect(() => {
+        if (settled) setReadAt(Date.now());
+    }, [settled]);
 
     // ---- today's point on the history line, sent once things have settled ----
+    // (keyed on the parts' text, not the object, which is new on every render; one send at a time)
+    const partsKey = JSON.stringify(totals.parts);
+    const posting = useRef(false);
     useEffect(() => {
-        if (demo || !settled || !counted) return;
+        if (demo || !settled || !counted || posting.current) return;
         let last = null;
         try {
             last = JSON.parse(localStorage.getItem(POSTED_KEY) || "null");
@@ -263,7 +281,8 @@ export default function NetWorth() {
         }
         const fresh = last && Date.now() - last.at < 30 * 60 * 1000 && Math.abs(last.total - totals.total) < Math.max(1, Math.abs(totals.total) * 0.002);
         if (fresh) return;
-        http("/worth/history", { method: "POST", body: { total: totals.total, parts: totals.parts, sources: counted } })
+        posting.current = true;
+        http("/worth/history", { method: "POST", body: { total: totals.total, parts: JSON.parse(partsKey), sources: counted } })
             .then(() => {
                 try {
                     localStorage.setItem(POSTED_KEY, JSON.stringify({ at: Date.now(), total: totals.total }));
@@ -271,28 +290,41 @@ export default function NetWorth() {
                     // storage blocked
                 }
             })
-            .catch(() => {});
-    }, [demo, settled, counted, totals.total, totals.parts]);
+            .catch(() => {})
+            .finally(() => {
+                posting.current = false;
+            });
+    }, [demo, settled, counted, totals.total, partsKey]);
 
     const points = useMemo(() => {
-        const list = [...(history.data || [])];
+        let list = [...(history.data || [])];
+        // the sample's line is drawn to scale: it ends where the sample's total is
+        if (demo && list.length && settled && totals.total) {
+            const k = totals.total / list[list.length - 1].total;
+            list = list.map((p) => ({ ...p, total: p.total * k }));
+        }
         const today = new Date(Date.now() + 5.5 * 36e5).toISOString().slice(0, 10);
         if (settled && counted) {
             if (list.length && list[list.length - 1].date === today) list[list.length - 1] = { ...list[list.length - 1], total: totals.total };
             else list.push({ date: today, total: totals.total });
         }
         return list;
-    }, [history.data, settled, counted, totals.total]);
+    }, [history.data, demo, settled, counted, totals.total]);
 
     const preview = () => z.preview();
-    const exitPreview = () => z.exitPreview();
     const refreshAll = () => {
         z.refresh();
         fx.reload();
         groww.reload();
-        mt5.reload();
         manual.reload();
         wallets.reload();
+    };
+
+    // opening an account from a click brings its line to the top of the screen, the account under it
+    const [jump, setJump] = useState(0);
+    const openLine = (id, { toggle = true } = {}) => {
+        setOpen((cur) => (toggle && cur === id ? null : id));
+        setJump((n) => n + 1);
     };
 
     const saveWallet = async (fields) => {
@@ -308,13 +340,13 @@ export default function NetWorth() {
                         ? d.wallets.map((w) => (w._id === editing._id ? { ...w, ...fields, addresses } : w))
                         : [...d.wallets, { _id: id, ...fields, addresses, holdings: [], inr: 0, usd: 0, error: null }],
                 }));
-                setPick(`crypto:${id}`);
+                openLine(`crypto:${id}`, { toggle: false });
             } else if (editing) {
                 await http(`/crypto/wallets/${editing._id}`, { method: "PUT", body: fields });
                 wallets.reload();
             } else {
                 const doc = await http("/crypto/wallets", { method: "POST", body: fields });
-                setPick(`crypto:${doc._id}`);
+                openLine(`crypto:${doc._id}`, { toggle: false });
                 wallets.reload();
             }
             toast.success(editing ? "Wallet saved" : "Wallet added", { description: "Reading its balances from the chains." });
@@ -326,98 +358,68 @@ export default function NetWorth() {
         }
     };
 
+    // the chains read again now, past the server's five-minute cache
+    const rereadWallets = async () => {
+        if (demo) return;
+        try {
+            const data = await http("/crypto/wallets?fresh=1");
+            wallets.setData(() => data);
+        } catch (err) {
+            toast.error("The chains didn’t answer", { description: err.detail || "Try again in a moment." });
+        }
+    };
+
     const removeWallet = async (w) => {
         try {
             if (!demo) await http(`/crypto/wallets/${w._id}`, { method: "DELETE" });
             wallets.setData((d) => ({ ...d, wallets: d.wallets.filter((x) => x._id !== w._id) }));
-            setPick("zerodha");
+            setOpen(null);
         } catch {
             toast.error("Didn’t remove it", { description: "Try again in a moment." });
         }
     };
 
-    // ---- every account as one line of the picture and the ledger ----
-    for (const s of sources) if (s.account && !s.worth) hidden.push(s); // not counted (a funded account)
-    const lines = [];
-    const stateOf = (s) => (s.worth ? "ready" : /Loading/.test(s.status || "") ? "loading" : "off");
-    for (const s of sources) {
-        if (s.id === "manual" || (s.account && !s.worth)) continue;
-        const group = s.id === "zerodha" || s.id === "groww" ? "brokerage" : s.id.startsWith("mt5") ? "forex" : "crypto";
-        if (s.id === "crypto") continue; // no wallets yet: the crypto group shows its add line instead
-        lines.push({ id: s.id, pick: s.id, group, mark: s.mark, name: s.name, note: s.status, tone: s.tone, value: s.worth ? s.worth.total : null, state: stateOf(s) });
-    }
-    for (const e of entries) {
-        const info = balanceInfo(e);
-        const value = (e.amount || 0) * (e.currency === "USD" ? rate || 0 : 1);
-        lines.push({
-            id: `bal:${e._id}`,
-            balance: e,
-            group: BALANCE_GROUP[e.kind] || "other",
-            mark: info.bank ? { bank: info.bank } : { glyph: e.kind === "loan" ? "bank" : "bank" },
-            name: info.title,
-            note: [info.line, e.currency === "USD" ? usd(e.amount) : null].filter(Boolean).join(" · "),
-            tone: "ok",
-            value: e.kind === "loan" ? -value : value,
-            state: "ready",
-        });
-    }
-    const balancesState = ready(manual) ? "ready" : manual.state === "loading" ? "loading" : "off";
-    const walletsState = ready(wallets) ? "ready" : wallets.state === "loading" ? "loading" : "off";
-    const openLine = (l) => (l.balance ? setBalance(l.balance) : setPick(l.pick));
-    const showDetail = !current.id.startsWith("manual") && current.id !== "crypto";
+    const detail = (l) => {
+        if (l.kind === "zerodha") return <Zerodha z={z} onPreview={preview} />;
+        if (l.kind === "groww") return <GrowwPanel src={groww} onPreview={preview} />;
+        if (l.kind === "setup") return <SetupNote id={l.id} onPreview={preview} />;
+        if (l.kind === "wallet") return <WalletPanel wallet={l.wallet} src={wallets} demo={demo} onEdit={(w) => setAdding(w)} onReread={rereadWallets} onRemove={removeWallet} />;
+        return (
+            <BalancePanel
+                key={`${l.entry._id}:${l.entry.updatedAt}`}
+                entry={l.entry}
+                rate={rate}
+                demo={demo}
+                onEdit={() => setBalance(l.entry)}
+                onSaved={(doc) => manual.setData((list = []) => list.map((x) => (x._id === doc._id ? doc : x)))}
+            />
+        );
+    };
 
     return (
         <div className="nw fade-in">
-            {demo && (
-                <div className="statusbar kt-bar is-idle" role="status">
-                    <i aria-hidden="true" />
-                    <p>
-                        <b>Sample data</b> <span className="muted">·</span> nothing here is from your accounts
-                    </p>
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={exitPreview}>
-                        <X aria-hidden="true" />
-                        <span className="btn-label">Exit preview</span>
-                    </button>
+            <Status demo={demo} loading={loadingNames} busy={busy} counted={counted} readAt={readAt} rate={rate} lines={lines} onRefresh={refreshAll} onExit={z.exitPreview} onPreview={preview} />
+
+            {firstLoad ? (
+                <div className="nw-sk" aria-busy="true" aria-label="Reading your accounts">
+                    <div className="sk nw-sk-hero" />
+                    <div className="sk sk-rows" />
                 </div>
-            )}
-
-            <Hero totals={totals} rate={rate} points={points} counted={counted} sources={sources.length} demo={demo} onPreview={preview} onRefresh={refreshAll} />
-
-            <Picture lines={lines} gross={totals.gross} current={current.id} onOpen={openLine} />
-
-            <Ledger
-                lines={lines}
-                hidden={hidden}
-                totals={totals}
-                current={current.id}
-                balancesState={balancesState}
-                walletsState={walletsState}
-                onOpen={openLine}
-                onPick={setPick}
-                onAddWallet={() => setAdding("new")}
-                onAddBalance={() => setBalance("new")}
-            />
-
-            {showDetail && (
-                <section className="group nw-detail" aria-labelledby="nw-detail">
-                    <div className="nw-detail-head">
-                        <SourceMark source={current} size={44} />
-                        <div>
-                            <h2 id="nw-detail">{current.name}</h2>
-                            <p>{current.kind}</p>
-                        </div>
-                        {current.worth ? <Fig value={current.worth.total} className="nw-detail-value" /> : null}
-                    </div>
-                    {current.id === "zerodha" ? (
-                        <Zerodha z={z} onPreview={preview} />
-                    ) : current.id === "groww" ? (
-                        <GrowwPanel src={groww} onPreview={preview} />
-                    ) : current.id.startsWith("crypto") ? (
-                        <WalletPanel wallet={current.cryptoWallet} src={wallets} onAdd={() => setAdding("new")} onEdit={(w) => setAdding(w)} onRemove={removeWallet} />
-                    ) : (
-                        <Mt5Panel src={mt5} account={current.account} rate={rate} demo={demo} onPreview={preview} />
-                    )}
-                </section>
+            ) : (
+                <>
+                    <Hero totals={totals} rate={rate} points={points} />
+                    <Picture lines={lines} gross={totals.gross} open={open} onOpen={(id) => openLine(id, { toggle: false })} />
+                    <Ledger
+                        lines={lines}
+                        totals={totals}
+                        open={open}
+                        jump={jump}
+                        detail={detail}
+                        onOpen={openLine}
+                        onAddWallet={() => setAdding("new")}
+                        onAddBalance={() => setBalance("new")}
+                    />
+                </>
             )}
 
             <AddWallet open={Boolean(adding)} initial={adding && adding !== "new" ? adding : null} onClose={() => !savingWallet && setAdding(null)} onSave={saveWallet} saving={savingWallet} />
@@ -426,23 +428,217 @@ export default function NetWorth() {
                 initial={balance && balance !== "new" ? balance : null}
                 demo={demo}
                 onClose={() => setBalance(null)}
-                onSaved={(doc, edited) => manual.setData((list = []) => (edited ? list.map((x) => (x._id === doc._id ? doc : x)) : [...list, doc]))}
-                onDeleted={(doc) => manual.setData((list = []) => list.filter((x) => x._id !== doc._id))}
+                onSaved={(doc, edited) => {
+                    manual.setData((list = []) => (edited ? list.map((x) => (x._id === doc._id ? doc : x)) : [...list, doc]));
+                    if (!edited) openLine(`bal:${doc._id}`, { toggle: false });
+                }}
+                onDeleted={(doc) => {
+                    manual.setData((list = []) => list.filter((x) => x._id !== doc._id));
+                    setOpen(null);
+                }}
             />
         </div>
     );
 }
 
-const BALANCE_GROUP = { bank: "cash", cash: "cash", deposit: "cash", crypto: "crypto", property: "other", other: "other", loan: "liabilities" };
+// ---------- the status line ----------
 
-const GROUPS = [
-    { key: "brokerage", label: "Brokerage" },
-    { key: "forex", label: "Forex" },
-    { key: "crypto", label: "Crypto" },
-    { key: "cash", label: "Cash and deposits" },
-    { key: "other", label: "Other assets" },
-    { key: "liabilities", label: "Liabilities" },
+/** What's been read and when, what's still coming, and what needs you: one line, as on the other Kaizen sites. */
+function Status({ demo, loading, busy, counted, readAt, rate, lines, onRefresh, onExit, onPreview }) {
+    const needs = lines.filter((l) => l.state === "off").map((l) => l.name); // not "setup": an optional broker that was never set up doesn’t need you
+    const tone = demo || loading.length || busy ? " is-idle" : needs.length ? " is-warn" : "";
+    const at = readAt ? new Date(readAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }) : "";
+    return (
+        <div className={`statusbar nw-status${tone}`} role="status">
+            <i aria-hidden="true" />
+            <p>
+                {demo ? (
+                    <>
+                        <b>Sample data</b> <span className="muted">·</span> nothing here is from your accounts
+                    </>
+                ) : loading.length ? (
+                    <>Reading {list(loading)}…</>
+                ) : busy ? (
+                    <>Reading every account again…</>
+                ) : !counted ? (
+                    <>
+                        <b>Nothing added yet</b>
+                        {needs.length ? (
+                            <>
+                                {" "}
+                                <span className="muted">·</span> {list(needs)} {needs.length === 1 ? "needs" : "need"} you
+                            </>
+                        ) : null}
+                    </>
+                ) : (
+                    <>
+                        <b>
+                            {counted} {counted === 1 ? "account" : "accounts"}
+                        </b>{" "}
+                        read at {at}
+                        {needs.length ? (
+                            <>
+                                {" "}
+                                <span className="muted">·</span> {list(needs)} {needs.length === 1 ? "needs" : "need"} you
+                            </>
+                        ) : null}
+                    </>
+                )}
+                {rate ? (
+                    <span className="nw-status-rate">
+                        {" "}
+                        <span className="muted">·</span> $1 = ₹{num(rate)}
+                    </span>
+                ) : null}
+            </p>
+            {demo ? (
+                <button type="button" className="btn btn-ghost btn-sm" onClick={onExit}>
+                    <X aria-hidden="true" />
+                    <span className="btn-label">Exit preview</span>
+                </button>
+            ) : (
+                <>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={onPreview} title="See the page filled in with sample accounts; nothing is saved">
+                        <Eye aria-hidden="true" />
+                        <span className="btn-label">Sample</span>
+                    </button>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={onRefresh} disabled={busy || loading.length > 0} title="Read every account again">
+                        <RefreshCw className={busy ? "spin" : ""} aria-hidden="true" />
+                        <span className="btn-label">Refresh</span>
+                    </button>
+                </>
+            )}
+        </div>
+    );
+}
+
+// ---------- the top: the total and its history ----------
+
+const RANGES = [
+    { value: "1M", label: "1M", days: 31 },
+    { value: "3M", label: "3M", days: 92 },
+    { value: "1Y", label: "1Y", days: 366 },
+    { value: "all", label: "All", days: Infinity },
 ];
+const RANGE_WORDS = { "1M": "this month", "3M": "in 3 months", "1Y": "this year", all: "since the start" };
+
+function Hero({ totals, rate, points }) {
+    const [range, setRange] = useState("3M");
+    const days = RANGES.find((r) => r.value === range).days;
+    // counted back from the latest point (today's), so rendering stays pure
+    const lastDate = points[points.length - 1]?.date;
+    const from = Number.isFinite(days) && lastDate ? new Date(Date.parse(`${lastDate}T00:00:00Z`) - days * 864e5).toISOString().slice(0, 10) : "";
+    const shown = points.filter((p) => p.date >= from);
+    const first = shown[0];
+    const change = first && shown.length > 1 ? totals.total - first.total : null;
+    const asOf = new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+    // the range buttons only once there's more history than the shortest range shows
+    const spans = points.length > 1 && Date.parse(points[points.length - 1].date) - Date.parse(points[0].date) > 31 * 864e5;
+
+    return (
+        <section className="hx" aria-labelledby="nw-total">
+            <div className="hx-main">
+                <p className="hx-eyebrow" id="nw-total">
+                    Net worth <span>· {asOf}</span>
+                </p>
+                <p className="hx-big">
+                    <BigFig value={totals.total} />
+                </p>
+                <div className="hx-facts">
+                    {change != null && Math.abs(change) >= 0.5 && (
+                        <span className={`hx-change tone-${sideOf(change)}`}>
+                            <svg viewBox="0 0 10 10" aria-hidden="true">
+                                <path d={change >= 0 ? "M5 1.5 9 8H1z" : "M5 8.5 1 2h8z"} />
+                            </svg>
+                            {inrShort(Math.abs(change))}
+                            {first.total ? <span> {pct((change / Math.abs(first.total)) * 100)}</span> : null}
+                            <span className="muted"> {spans ? RANGE_WORDS[range] : `since ${shortDay(first.date)}`}</span>
+                        </span>
+                    )}
+                    {rate && totals.total ? <span className="hx-fact">{usd(totals.total / rate)}</span> : null}
+                    {totals.day ? (
+                        <span className="hx-fact">
+                            <b className={sideOf(totals.day)}>{inr(totals.day, { sign: true, whole: true })}</b> <span className="muted">on stocks today</span>
+                        </span>
+                    ) : null}
+                </div>
+            </div>
+            <div className="hx-side">
+                <div className="hx-side-head">
+                    <span>{points.length > 1 ? `${points.length} days recorded` : "History"}</span>
+                    {spans && <Seg label="Range" options={RANGES} value={range} onChange={setRange} />}
+                </div>
+                <History points={shown} total={totals.total} />
+            </div>
+        </section>
+    );
+}
+
+const shortDay = (d) => new Date(`${d}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+
+/** The total over time, one point a day. Point at it to read a day. */
+function History({ points, total }) {
+    const [at, setAt] = useState(null);
+    const plot = useRef(null);
+    if (points.length < 2) {
+        // day one: the month ahead as a ruler, today's mark lit at its start
+        return (
+            <div className="hx-chart is-empty">
+                <div className="hx-ruler" aria-hidden="true">
+                    {Array.from({ length: 31 }, (_, d) => (
+                        <i key={d} className={d === 0 ? "is-today" : d % 7 === 0 ? "is-week" : ""} />
+                    ))}
+                </div>
+                <p className="hx-ruler-text">
+                    <b>Day one</b> at <Fig value={total} short className="hx-ruler-val" />. A point is added each day you open this page, and the line draws itself.
+                </p>
+            </div>
+        );
+    }
+    const values = points.map((p) => p.total);
+    const lo0 = Math.min(...values);
+    const hi0 = Math.max(...values);
+    const pad = (hi0 - lo0) * 0.14 || Math.abs(hi0) * 0.02 || 1;
+    const lo = lo0 - pad;
+    const hi = hi0 + pad;
+    const n = points.length - 1;
+    const X = (i) => (i / n) * 100;
+    const Y = (v) => ((hi - v) / (hi - lo)) * 100;
+    const line = values.map((v, i) => `${i ? "L" : "M"}${X(i).toFixed(3)} ${Y(v).toFixed(3)}`).join("");
+    const up = values[n] >= values[0];
+    const i = at == null ? n : at;
+    const p = points[i];
+    const move = (e) => {
+        const r = plot.current.getBoundingClientRect();
+        setAt(Math.round(Math.min(Math.max((e.clientX - r.left) / r.width, 0), 1) * n));
+    };
+    return (
+        <div className={`hx-chart ${up ? "is-up" : "is-down"}`}>
+            <div className="hx-plot" ref={plot} onPointerMove={move} onPointerLeave={() => setAt(null)}>
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                    {[33.3, 66.6].map((g) => (
+                        <line key={g} className="hx-grid" x1="0" x2="100" y1={g} y2={g} />
+                    ))}
+                    <line className="hx-base" x1="0" x2="100" y1={Y(values[0])} y2={Y(values[0])} />
+                    <path className="hx-area" d={`${line}L100 100L0 100Z`} />
+                    <path className="hx-line" d={line} />
+                    {at != null && <line className="hx-cross" x1={X(at)} x2={X(at)} y1="0" y2="100" />}
+                </svg>
+                {n < 40 && values.map((v, k) => <span key={k} className="hx-pt" style={{ left: `${X(k)}%`, top: `${Y(v)}%` }} aria-hidden="true" />)}
+                <span className="hx-dot" style={{ left: `${X(i)}%`, top: `${Y(p.total)}%` }} aria-hidden="true" />
+                <span className={`hx-tip${X(i) > 60 ? " is-left" : ""}${Y(p.total) < 30 ? " is-below" : ""}`} style={{ left: `${X(i)}%`, top: `${Y(p.total)}%` }}>
+                    <b>{inrShort(p.total)}</b>
+                    <span>{i === n ? "Today" : shortDay(p.date)}</span>
+                </span>
+            </div>
+            <div className="hx-axis" aria-hidden="true">
+                <span>{shortDay(points[0].date)}</span>
+                {n > 2 && <span>{shortDay(points[Math.floor(n / 2)].date)}</span>}
+                <span>Today</span>
+            </div>
+        </div>
+    );
+}
 
 // ---------- where it sits: a treemap of every account ----------
 
@@ -494,27 +690,31 @@ function squarify(items, x, y, w, h) {
     return out;
 }
 
-/** How tall the picture is for this many blocks: one account is a band, not a wall. */
-const mapHeight = (count, narrow) => (count <= 1 ? 112 : count === 2 ? (narrow ? 220 : 170) : count <= 4 ? (narrow ? 300 : 240) : narrow ? 380 : 300);
+/** How tall the picture is: as short as its blocks allow, so it's a band across the page, not a wall. */
+const mapHeight = (count, narrow) => (count === 2 ? (narrow ? 112 : 84) : count <= 4 ? (narrow ? 156 : 112) : narrow ? 188 : 132);
 
 /**
  * Every account with a value as a block sized by what it holds: one quiet panel split by hairlines,
- * like the screener's figures, each block with the account's logo, name and value.
+ * each block with the account's logo, name and value, laid out across when the block is wide and
+ * short. Clicking one opens its account in the ledger.
  */
-function Picture({ lines, gross, current, onOpen }) {
+function Picture({ lines, gross, open, onOpen }) {
     const box = useRef(null);
     const [size, setSize] = useState({ w: 0, h: 0 });
+    const valued = lines.filter((l) => l.value > 0).sort((a, b) => b.value - a.value);
+    const many = valued.length > 1;
     useEffect(() => {
         const el = box.current;
         if (!el) return;
         const ro = new ResizeObserver(([e]) => setSize({ w: e.contentRect.width, h: e.contentRect.height }));
         ro.observe(el);
         return () => ro.disconnect();
-    }, []);
+    }, [many]);
+    // one account is all of it: the ledger says so, a block of 100% adds nothing
+    if (!many) return null;
 
-    const valued = lines.filter((l) => l.value > 0).sort((a, b) => b.value - a.value);
     // a floor so a small account is still a block you can point at
-    const floor = gross * 0.025;
+    const floor = gross * 0.03;
     // laid out 1px past the panel's right and bottom, so the hairline after the last block is
     // under the panel's own edge
     const blocks = squarify(
@@ -525,52 +725,38 @@ function Picture({ lines, gross, current, onOpen }) {
         size.h + 1
     );
     const narrow = size.w > 0 && size.w < 560;
-    const one = valued.length === 1;
 
     return (
-        <section className="pic" aria-labelledby="pic-title">
-            <div className="pic-head">
-                <h2 id="pic-title">Where it sits</h2>
-                {valued.length > 1 && <span className="pic-sub">{valued.length} accounts, sized by value</span>}
-            </div>
-            <div className={valued.length ? "pic-map" : "pic-empty"} ref={box} style={valued.length ? { height: mapHeight(valued.length, narrow) } : undefined}>
-                {valued.length ? (
-                    blocks.map((b, i) => {
-                        const big = one || (b.w > 170 && b.h > 110);
-                        const mid = !big && b.w > 104 && b.h > 92;
-                        const tight = !big && !mid && b.w > 104 && b.h > 60;
-                        const share = gross ? (b.value / gross) * 100 : 0;
-                        return (
-                            <button
-                                key={b.id}
-                                type="button"
-                                className={`pic-block${big ? " is-big" : mid ? " is-mid" : tight ? " is-tight" : " is-small"}${one ? " is-one" : ""}${current === b.pick ? " is-on" : ""}`}
-                                style={{ left: b.x, top: b.y, width: b.w, height: b.h, "--i": i }}
-                                onClick={() => onOpen(b)}
-                                title={`${b.name}: ${inr(b.value, { whole: true })} (${pct(share, { sign: false })})`}
-                            >
-                                <span className="pic-in">
-                                    <span className="pic-top">
-                                        <Mark mark={b.mark} size={big ? 30 : 24} />
-                                        {(big || mid) && !one ? <span className="pic-share">{pct(share, { sign: false }).replace(/\.\d+%/, "%")}</span> : null}
+        <section className="pic" aria-label="Where it sits">
+            <div className="pic-map" ref={box} style={{ height: mapHeight(valued.length, narrow) }}>
+                {blocks.map((b, i) => {
+                    const share = gross ? (b.value / gross) * 100 : 0;
+                    // one layout for every block, centred in it, so names and values line up across
+                    // the band: across (logo, then name over value) wherever it fits, the logo over
+                    // the value in a narrow block, the logo alone in a sliver
+                    const fit = b.w >= 150 && b.h >= 48 ? "row" : b.w >= 84 && b.h >= 64 ? "stack" : "logo";
+                    return (
+                        <button
+                            key={b.id}
+                            type="button"
+                            className={`pic-block is-${fit}${open === b.id ? " is-on" : ""}`}
+                            style={{ left: b.x, top: b.y, width: b.w, height: b.h, "--i": i }}
+                            onClick={() => onOpen(b.id)}
+                            title={`${b.name}: ${inr(b.value)} (${pct(share, { sign: false })})`}
+                        >
+                            <span className="pic-in">
+                                <Mark mark={b.mark} size={fit === "row" ? 26 : 22} />
+                                {fit !== "logo" && (
+                                    <span className="pic-text">
+                                        {fit === "row" && <b>{b.name}</b>}
+                                        <Fig value={b.value} short className="pic-val" />
                                     </span>
-                                    {big || mid || tight ? (
-                                        <span className="pic-text">
-                                            {tight ? null : <b>{b.name}</b>}
-                                            <Fig value={b.value} short className="pic-val" />
-                                            {(one || (big && b.h > 150)) && b.note ? <small className="pic-note">{b.note}</small> : null}
-                                        </span>
-                                    ) : null}
-                                </span>
-                            </button>
-                        );
-                    })
-                ) : (
-                    <>
-                        <p>Your accounts appear here as blocks, each sized by what it holds.</p>
-                        <span>Connect an account or add a balance below.</span>
-                    </>
-                )}
+                                )}
+                                {fit === "row" && b.w >= 240 ? <span className="pic-share">{share < 1 ? "<1%" : `${Math.round(share)}%`}</span> : null}
+                            </span>
+                        </button>
+                    );
+                })}
             </div>
         </section>
     );
@@ -581,264 +767,382 @@ function Picture({ lines, gross, current, onOpen }) {
 /** A ledger figure. */
 const Amount = ({ value, whole }) => <Fig value={whole ? Math.round(value) : value} short={false} className="lg-amt" />;
 
-function Ledger({ lines, hidden, totals, current, balancesState, walletsState, onOpen, onPick, onAddWallet, onAddBalance }) {
+function Ledger({ lines, totals, open, jump, detail, onOpen, onAddWallet, onAddBalance }) {
     const gross = totals.gross || 0;
-    const groups = GROUPS.map((g) => ({ ...g, lines: lines.filter((l) => l.group === g.key) })).filter((g) => g.lines.length || g.key === "crypto" || g.key === "cash");
-    const addRow = (label, sub, onClick, state) => (
-        <li>
-            <button type="button" className="lg-row lg-add" onClick={onClick} disabled={state === "loading"}>
-                <span className="lg-add-icon">{state === "loading" ? <span className="lg-wait" /> : <Plus aria-hidden="true" />}</span>
-                <span className="lg-name">
-                    <b>{label}</b>
-                    <small>{state === "loading" ? "Loading…" : sub}</small>
-                </span>
-            </button>
-        </li>
-    );
+    const sum = (ls) => ls.reduce((a, l) => a + (l.value || 0), 0);
+    // what each group adds, from its own heading; an empty group is one line that adds it
+    const adders = {
+        cash: { label: "Add a bank balance", sub: "Savings, a deposit, cash or a loan, typed in", run: onAddBalance },
+        crypto: { label: "Add a crypto wallet", sub: "Read from its public addresses: no keys, nothing to sign", run: onAddWallet },
+        other: { label: "Add an asset", sub: "Anything else you own, typed in", run: onAddBalance },
+        owed: { label: "Add a loan", sub: "What you owe, taken off the total", run: onAddBalance },
+    };
+    // bank, brokerage and crypto are always there to add to; biggest group first, what's owed last;
+    // inside a group, biggest account first
+    const groups = GROUPS.map((g) => ({ ...g, lines: lines.filter((l) => l.group === g.key).sort((a, b) => (b.value ?? -Infinity) - (a.value ?? -Infinity)) }))
+        .filter((g) => g.lines.length || ALWAYS.includes(g.key))
+        .sort((a, b) => (a.key === "owed") - (b.key === "owed") || !a.lines.length - !b.lines.length || sum(b.lines) - sum(a.lines));
+    const shares = lines.filter((l) => l.value > 0).length > 1;
+
+    // the opened line comes up to the top of the screen, unless it's already near there
+    const rows = useRef({});
+    useLayoutEffect(() => {
+        if (!jump || !open) return;
+        const el = rows.current[open];
+        if (!el) return;
+        const top = el.getBoundingClientRect().top;
+        if (top < 72 || top > window.innerHeight * 0.32) {
+            const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+            el.scrollIntoView({ block: "start", behavior: still ? "auto" : "smooth" });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [jump]);
+
     return (
         <section className="lg" aria-labelledby="lg-title">
-            <div className="lg-head">
-                <h2 id="lg-title">Accounts</h2>
-                <span className="lg-cols" aria-hidden="true">
-                    <span>Share</span>
+            <h2 id="lg-title" className="lg-title">
+                Accounts
+                {lines.length > 0 && <span className="count">{lines.filter((l) => l.state !== "setup").length}</span>}
+            </h2>
+            <div className="lg-card">
+                <div className="lg-row lg-colhead" aria-hidden="true">
+                    <span className="lg-colhead-name">Account</span>
+                    <span>{shares ? "Share" : ""}</span>
                     <span>Value</span>
-                </span>
-            </div>
-            {groups.map((g) => {
-                const sub = g.lines.reduce((a, l) => a + (l.value || 0), 0);
-                return (
-                    <div key={g.key} className="lg-group">
-                        <div className="lg-group-head">
-                            <span className="lg-group-name">{g.label}</span>
-                            {g.lines.some((l) => l.value != null) ? <Amount value={sub} whole /> : null}
-                        </div>
-                        <ul className="lg-rows">
-                            {g.lines.map((l) => {
-                                const share = l.value != null && gross ? (Math.abs(l.value) / gross) * 100 : null;
-                                return (
-                                    <li key={l.id}>
-                                        <button
-                                            type="button"
-                                            className={`lg-row${current === l.pick ? " is-on" : ""}${l.state !== "ready" ? " is-off" : ""}`}
-                                            onClick={() => onOpen(l)}
-                                        >
-                                            <Mark mark={l.mark} size={36} />
+                    <span />
+                </div>
+                {groups.map((g) => {
+                    const subtotal = sum(g.lines);
+                    const add = adders[g.key];
+                    const valued = g.lines.some((l) => l.value != null);
+                    return (
+                        <div key={g.key} className="lg-group">
+                            <div className="lg-group-head">
+                                <span className="lg-group-name">
+                                    {g.label}
+                                    {g.lines.length > 1 && <span className="lg-group-count">{g.lines.length}</span>}
+                                </span>
+                                <span className="lg-group-sum">{valued ? <Amount value={subtotal} whole={Math.abs(subtotal) >= 1000} /> : null}</span>
+                                {add && g.lines.length ? (
+                                    <button type="button" className="lg-plus" onClick={add.run} aria-label={add.label} title={add.label}>
+                                        <Plus aria-hidden="true" />
+                                    </button>
+                                ) : (
+                                    <span />
+                                )}
+                            </div>
+                            <ul className="lg-rows">
+                                {g.lines.map((l) => {
+                                    const on = open === l.id;
+                                    const share = shares && l.value > 0 && gross ? (l.value / gross) * 100 : null;
+                                    return (
+                                        <li key={l.id} className={on ? "is-open" : ""}>
+                                            <button
+                                                type="button"
+                                                ref={(el) => (rows.current[l.id] = el)}
+                                                className={`lg-row${l.state !== "ready" ? " is-off" : ""}`}
+                                                aria-expanded={on}
+                                                aria-controls={`lg-open-${l.id}`}
+                                                onClick={() => onOpen(l.id)}
+                                            >
+                                                <Mark mark={l.mark} size={34} />
+                                                <span className="lg-name">
+                                                    <b>{l.name}</b>
+                                                    <small>
+                                                        {l.state === "off" || l.state === "loading" || l.tone ? (
+                                                            <i className={`lg-dot tone-${l.state === "loading" ? "none" : "warn"}`} aria-hidden="true" />
+                                                        ) : null}
+                                                        <span>{l.note}</span>
+                                                    </small>
+                                                </span>
+                                                <span className="lg-share">
+                                                    {share != null ? (
+                                                        <>
+                                                            <span className="lg-bar" aria-hidden="true">
+                                                                <i style={{ width: `${Math.max(2, Math.min(100, share))}%` }} />
+                                                            </span>
+                                                            <span>{share < 1 ? "<1%" : `${Math.round(share)}%`}</span>
+                                                        </>
+                                                    ) : null}
+                                                </span>
+                                                <span className="lg-val">
+                                                    {l.state === "loading" ? (
+                                                        <span className="lg-wait" aria-label="Loading" />
+                                                    ) : l.value != null ? (
+                                                        <Amount value={l.value} />
+                                                    ) : (
+                                                        <span className="lg-action">{l.action || "Open"}</span>
+                                                    )}
+                                                </span>
+                                                <ChevronDown className="lg-chev" aria-hidden="true" />
+                                            </button>
+                                            {on && (
+                                                <div className="lg-open" id={`lg-open-${l.id}`}>
+                                                    {detail(l)}
+                                                </div>
+                                            )}
+                                        </li>
+                                    );
+                                })}
+                                {!g.lines.length && add && (
+                                    <li>
+                                        <button type="button" className="lg-row lg-addrow" onClick={add.run}>
+                                            <span className="lg-addmark" aria-hidden="true">
+                                                <Plus />
+                                            </span>
                                             <span className="lg-name">
-                                                <b>{l.name}</b>
+                                                <b>{add.label}</b>
                                                 <small>
-                                                    <i className={`lg-dot tone-${l.state === "ready" ? l.tone || "ok" : l.state === "loading" ? "none" : "warn"}`} aria-hidden="true" />
-                                                    {l.note}
+                                                    <span>{add.sub}</span>
                                                 </small>
-                                            </span>
-                                            <span className="lg-share">
-                                                {share != null && l.value > 0 ? (
-                                                    <>
-                                                        <span className="lg-bar" aria-hidden="true">
-                                                            <i style={{ width: `${Math.min(100, share)}%` }} />
-                                                        </span>
-                                                        <span>{pct(share, { sign: false })}</span>
-                                                    </>
-                                                ) : null}
-                                            </span>
-                                            <span className="lg-val">
-                                                {l.state === "loading" ? <span className="lg-wait" aria-label="Loading" /> : l.value != null ? <Amount value={l.value} /> : <span className="lg-connect">Connect</span>}
                                             </span>
                                         </button>
                                     </li>
-                                );
-                            })}
-                            {g.key === "crypto" && addRow("Add a crypto wallet", "Trust Wallet, MetaMask, Phantom… public addresses only", onAddWallet, walletsState)}
-                            {g.key === "cash" && addRow(g.lines.length ? "Add a balance" : "Add a bank balance", `Pick the bank, type the balance. HDFC, SBI and ${BANKS.length - 2} more`, onAddBalance, balancesState)}
-                        </ul>
-                    </div>
-                );
-            })}
-            <div className="lg-total">
-                <span>Net worth</span>
-                <Fig value={totals.total} className="lg-total-amt" />
+                                )}
+                            </ul>
+                        </div>
+                    );
+                })}
             </div>
-            {hidden.length > 0 && (
-                <p className="lg-foot">
-                    Not counted:{" "}
-                    {hidden.map((h, i) => (
-                        <React.Fragment key={h.id}>
-                            {i ? ", " : ""}
-                            <button type="button" className="linkish" onClick={() => onPick(h.id)}>
-                                {h.name}
-                            </button>
-                        </React.Fragment>
-                    ))}
-                </p>
-            )}
         </section>
     );
 }
 
-// ---------- the top: the total and its history ----------
-
-const RANGES = [
-    { value: "1M", label: "1M", days: 31 },
-    { value: "3M", label: "3M", days: 92 },
-    { value: "1Y", label: "1Y", days: 366 },
-    { value: "all", label: "All", days: Infinity },
-];
-const RANGE_WORDS = { "1M": "this month", "3M": "in 3 months", "1Y": "this year", all: "since the start" };
-
-function Hero({ totals, rate, points, counted, sources, demo, onPreview, onRefresh }) {
-    const [range, setRange] = useState("3M");
-    const days = RANGES.find((r) => r.value === range).days;
-    // counted back from the latest point (today's), so rendering stays pure
-    const lastDate = points[points.length - 1]?.date;
-    const from = Number.isFinite(days) && lastDate ? new Date(Date.parse(`${lastDate}T00:00:00Z`) - days * 864e5).toISOString().slice(0, 10) : "";
-    const shown = points.filter((p) => p.date >= from);
-    const first = shown[0];
-    const change = first && shown.length > 1 ? totals.total - first.total : null;
-    const asOf = lastDate ? new Date(`${lastDate}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" }) : "";
-
+/** How to turn on a broker the API server isn't set up for. */
+function SetupNote({ id, onPreview }) {
+    const groww = id === "groww";
     return (
-        <section className="hx" aria-labelledby="nw-total">
-            <div className="hx-bar">
-                <p className="hx-eyebrow" id="nw-total">
-                    Net worth{asOf ? <span> · {asOf}</span> : null}
-                </p>
-                <div className="hx-tools">
-                    {points.length > 1 && <Seg label="Range" options={RANGES} value={range} onChange={setRange} />}
-                    <button type="button" className="btn btn-ghost btn-icon" onClick={onRefresh} title="Read every account again" aria-label="Refresh">
-                        <RefreshCw />
-                    </button>
+        <div className="src">
+            <div className="src-head">
+                <div>
+                    <h3>{groww ? "Groww isn’t set up yet" : "Zerodha isn’t set up yet"}</h3>
+                    {groww ? (
+                        <p>
+                            Groww is read through Groww Cloud. Create an API key there (the free tier is enough), then add <code>GROWW_API_KEY</code> and <code>GROWW_API_SECRET</code> to the API
+                            server.
+                        </p>
+                    ) : (
+                        <p>
+                            Zerodha is read through a Kite Connect app. Create one at developers.kite.trade, then add <code>KITE_API_KEY</code>, <code>KITE_API_SECRET</code> and{" "}
+                            <code>KITE_USER_ID</code> to the API server.
+                        </p>
+                    )}
                 </div>
-            </div>
-            <div className="hx-top">
-                <div className="hx-figure">
-                    <p className="hx-big">
-                        <BigFig value={totals.total} />
-                    </p>
-                    <div className="hx-facts">
-                        {change != null && (
-                            <span className={`hx-change tone-${sideOf(change)}`}>
-                                <svg viewBox="0 0 10 10" aria-hidden="true">
-                                    <path d={change >= 0 ? "M5 1.5 9 8H1z" : "M5 8.5 1 2h8z"} />
-                                </svg>
-                                {inrShort(Math.abs(change))}
-                                {first.total ? <span> {pct((change / Math.abs(first.total)) * 100)}</span> : null}
-                                <span className="muted"> {RANGE_WORDS[range]}</span>
-                            </span>
-                        )}
-                        {rate ? (
-                            <span className="hx-fact">
-                                {usd(totals.total / rate)} <span className="muted">at ₹{num(rate)}</span>
-                            </span>
-                        ) : null}
-                        {totals.day ? (
-                            <span className="hx-fact">
-                                <b className={sideOf(totals.day)}>{inr(totals.day, { sign: true, whole: true })}</b> <span className="muted">stocks today</span>
-                            </span>
-                        ) : null}
-                    </div>
-                </div>
-            </div>
-            <History points={shown} total={totals.total} />
-            <p className="hx-foot">
-                From {counted} of {sources} sources
-                {!demo && counted < sources ? (
-                    <>
-                        {" "}
-                        <span className="muted">·</span>{" "}
-                        <button type="button" className="linkish" onClick={onPreview}>
-                            see it with sample data
-                        </button>
-                    </>
-                ) : null}
-            </p>
-        </section>
-    );
-}
-
-/** The total over time, one point a day. Point at it to read a day. */
-function History({ points, total }) {
-    const [at, setAt] = useState(null);
-    const plot = useRef(null);
-    if (points.length < 2) {
-        // day one: the month ahead as a ruler, today's mark lit at its start
-        return (
-            <div className="hx-chart is-empty">
-                <div className="hx-ruler" aria-hidden="true">
-                    {Array.from({ length: 31 }, (_, d) => (
-                        <i key={d} className={d === 0 ? "is-today" : d % 7 === 0 ? "is-week" : ""} />
-                    ))}
-                </div>
-                <div className="hx-ruler-text">
-                    <span className="hx-ruler-today">
-                        <b>Day one</b> <Fig value={total} short className="hx-ruler-val" />
-                    </span>
-                    <span>A point is added each day you open this page, and the line draws itself.</span>
-                </div>
-            </div>
-        );
-    }
-    const values = points.map((p) => p.total);
-    const lo0 = Math.min(...values);
-    const hi0 = Math.max(...values);
-    const pad = (hi0 - lo0) * 0.14 || Math.abs(hi0) * 0.02 || 1;
-    const lo = lo0 - pad;
-    const hi = hi0 + pad;
-    const n = points.length - 1;
-    const X = (i) => (i / n) * 100;
-    const Y = (v) => ((hi - v) / (hi - lo)) * 100;
-    const line = values.map((v, i) => `${i ? "L" : "M"}${X(i).toFixed(3)} ${Y(v).toFixed(3)}`).join("");
-    const up = values[n] >= values[0];
-    const i = at == null ? n : at;
-    const p = points[i];
-    const move = (e) => {
-        const r = plot.current.getBoundingClientRect();
-        setAt(Math.round(Math.min(Math.max((e.clientX - r.left) / r.width, 0), 1) * n));
-    };
-    const label = (d) => new Date(`${d}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short" });
-    return (
-        <div className={`hx-chart ${up ? "is-up" : "is-down"}`}>
-            <div className="hx-plot" ref={plot} onPointerMove={move} onPointerLeave={() => setAt(null)}>
-                <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    {[25, 50, 75].map((g) => (
-                        <line key={g} className="hx-grid" x1="0" x2="100" y1={g} y2={g} />
-                    ))}
-                    <line className="hx-base" x1="0" x2="100" y1={Y(values[0])} y2={Y(values[0])} />
-                    <path className="hx-area" d={`${line}L100 100L0 100Z`} />
-                    <path className="hx-line" d={line} />
-                    {at != null && <line className="hx-cross" x1={X(at)} x2={X(at)} y1="0" y2="100" />}
-                </svg>
-                <span className="hx-dot" style={{ left: `${X(i)}%`, top: `${Y(p.total)}%` }} aria-hidden="true" />
-                <span className={`hx-tip${X(i) > 70 ? " is-left" : ""}`} style={{ left: `${X(i)}%`, top: `${Y(p.total)}%` }}>
-                    <b>{inrShort(p.total)}</b>
-                    <span>{label(p.date)}</span>
-                </span>
-            </div>
-            <div className="hx-axis" aria-hidden="true">
-                <span>{label(points[0].date)}</span>
-                <span>{label(points[Math.floor(n / 2)].date)}</span>
-                <span>Today</span>
+                <button type="button" className="btn" onClick={onPreview}>
+                    <Eye aria-hidden="true" />
+                    Preview with sample data
+                </button>
             </div>
         </div>
+    );
+}
+
+// ---------- a balance typed in by hand ----------
+
+/** Digits grouped the way the currency writes them: 4,21,805.5 in rupees, 421,805.5 in dollars. */
+function grouped(digits, dollars) {
+    const [int = "", dec] = digits.split(".");
+    const whole = int.replace(/^0+(?=\d)/, "");
+    const out = whole ? BigInt(whole).toLocaleString(dollars ? "en-US" : "en-IN") : dec != null ? "0" : "";
+    return dec != null ? `${out}.${dec.slice(0, 2)}` : out;
+}
+
+/**
+ * What's typed, tidied as it's typed: a leading + or − (an amount to add or take off), then the
+ * figure grouped, at most two decimals. The caret stays after the same digit it was after.
+ */
+function regroup(raw, caret, dollars) {
+    const keep = (t) => t.replace(/[^\d.+\-−]/g, "");
+    const clean = keep(raw);
+    // the last sign typed wins, wherever it was typed: "+" after a figure turns it into an amount to add
+    const signs = clean.match(/[+\-−]/g);
+    const sign = signs ? (signs[signs.length - 1] === "+" ? "+" : "−") : "";
+    const body = clean.replace(/[+\-−]/g, "");
+    const dot = body.indexOf(".");
+    const digits = dot < 0 ? body : `${body.slice(0, dot)}.${body.slice(dot + 1).replace(/\./g, "")}`;
+    const text = sign + grouped(digits, dollars);
+    // the caret: after as many significant characters as were before it
+    const before = keep(raw.slice(0, caret)).length;
+    let at = 0;
+    for (let seen = 0; at < text.length && seen < before; at++) if (/[\d.+−]/.test(text[at])) seen++;
+    return { text, caret: at };
+}
+
+/** The balance a typed figure means: the figure itself, or the old balance with +/− an amount. */
+function readBalance(text, was) {
+    const m = text.replace(/,/g, "").match(/^([+−]?)(\d*\.?\d*)$/);
+    if (!m || !/\d/.test(m[2])) return null;
+    const n = parseFloat(m[2]);
+    const value = m[1] === "+" ? was + n : m[1] === "−" ? was - n : n;
+    if (!Number.isFinite(value) || value < 0 || value > 1e12) return null;
+    return { value: Math.round(value * 100) / 100, change: Boolean(m[1]) };
+}
+
+function BalancePanel({ entry, rate, demo, onEdit, onSaved }) {
+    const info = balanceInfo(entry);
+    const dollars = entry.currency === "USD";
+    const loan = entry.kind === "loan";
+    const was = entry.amount || 0;
+    const start = () => grouped(Number.isInteger(was) ? String(was) : was.toFixed(2), dollars);
+    const [text, setText] = useState(start);
+    const [saving, setSaving] = useState(false);
+    const field = useRef(null);
+    const caret = useRef(null);
+    useLayoutEffect(() => {
+        if (caret.current == null || !field.current) return;
+        field.current.setSelectionRange(caret.current, caret.current);
+        caret.current = null;
+    });
+
+    const read = readBalance(text, was);
+    const changed = read != null && Math.abs(read.value - was) >= 0.005;
+    const diff = changed ? read.value - was : 0;
+    const money = (x) => (dollars ? usd(x) : inr(x));
+    const age = daysSince(entry.updatedAt);
+    const stale = age != null && age >= STALE_DAYS;
+    const held = info.bank?.name || info.bankName;
+    const reset = () => setText(start());
+
+    const type = (e) => {
+        const next = regroup(e.target.value, e.target.selectionStart ?? e.target.value.length, dollars);
+        caret.current = next.caret;
+        setText(next.text);
+    };
+
+    // the new figure alone; the server wants the whole entry back, so the rest goes as it was
+    const save = async (e) => {
+        e.preventDefault();
+        if (!changed || saving) return;
+        const body = { name: entry.name, kind: entry.kind, bank: entry.bank || "", amount: read.value, currency: entry.currency || "INR", note: entry.note || "" };
+        setSaving(true);
+        try {
+            const doc = demo ? { ...entry, ...body, updatedAt: new Date().toISOString() } : await http(`/worth/manual/${entry._id}`, { method: "PUT", body });
+            onSaved(doc);
+            toast.success("Balance updated", { description: `${info.title}: ${money(read.value)}` });
+        } catch (err) {
+            toast.error("Didn’t save", { description: err.detail || "Try again in a moment." });
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <form className="nw-bal" onSubmit={save}>
+            <div className="nw-bal-main">
+                <label className="nw-bal-label" htmlFor={`nw-bal-${entry._id}`}>
+                    {loan ? "Owed today" : "Balance today"}
+                </label>
+                <div className={`nw-bal-fig${changed ? " is-changed" : ""}`}>
+                    <span className="nw-bal-cur" aria-hidden="true">
+                        {dollars ? "$" : "₹"}
+                    </span>
+                    <input
+                        ref={field}
+                        id={`nw-bal-${entry._id}`}
+                        inputMode="decimal"
+                        autoComplete="off"
+                        spellCheck={false}
+                        value={text}
+                        onChange={type}
+                        onKeyDown={(e) => {
+                            if (e.key !== "Escape" || text === start()) return;
+                            e.preventDefault();
+                            reset();
+                        }}
+                        onFocus={(e) => e.target.select()}
+                        disabled={saving}
+                        aria-describedby={`nw-bal-hint-${entry._id}`}
+                    />
+                    {changed && (
+                        <span className="nw-bal-go">
+                            <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>
+                                {saving ? "Saving…" : "Save"}
+                            </button>
+                            <button type="button" className="btn btn-ghost btn-sm" onClick={reset} disabled={saving}>
+                                Cancel
+                            </button>
+                        </span>
+                    )}
+                </div>
+                <p className="nw-bal-hint" id={`nw-bal-hint-${entry._id}`} aria-live="polite">
+                    {read == null && text ? (
+                        <span className="is-bad">That isn’t a balance</span>
+                    ) : changed && read.change ? (
+                        <>
+                            {money(was)} {diff > 0 ? "+" : "−"} {money(Math.abs(diff))} = <b>{money(read.value)}</b>
+                        </>
+                    ) : changed ? (
+                        <>
+                            Was {money(was)}{" "}
+                            <b className={sideOf(loan ? -diff : diff)}>
+                                {diff > 0 ? "+" : "−"}
+                                {money(Math.abs(diff))}
+                            </b>
+                        </>
+                    ) : (
+                        <>
+                            Type the new figure, or <kbd>+</kbd> or <kbd>−</kbd> an amount to adjust it
+                        </>
+                    )}
+                </p>
+            </div>
+            <dl className="nw-bal-facts">
+                <div>
+                    <dt>{info.line ? info.line.split(" · ")[0] : "Balance"}</dt>
+                    <dd>
+                        {info.bank ? <Mark mark={{ bank: info.bank }} size={18} /> : null}
+                        {held || "Not tied to a bank"}
+                    </dd>
+                </div>
+                <div>
+                    <dt>Last updated</dt>
+                    <dd className={stale ? "is-stale" : ""}>{entry.updatedAt ? fmtAgo(entry.updatedAt) : "—"}</dd>
+                </div>
+                {dollars && rate ? (
+                    <div>
+                        <dt>In rupees</dt>
+                        <dd>
+                            {inr(was * rate, { whole: true })} <span className="muted">at ₹{num(rate)}</span>
+                        </dd>
+                    </div>
+                ) : null}
+                {entry.note ? (
+                    <div>
+                        <dt>Note</dt>
+                        <dd>{entry.note}</dd>
+                    </div>
+                ) : null}
+            </dl>
+            <button type="button" className="btn btn-sm nw-bal-edit" onClick={onEdit} title="Bank, kind, name, currency and note">
+                <Pencil aria-hidden="true" />
+                Details
+            </button>
+        </form>
     );
 }
 
 /** When a source can't be shown: why, and what to do about it. */
 function Setup({ title, children, onPreview, onRetry }) {
     return (
-        <div className="kt-connect nw-setup">
-            <h2>{title}</h2>
-            <p>{children}</p>
-            <div className="kt-connect-actions">
-                {onRetry && (
+        <div className="src fade-in">
+            <div className="src-head">
+                <div>
+                    <h3>{title}</h3>
+                    <p>{children}</p>
+                </div>
+                {onRetry ? (
                     <button type="button" className="btn btn-primary" onClick={onRetry}>
                         Try again
                     </button>
-                )}
-                {onPreview && (
-                    <button type="button" className="btn btn-ghost" onClick={onPreview}>
+                ) : null}
+            </div>
+            {onPreview && (
+                <p className="src-fine">
+                    <button type="button" className="linkish" onClick={onPreview}>
                         Preview with sample data
                     </button>
-                )}
-            </div>
+                </p>
+            )}
         </div>
     );
 }
@@ -882,7 +1186,9 @@ function GrowwPanel({ src, onPreview }) {
                     <dd className="brief-num sm">
                         <Rupees value={w.parts.stocks} />
                     </dd>
-                    <dd className="brief-sub">Delayed prices{w.unpriced ? `, ${w.unpriced} at cost` : ""}</dd>
+                    <dd className="brief-sub" title="Groww’s free API has no prices: these are delayed NSE and BSE prices from Yahoo Finance">
+                        Delayed, via Yahoo Finance{w.unpriced ? ` · ${w.unpriced} at cost` : ""}
+                    </dd>
                 </div>
                 <div className="brief-cell">
                     <dt>P&amp;L</dt>
@@ -956,184 +1262,6 @@ function GrowwPanel({ src, onPreview }) {
                     />
                 </>
             )}
-            <p className="nw-fine">Groww’s free API has no prices, so holdings are valued with delayed NSE and BSE prices from Yahoo Finance.</p>
-        </div>
-    );
-}
-
-// ---------- MT5 ----------
-
-function Mt5Panel({ src, account, rate, demo, onPreview }) {
-    if (src.state === "loading") return <div className="sk sk-rows" aria-busy="true" />;
-    if (src.state === "unset" || (src.state === "ready" && !account))
-        return (
-            <Setup title={src.state === "unset" ? "MT5 accounts aren’t set up yet" : "No MT5 accounts yet"} onPreview={onPreview}>
-                Two free, read-only ways, use either or both: <b>Myfxbook</b> (connect your accounts there with their investor passwords, then add <code>MYFXBOOK_EMAIL</code> and{" "}
-                <code>MYFXBOOK_PASSWORD</code> to the API server), or the{" "}
-                <a href="/KaizenReporter.mq5" download>
-                    Kaizen Reporter add-on
-                </a>{" "}
-                for MT5 (live while MT5 is open; set <code>MT5_PUSH_TOKEN</code> on the server and paste the same token into the add-on).
-            </Setup>
-        );
-    if (src.state === "error" || !account)
-        return (
-            <Setup title="MT5 accounts didn’t load" onRetry={src.reload}>
-                {src.message}
-            </Setup>
-        );
-    if (account.error)
-        return (
-            <>
-                <AccountSettings key={account.id} src={src} account={account} demo={demo} />
-                <Setup title={`${account.label} didn’t load`} onRetry={src.reload}>
-                    {account.error}
-                </Setup>
-                <AddMt5 />
-            </>
-        );
-
-    const a = account.info;
-    const k = perUnit(a.currency, rate);
-    const money = (x, o) => (a.currency === "USC" ? `${num(x)} US¢` : a.currency === "INR" ? inr(x, o) : usd(x, o));
-    const floating = (a.equity || 0) - (a.balance || 0);
-    const has = (x) => x != null;
-    return (
-        <div className="kt">
-            <AccountSettings key={account.id} src={src} account={account} demo={demo} />
-            <p className={`nw-source${account.source === "addon" && !account.live ? " is-stale" : ""}`}>
-                <i aria-hidden="true" />
-                {sourceLine(account)}
-            </p>
-            {!account.counted && account.prop && (
-                <p className="kt-note nw-prop">A funded account trades the firm’s money, so it isn’t counted in your net worth. Only your profit split is yours once it’s paid out.</p>
-            )}
-            <dl className="brief kt-brief">
-                <div className="brief-cell">
-                    <dt>Equity</dt>
-                    <dd className="brief-num sm">{money(a.equity)}</dd>
-                    <dd className="brief-sub">{k ? `${inr(a.equity * k, { whole: true })}` : "No rupee rate for this currency"}</dd>
-                </div>
-                <div className="brief-cell">
-                    <dt>Balance</dt>
-                    <dd className="brief-num sm">{money(a.balance)}</dd>
-                    <dd className="brief-sub">Closed trades only</dd>
-                </div>
-                <div className="brief-cell">
-                    <dt>Floating P&amp;L</dt>
-                    <dd className={`brief-num sm ${sideOf(floating)}`}>{money(floating, { sign: true })}</dd>
-                    <dd className="brief-sub">{account.positions.length} open</dd>
-                </div>
-                <div className="brief-cell">
-                    <dt>Free margin</dt>
-                    <dd className="brief-num sm">{has(a.freeMargin) ? money(a.freeMargin) : <span className="muted">—</span>}</dd>
-                    <dd className="brief-sub">
-                        {has(a.margin) ? (
-                            <>
-                                Used {money(a.margin)}
-                                {a.marginLevel ? ` · level ${num(a.marginLevel, 0)}%` : ""}
-                            </>
-                        ) : (
-                            "Myfxbook doesn’t report margin"
-                        )}
-                    </dd>
-                </div>
-            </dl>
-            <p className="nw-fine">
-                {[a.broker, a.server, a.login ? `login ${a.login}` : "", a.leverage ? `1:${a.leverage}` : ""].filter(Boolean).join(" · ")}
-            </p>
-            {account.positions.length > 0 ? (
-                <Table
-                    label={`${account.label} positions`}
-                    cols="minmax(0, 1.3fr) 4rem 4.5rem 6.5rem 6.5rem 7rem"
-                    colsSm="minmax(0, 1fr) 3.2rem 6rem"
-                    hide={[2, 3, 4]}
-                    head={["Symbol", "Side", "Lots", "Open", "Now", "Profit"]}
-                    rows={account.positions}
-                    rowKey={(r) => r.id}
-                    render={(r) => [
-                        <Sym key="s" title={r.symbol} sub={r.swap ? `Swap ${money(r.swap, { sign: true })}` : ""} />,
-                        <SideTag key="d" side={String(r.type).includes("BUY") ? "BUY" : "SELL"} />,
-                        <span key="v" className="kt-num">{num(r.volume)}</span>,
-                        <span key="o" className="kt-num">{has(r.openPrice) ? num(r.openPrice, 5) : "—"}</span>,
-                        <span key="c" className="kt-num">{has(r.currentPrice) ? num(r.currentPrice, 5) : "—"}</span>,
-                        <span key="p" className={`kt-num pnl ${sideOf(r.profit)}`}>{money(r.profit, { sign: true })}</span>,
-                    ]}
-                />
-            ) : (
-                <p className="empty-note">No open positions.</p>
-            )}
-            <AddMt5 />
-        </div>
-    );
-}
-
-/** How to bring in another MT5 account; shown under every account so the add-on is always at hand. */
-function AddMt5() {
-    return (
-        <p className="nw-fine">
-            Another MT5 account: connect it on Myfxbook with its investor password, or run the{" "}
-            <a href="/KaizenReporter.mq5" download>
-                Kaizen Reporter add-on
-            </a>{" "}
-            in MT5 (any broker or server, live while MT5 is open).
-        </p>
-    );
-}
-
-/** Where this account's numbers came from, and how fresh they are. */
-function sourceLine(a) {
-    const when = a.updatedAt ? new Date(a.updatedAt) : null;
-    const at = when && Number.isFinite(when.getTime()) ? when.toLocaleString(undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "";
-    if (a.source === "addon") return a.live ? "Live from your MT5, through the Kaizen Reporter add-on" : `Last sent by the add-on ${at}; MT5 isn’t running it right now`;
-    if (a.source === "myfxbook") return `From Myfxbook${at ? `, updated ${at}` : ""}; it refreshes every few minutes`;
-    return "From MetaApi";
-}
-
-/** This vault's settings for one MT5 account: its name here, and whether it counts. */
-function AccountSettings({ src, account, demo }) {
-    const [name, setName] = useState(account.label);
-    const [saving, setSaving] = useState(false);
-    const save = async (fields) => {
-        setSaving(true);
-        try {
-            if (!demo) await http(`/mt5/accounts/${encodeURIComponent(account.id)}`, { method: "PUT", body: fields });
-            src.setData((d) => ({
-                ...d,
-                accounts: d.accounts.map((x) => (x.id === account.id ? { ...x, ...fields, ...(fields.counted != null ? { prop: !fields.counted } : {}) } : x)),
-            }));
-        } catch {
-            toast.error("Didn’t save", { description: "Try again in a moment." });
-        } finally {
-            setSaving(false);
-        }
-    };
-    const rename = (e) => {
-        e.preventDefault();
-        const label = name.trim();
-        if (label && label !== account.label) save({ label });
-    };
-    return (
-        <div className="nw-acc-settings">
-            <form className="nw-acc-name" onSubmit={rename}>
-                <label htmlFor={`nw-acc-${account.id}`} className="field-label">
-                    Name here
-                </label>
-                <input id={`nw-acc-${account.id}`} className="input" value={name} onChange={(e) => setName(e.target.value)} onBlur={rename} maxLength={40} disabled={saving} />
-            </form>
-            <div className="nw-acc-count">
-                <span className="field-label">In net worth</span>
-                <Seg
-                    label="Count in net worth"
-                    value={account.counted ? "yes" : "no"}
-                    onChange={(v) => save({ counted: v === "yes" })}
-                    options={[
-                        { value: "yes", label: "Counted" },
-                        { value: "no", label: "Not counted" },
-                    ]}
-                />
-            </div>
-            <p className="nw-fine nw-acc-meta">{[account.server, account.login ? `login ${account.login}` : "", account.region].filter(Boolean).join(" · ")}</p>
         </div>
     );
 }
@@ -1143,7 +1271,12 @@ function AccountSettings({ src, account, demo }) {
 const amount = (x) => (x >= 1000 ? num(x, 2) : x >= 1 ? num(x, 4) : num(x, 8));
 
 /** One crypto wallet: its addresses, and every coin across them. */
-function WalletPanel({ wallet, src, onAdd, onEdit, onRemove }) {
+/** An address as long as its tile allows: whole on its own, shortened as more share the row. */
+const addressFor = (a, count) => (count === 1 || a.length <= 16 ? a : count === 2 ? `${a.slice(0, 10)}…${a.slice(-8)}` : shortAddress(a));
+
+function WalletPanel({ wallet: w, src, demo, onEdit, onReread, onRemove }) {
+    const [confirm, setConfirm] = useState(false);
+    const [reading, setReading] = useState(false);
     if (src.state === "loading") return <div className="sk sk-rows" aria-busy="true" />;
     if (src.state === "error" || src.state === "unset")
         return (
@@ -1151,50 +1284,63 @@ function WalletPanel({ wallet, src, onAdd, onEdit, onRemove }) {
                 {src.message}
             </Setup>
         );
-    if (!wallet)
-        return (
-            <div className="kt-connect nw-setup nw-crypto-empty">
-                <Mark mark={{ stack: [{ wallet: "trust" }, { wallet: "metamask" }, { wallet: "phantom" }] }} size={52} />
-                <h2>Bring in your crypto</h2>
-                <p>Pick your wallet app and connect it: its public addresses come in by themselves, and every coin on them is counted at today’s price. No keys, no recovery phrase, nothing to sign.</p>
-                <div className="kt-connect-actions">
-                    <button type="button" className="btn btn-primary" onClick={onAdd}>
-                        <Plus aria-hidden="true" />
-                        Add a crypto wallet
-                    </button>
-                </div>
-            </div>
-        );
-
-    const w = wallet;
+    const addresses = w.addresses || [];
+    const copy = async (text, what) => {
+        try {
+            await navigator.clipboard.writeText(text);
+            toast.success(what, { description: text.includes("\n") ? `${addresses.length} addresses, one a line` : shortAddress(text) });
+        } catch {
+            toast.error("Couldn’t copy", { description: "The browser didn’t allow it." });
+        }
+    };
+    const reread = async () => {
+        setReading(true);
+        await onReread();
+        setReading(false);
+    };
+    const coins = (w.holdings || []).length;
     return (
-        <div className="kt">
-            <div className="nw-wallet-bar">
-                <ul className="nw-wallet-addrs" aria-label="Addresses">
-                    {(w.addresses || []).map((a) => {
-                        const info = CHAIN_INFO[a.chain];
-                        return (
-                            <li key={a.address} className={a.error ? "is-warn" : ""} title={`${a.address}\n${info.coins}${a.error ? `\n${a.error}` : ""}`}>
-                                {a.chain === "evm" ? <NetworkStack networks={info.networks.slice(0, 3)} size={20} /> : <CoinIcon token={info.token} size={20} />}
-                                <span className="nw-mono">{shortAddress(a.address)}</span>
-                                <b>{inrShort(a.inr || 0)}</b>
-                            </li>
-                        );
-                    })}
-                </ul>
-                <div className="nw-wallet-actions">
-                    <button type="button" className="btn btn-sm" onClick={() => onEdit(w)}>
-                        <Pencil aria-hidden="true" />
-                        Edit
-                    </button>
-                    <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => onRemove(w)} aria-label={`Remove ${w.name}`} title="Remove">
-                        <Trash2 aria-hidden="true" />
-                    </button>
-                </div>
-            </div>
+        <div className="kt nw-wal">
+            <ul className="nw-addrs" data-count={Math.min(addresses.length, 4)} aria-label="Addresses">
+                {addresses.map((a) => {
+                    const info = CHAIN_INFO[a.chain];
+                    const held = (a.holdings || []).length;
+                    return (
+                        <li key={a.address}>
+                            <button
+                                type="button"
+                                className={`nw-addr${a.error ? " is-warn" : !held ? " is-empty" : ""}`}
+                                onClick={() => copy(a.address, "Address copied")}
+                                title={`${a.address}\n${info.coins}${a.error ? `\n${a.error}` : ""}\nClick to copy`}
+                            >
+                                {a.chain === "evm" ? <NetworkStack networks={info.networks.slice(0, 3)} size={22} /> : <CoinIcon token={info.token} size={22} />}
+                                <span className="nw-addr-text">
+                                    <small>{a.chain === "evm" ? `EVM · ${info.networks.length} networks` : CHAIN_SHORT[a.chain]}</small>
+                                    <span>{addressFor(a.address, addresses.length)}</span>
+                                </span>
+                                <span className="nw-addr-end">
+                                    {a.error ? (
+                                        <small className="is-warn">Didn’t answer</small>
+                                    ) : held ? (
+                                        <>
+                                            <b>{rupees(a.inr || 0)}</b>
+                                            <small>
+                                                {held} {held === 1 ? "coin" : "coins"}
+                                            </small>
+                                        </>
+                                    ) : (
+                                        <small>Empty</small>
+                                    )}
+                                </span>
+                                <Copy className="nw-addr-copy" aria-hidden="true" />
+                            </button>
+                        </li>
+                    );
+                })}
+            </ul>
             {src.data?.priceError && <p className="kt-note">Prices didn’t load ({src.data.priceError}), so values may be missing.</p>}
             {w.error && <p className="kt-note">Some chains didn’t answer: {w.error}</p>}
-            {w.holdings?.length ? (
+            {coins ? (
                 <Table
                     label={`${w.name} coins`}
                     cols="minmax(0, 1.3fr) 8rem 7rem 7.5rem 5rem"
@@ -1209,17 +1355,48 @@ function WalletPanel({ wallet, src, onAdd, onEdit, onRemove }) {
                             <Sym title={h.symbol} sub={h.network} />
                         </span>,
                         <span key="a" className="kt-num">{amount(h.amount)}</span>,
-                        <span key="u" className="kt-num">{h.usd != null ? usd(h.usd) : "—"}</span>,
-                        <span key="i" className="kt-num">{h.inr != null ? inr(h.inr, { whole: true }) : "—"}</span>,
+                        <span key="u" className="kt-num">{h.usd == null ? "—" : h.usd > 0 && h.usd < 0.01 ? "<$0.01" : usd(h.usd)}</span>,
+                        <span key="i" className="kt-num">{h.inr == null ? "—" : rupees(h.inr)}</span>,
                         <span key="c" className={`kt-num ${sideOf(h.change24h)}`}>{/^USD[TC]$/.test(h.symbol) ? "—" : pct(h.change24h)}</span>,
                     ]}
                 />
             ) : (
                 !w.error && <p className="empty-note">Nothing on these addresses yet, or only coins this page doesn’t read.</p>
             )}
-            <p className="nw-fine">
-                Read from public chains: Bitcoin; Ethereum, BNB Chain, Polygon, Arbitrum, Base and Optimism (the main coin, USDT, USDC); Tron (TRX, USDT); Solana (SOL, USDT, USDC). Prices from CoinGecko.
-            </p>
+            <div className="nw-wal-foot">
+                {confirm ? (
+                    <div className="nw-confirm" role="group" aria-label={`Remove ${w.name}`}>
+                        <span>
+                            Take <b>{w.name}</b> off this page? The coins stay where they are.
+                        </span>
+                        <button type="button" className="btn btn-sm" onClick={() => setConfirm(false)}>
+                            Keep it
+                        </button>
+                        <button type="button" className="btn btn-sm btn-danger" onClick={() => onRemove(w)}>
+                            <Trash2 aria-hidden="true" />
+                            Remove
+                        </button>
+                    </div>
+                ) : (
+                    <div className="tb" role="toolbar" aria-label={`${w.name}`}>
+                        <button type="button" className="tb-btn" onClick={() => onEdit(w)} title="Its name, app and addresses">
+                            <Pencil aria-hidden="true" />
+                            <span>Edit</span>
+                        </button>
+                        <button type="button" className="tb-btn" onClick={reread} disabled={reading || demo} title={demo ? "Not in the sample" : "Read every chain again now"}>
+                            <RefreshCw className={reading ? "spin" : ""} aria-hidden="true" />
+                            <span>{reading ? "Reading…" : "Read again"}</span>
+                        </button>
+                        <button type="button" className="tb-btn" onClick={() => copy(addresses.map((a) => a.address).join("\n"), "Addresses copied")} title="Every address, one a line">
+                            <Copy aria-hidden="true" />
+                            <span>Copy {addresses.length > 1 ? "all" : "address"}</span>
+                        </button>
+                        <button type="button" className="tb-btn is-danger" onClick={() => setConfirm(true)} aria-label={`Remove ${w.name}`} title="Remove from this page">
+                            <Trash2 aria-hidden="true" />
+                        </button>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

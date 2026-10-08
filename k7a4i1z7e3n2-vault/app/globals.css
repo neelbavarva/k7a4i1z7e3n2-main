@@ -5340,6 +5340,21 @@ fieldset.bare:disabled {
   border: 1px solid color-mix(in srgb, var(--medium) 30%, var(--line));
   border-radius: 10px;
 }
+/* what the account doesn't have, said once, after what it does */
+.kt-none {
+  margin: 18px 0 0;
+  padding: 11px 14px;
+  font-size: 12.5px;
+  color: var(--ink2);
+  background: var(--surface);
+  border: 1px solid var(--grid);
+  border-radius: 10px;
+}
+.kt-fine {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
 .kt-sub-head {
   display: flex;
   align-items: baseline;
@@ -5810,68 +5825,6 @@ fieldset.bare:disabled {
 }
 
 /* before connecting */
-.kt-connect {
-  margin-top: 22px;
-  padding: 40px 24px 34px;
-  text-align: center;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-}
-.kt-connect-mark {
-  display: inline-grid;
-  place-items: center;
-  width: 46px;
-  height: 46px;
-  color: var(--bull-ink);
-  background: color-mix(in srgb, var(--bull) 8%, var(--raised));
-  border: 1px solid color-mix(in srgb, var(--bull) 28%, var(--line));
-  border-radius: 13px;
-}
-.kt-connect h2 {
-  margin-top: 14px;
-  font-size: 24px;
-}
-.kt-connect p {
-  max-width: 520px;
-  margin: 8px auto 0;
-  color: var(--ink2);
-}
-.kt-connect code {
-  font-family: var(--mono);
-  font-size: 12px;
-  padding: 1px 5px;
-  background: var(--page);
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  overflow-wrap: anywhere;
-}
-.kt-connect-list {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 6px;
-  max-width: 640px;
-  margin: 18px auto 0;
-  padding: 0;
-  list-style: none;
-}
-.kt-connect-list li {
-  padding: 3px 10px;
-  font-size: 12px;
-  color: var(--ink2);
-  background: var(--page);
-  border: 1px solid var(--line);
-  border-radius: 99px;
-}
-.kt-connect-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 22px;
-}
 
 @media (max-width: 900px) {
   .kt-quote {
@@ -5910,1062 +5863,44 @@ fieldset.bare:disabled {
   }
 }
 
-/* ---------- Net worth (components/NetWorth.js) ---------- */
+/* ---------- Crypto wallets: the add-wallet dialog and the icons (AddWallet.js, k7/CryptoIcons.js) ---------- */
 
-.nw {
-  --cat-stocks: var(--bull);
-  --cat-funds: var(--ok);
-  --cat-cash: #7a6fd0;
-  --cat-forex: var(--medium);
-  --cat-crypto: #d0782c;
-  --cat-bank: #2f8f8a;
-  --cat-other: var(--muted);
-  --cat-loans: var(--bear);
-}
-.nw > .kt-bar {
-  margin-bottom: 0;
-}
-.nw-hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
-  margin-top: 22px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-}
-.nw-main {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  padding: 20px 22px 16px;
-}
-.nw-num {
-  margin-top: 6px;
-  font-family: var(--serif);
-  font-size: clamp(38px, 5vw, 54px);
-  line-height: 1.02;
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
-}
-.nw-split {
-  display: flex;
-  gap: 2px;
-  height: 10px;
-  margin-top: 18px;
-  border-radius: 99px;
-  overflow: hidden;
-}
-.nw-split span {
-  flex-basis: 0;
-  min-width: 4px;
-}
-.nw-foot {
-  margin-top: 10px;
-  font-size: 12px;
-  color: var(--muted);
-}
-.nw-foot .linkish {
-  font-size: 12px;
-}
-.nw-cats {
-  display: grid;
-  align-content: start;
-  margin: 0;
-  padding: 10px 0;
-  list-style: none;
-  border-left: 1px solid var(--grid);
-}
-.nw-cat {
-  display: grid;
-  grid-template-columns: 10px minmax(0, 1fr) auto 3.4rem;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 20px;
-  font-size: 13px;
-}
-.nw-cat + .nw-cat {
-  border-top: 1px solid var(--grid);
-}
-.nw-cat i {
-  width: 10px;
-  height: 10px;
-  border-radius: 3px;
-}
-.nw-cat span {
-  color: var(--ink2);
-}
-.nw-cat b {
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-.nw-cat small {
-  font-size: 11.5px;
-  color: var(--muted);
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-.nw-cat-empty {
-  padding: 18px 20px;
-  font-size: 13px;
-  color: var(--muted);
-}
-/* each kind: a flat tint of its colour, the same in the bar and the key */
-.cat-stocks { --cc: var(--cat-stocks); }
-.cat-funds { --cc: var(--cat-funds); }
-.cat-cash { --cc: var(--cat-cash); }
-.cat-forex { --cc: var(--cat-forex); }
-.cat-crypto { --cc: var(--cat-crypto); }
-.cat-bank { --cc: var(--cat-bank); }
-.cat-other { --cc: var(--cat-other); }
-.cat-loans { --cc: var(--cat-loans); }
-.nw-split span,
-.nw-cat i {
-  background: color-mix(in srgb, var(--cc) 62%, var(--raised));
-}
-
-.nw-refresh {
-  margin-left: auto;
-}
-.nw-row {
-  grid-template-columns: minmax(0, 1fr) auto 16px;
-}
-.nw-row[aria-pressed='true'] {
-  background: color-mix(in srgb, var(--bull) 5%, var(--raised));
-}
-.nw-row[aria-pressed='true'] .row-go {
-  color: var(--bull-ink);
-}
-.nw-mark {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 32px;
-  height: 32px;
-  font-family: var(--serif);
-  font-size: 15px;
-  color: var(--ink2);
-  background: var(--page);
-  border: 1px solid var(--line);
-  border-radius: 9px;
-}
-.nw-mark.tone-ok {
-  color: color-mix(in srgb, var(--ok) 80%, var(--ink));
-  background: color-mix(in srgb, var(--ok) 8%, var(--raised));
-  border-color: color-mix(in srgb, var(--ok) 28%, var(--line));
-}
-.nw-mark.tone-warn {
-  color: color-mix(in srgb, var(--medium) 70%, var(--ink));
-  background: color-mix(in srgb, var(--medium) 8%, var(--raised));
-  border-color: color-mix(in srgb, var(--medium) 30%, var(--line));
-}
-.nw-kind {
-  margin-left: 6px;
-  font-size: 11.5px;
-  font-weight: 500;
-  color: var(--muted);
-}
-.nw-value {
-  font-size: 14px;
-  font-weight: 600;
-}
-.nw-value s {
-  color: var(--muted);
-  font-weight: 500;
-}
-.nw-detail .group-head h2 {
-  font-size: 21px;
-}
-.nw-detail > .kt > .kt-bar:first-child,
-.nw-detail .kt-bar {
-  margin-top: 10px;
-}
-.nw-setup {
-  margin-top: 10px;
-  padding: 30px 24px 26px;
-}
-.nw-setup h2 {
-  margin-top: 0;
-  font-size: 21px;
-}
 .nw-fine {
   margin: 12px 0 0;
   font-size: 12px;
   color: var(--muted);
 }
-.nw-prop {
-  margin-top: 10px;
-}
 
-/* typed-in entries */
-.nw-manual-head {
-  margin-top: 10px;
-  justify-content: space-between;
-}
-.nw-manual-head .group-note {
-  margin-left: 0;
-}
-.nw-entry {
-  grid-template-columns: minmax(0, 1fr) auto auto;
-}
-.nw-entry-actions {
-  display: flex;
-  gap: 2px;
-}
-.nw-entry-actions .btn-icon {
-  width: 28px;
-}
-.nw-form {
-  margin-top: 10px;
-  padding: 16px 18px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-}
-.nw-editing .nw-form {
-  margin: 0;
-  border: 0;
-  border-radius: 0;
-  background: var(--raised);
-}
-.nw-form-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
-  align-items: start;
-  gap: 14px;
-}
-.nw-form-grid .field {
-  align-content: start;
-}
-.nw-span {
-  grid-column: 1 / -1;
-}
-.nw-form .seg {
-  justify-self: start;
-}
-.nw-form-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 14px;
-}
-
-/* one MT5 account's settings: its name here and whether it counts */
-.nw-acc-settings {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 12px 20px;
-  margin-top: 10px;
-  padding: 12px 16px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-}
-.nw-acc-name,
-.nw-acc-count {
-  display: grid;
-  gap: 6px;
-}
-.nw-acc-name .input {
-  width: 220px;
-  height: 34px;
-}
-.nw-acc-meta {
-  margin: 0 0 8px auto;
-}
-
-.nw-source {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 10px 0 0;
-  font-size: 12.5px;
-  color: var(--ink2);
-}
-.nw-source i {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #4f9a5b;
-}
-.nw-source.is-stale i {
-  background: var(--axis);
-}
-
-/* crypto wallets: one card per wallet, its coins underneath */
+/* an address, in the add-wallet dialog */
 .nw-mono {
   font-family: var(--mono);
   font-size: 12.5px;
 }
-.nw-wallet {
-  margin-top: 14px;
-}
-.nw-wallet-head {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.nw-wallet-name {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px 10px;
-  min-width: 0;
-  flex: 1;
-}
-.nw-wallet-name b {
-  font-size: 14px;
-  font-weight: 600;
-}
-.nw-wallet-total {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-.nw-wallet-total b {
-  display: block;
-  font-size: 14px;
-  font-weight: 600;
-}
-.nw-wallet-total small {
-  font-size: 11.5px;
-  color: var(--muted);
-}
-.nw-wallet .kt-table {
-  margin-top: 8px;
-}
 
-.nw-wallet-form {
-  display: grid;
-  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.6fr);
-  align-items: start;
-  gap: 14px;
-}
-.nw-wallet-form .field {
-  align-content: start;
-}
-.nw-wallet-form .textarea {
-  min-height: 112px;
-  font-size: 12.5px;
-}
-.nw-found {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 12px 0 0;
-  padding: 0;
-  list-style: none;
-}
-.nw-found li {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 10px;
-  font-size: 12px;
-  background: color-mix(in srgb, var(--ok) 6%, var(--raised));
-  border: 1px solid color-mix(in srgb, var(--ok) 26%, var(--line));
-  border-radius: 8px;
-}
-.nw-found li b {
-  font-weight: 600;
-  color: color-mix(in srgb, var(--ok) 80%, var(--ink));
-}
-.nw-found li.is-bad {
-  background: color-mix(in srgb, var(--bear) 6%, var(--raised));
-  border-color: color-mix(in srgb, var(--bear) 30%, var(--line));
-}
-.nw-found li.is-bad b {
-  color: var(--bear-ink);
-}
-.nw-form-err {
-  margin-right: auto;
-  align-self: center;
-  font-size: 12.5px;
-  color: var(--bear-ink);
-}
-.nw-addr {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-@media (max-width: 900px) {
-  .nw-hero {
-    grid-template-columns: 1fr;
-  }
-  .nw-cats {
-    border-left: 0;
-    border-top: 1px solid var(--grid);
-  }
-}
-@media (max-width: 640px) {
-  .nw-main {
-    padding: 16px 16px 14px;
-  }
-  .nw-cat {
-    padding: 8px 16px;
-  }
-  .nw-kind {
-    display: none;
-  }
-  .nw-form-grid,
-  .nw-wallet-form {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* ---------- Net worth, the redesign: hero, ring, tiles, wallets ---------- */
-
-/* a brand mark: the app's own icon when it gives one, else its initial on a flat tint */
-.wm {
-  --ws: 40px;
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: var(--ws);
-  height: var(--ws);
-  font-family: var(--serif);
-  font-size: calc(var(--ws) * 0.44);
-  line-height: 1;
-  color: color-mix(in srgb, var(--wc) 82%, var(--ink));
-  background: color-mix(in srgb, var(--wc) 10%, var(--raised));
-  border: 1px solid color-mix(in srgb, var(--wc) 30%, var(--line));
-  border-radius: calc(var(--ws) * 0.28);
-  overflow: hidden;
-}
-.wm img {
-  width: 70%;
-  height: 70%;
-  object-fit: contain;
-}
-
-/* hero: the total, its pills, the history line; the ring beside */
-.nw-hero {
-  grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
-}
-.nw-main {
-  padding: 22px 24px 18px;
-}
-.nw-num {
-  font-size: clamp(40px, 5.4vw, 60px);
-}
-.nw-pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 10px;
-}
-.nw-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 26px;
-  padding: 0 10px;
-  font-size: 12.5px;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  color: var(--ink);
-  background: var(--page);
-  border: 1px solid var(--line);
-  border-radius: 99px;
-}
-.nw-pill.tone-up {
-  color: var(--bull-ink);
-  background: color-mix(in srgb, var(--bull) 7%, var(--raised));
-  border-color: color-mix(in srgb, var(--bull) 26%, var(--line));
-}
-.nw-pill.tone-down {
-  color: var(--bear-ink);
-  background: color-mix(in srgb, var(--bear) 7%, var(--raised));
-  border-color: color-mix(in srgb, var(--bear) 26%, var(--line));
-}
-.nw-hist {
-  --c: var(--bull);
-  margin-top: 20px;
-}
-.nw-hist.is-down {
-  --c: var(--bear);
-}
-.nw-hist-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-.nw-hist-head .seg button {
-  padding: 3px 10px;
-  font-size: 11.5px;
-}
-.nw-hist-read {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  margin-top: 8px;
-  font-size: 12.5px;
-  font-variant-numeric: tabular-nums;
-}
-.nw-hist-read b {
-  font-size: 14px;
-  font-weight: 600;
-}
-.nw-hist-plot {
-  position: relative;
-  height: 150px;
-  margin-top: 8px;
-  cursor: crosshair;
-  touch-action: pan-y;
-}
-.nw-hist-plot svg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-  animation: eq-in 0.9s var(--ease) both;
-}
-.nw-hist-path {
-  fill: none;
-  stroke: var(--c);
-  stroke-width: 2;
-  stroke-linejoin: round;
-  vector-effect: non-scaling-stroke;
-}
-.nw-hist-area {
-  fill: var(--c);
-  fill-opacity: 0.07;
-}
-.nw-hist .kt-dot {
-  background: var(--c);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 18%, transparent);
-}
-.nw-hist-empty {
-  position: relative;
-  display: grid;
-  place-items: center;
-  height: 120px;
-  margin-top: 10px;
-  border: 1px dashed var(--axis);
-  border-radius: 10px;
-}
-.nw-hist-empty p {
-  max-width: 300px;
-  padding: 0 16px;
-  font-size: 12.5px;
-  color: var(--muted);
-  text-align: center;
-}
-.nw-hist-line {
-  position: absolute;
-  left: 16px;
-  right: 16px;
-  top: 50%;
-  border-top: 1px dashed var(--grid);
-}
-.nw-hist-empty p {
-  position: relative;
-  background: var(--surface);
-}
-
-.nw-ring-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  padding: 24px 22px 20px;
-  border-left: 1px solid var(--grid);
-}
-.nw-ring {
-  position: relative;
-  width: 190px;
-  height: 190px;
-}
-.nw-ring svg {
-  width: 100%;
-  height: 100%;
-  transform: rotate(-90deg);
-  animation: ring-in 0.9s var(--ease) both;
-}
-@keyframes ring-in {
-  from {
-    opacity: 0;
-    transform: rotate(-120deg) scale(0.92);
-  }
-}
-.nw-ring circle {
-  fill: none;
-  stroke-width: 11;
-}
-.nw-ring-track {
-  stroke: var(--grid);
-}
-.nw-ring-slice {
-  stroke: color-mix(in srgb, var(--cc) 66%, var(--raised));
-  transition: opacity 0.2s, stroke-width 0.2s;
-  cursor: pointer;
-}
-.nw-ring-slice:hover {
-  stroke-width: 13;
-}
-.nw-ring-slice.is-dim {
-  opacity: 0.35;
-}
-.nw-ring-mid {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-content: center;
-  text-align: center;
-  pointer-events: none;
-}
-.nw-ring-mid b {
-  font-family: var(--serif);
-  font-size: 28px;
-  font-weight: 400;
-  line-height: 1.05;
-  letter-spacing: -0.02em;
-}
-.nw-ring-mid small {
-  max-width: 110px;
-  margin-top: 3px;
-  font-size: 11.5px;
-  color: var(--muted);
-}
-.nw-ring-wrap .nw-cats {
-  width: 100%;
-  padding: 0;
-  border: 0;
-}
-.nw-ring-wrap .nw-cat {
-  grid-template-columns: 10px minmax(0, 1fr) auto;
-  padding: 6px 4px;
-  border-radius: 8px;
-  transition: background-color 0.15s;
-}
-.nw-ring-wrap .nw-cat + .nw-cat {
-  border-top: 0;
-}
-.nw-ring-wrap .nw-cat.is-on {
-  background: var(--page);
-}
-
-/* accounts as tiles */
-.nw-tiles-head .nw-tiles-actions {
-  display: flex;
-  gap: 6px;
-  margin-left: auto;
-}
-.nw-tiles {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-  gap: 10px;
-  margin: 12px 0 0;
-  padding: 0;
-  list-style: none;
-}
-.nw-tiles > li {
-  display: flex;
-}
-.nw-tile {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  width: 100%;
-  padding: 14px 14px 12px;
-  font: inherit;
-  color: inherit;
-  text-align: left;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  cursor: pointer;
-  transition: border-color 0.15s, background-color 0.15s, transform 0.2s var(--ease), box-shadow 0.2s;
-}
-.nw-tile:hover {
-  border-color: var(--axis);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-lift);
-}
-.nw-tile[aria-pressed='true'] {
-  background: color-mix(in srgb, var(--bull) 4%, var(--raised));
-  border-color: color-mix(in srgb, var(--bull) 45%, var(--line));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--bull) 10%, transparent);
-}
-.nw-tile-top {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-.nw-tile-name {
-  flex: 1;
-  min-width: 0;
-}
-.nw-tile-name b {
-  display: block;
-  font-size: 14px;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.nw-tile-name small {
-  display: block;
-  font-size: 11.5px;
-  color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.nw-dot {
-  flex: none;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--axis);
-}
-.nw-dot.tone-ok {
-  background: #4f9a5b;
-}
-.nw-dot.tone-live {
-  background: #4f9a5b;
-  animation: pulse-dot 2.4s ease-out infinite;
-}
-.nw-dot.tone-warn {
-  background: var(--medium);
-}
-.nw-tile-value {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  font-family: var(--serif);
-  font-size: 25px;
-  line-height: 1.1;
-  letter-spacing: -0.015em;
-  font-variant-numeric: tabular-nums;
-}
-.nw-tile-value small {
-  font-family: var(--font);
-  font-size: 12px;
-  letter-spacing: 0;
-  color: var(--muted);
-}
-.nw-tile-value.is-off s {
-  color: var(--muted);
-  text-decoration-thickness: 1px;
-}
-.nw-tile-bar {
-  height: 4px;
-  background: var(--grid);
-  border-radius: 99px;
-  overflow: hidden;
-}
-.nw-tile-bar i {
-  display: block;
-  height: 100%;
-  border-radius: 99px;
-  opacity: 0.6;
-  animation: grow-x 0.8s var(--ease) both;
-  transform-origin: left center;
-}
-.nw-tile-status {
-  font-size: 12px;
-  color: var(--ink2);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.nw-tile-add {
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  min-height: 150px;
-  text-align: center;
-  background: transparent;
-  border: 1px dashed var(--axis);
-  box-shadow: none;
-}
-.nw-tile-add:hover {
-  background: var(--surface);
-  border-style: solid;
-}
-.nw-tile-add b {
-  margin-top: 6px;
-  font-size: 13.5px;
-  font-weight: 600;
-}
-.nw-tile-add small {
-  font-size: 12px;
-  color: var(--muted);
-}
-.nw-add-icon {
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  color: var(--ink2);
-  background: var(--page);
-  border: 1px solid var(--line);
-  border-radius: 50%;
-}
-.nw-add-icon svg {
-  width: 17px;
-  height: 17px;
-}
-
-/* the chosen account */
-.nw-detail-head {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-.nw-detail-head > div {
-  flex: 1;
-  min-width: 0;
-}
-.nw-detail-head h2 {
-  font-size: 24px;
-}
-.nw-detail-head p {
-  font-size: 12.5px;
-  color: var(--muted);
-}
-.nw-detail-value {
-  font-family: var(--serif);
-  font-size: 24px;
-  letter-spacing: -0.015em;
-  font-variant-numeric: tabular-nums;
-}
-
-/* one crypto wallet */
-.nw-wallet-bar {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  margin-top: 12px;
-}
-.nw-wallet-addrs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.nw-wallet-addrs li {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 30px;
-  padding: 0 10px 0 4px;
-  font-size: 12px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 9px;
-}
-.nw-wallet-addrs li.is-warn {
-  border-color: color-mix(in srgb, var(--medium) 40%, var(--line));
-}
-.nw-wallet-addrs b {
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-.nw-wallet-actions {
-  display: flex;
-  gap: 4px;
-}
-.aw-chain {
-  display: inline-flex;
-  align-items: center;
-  height: 22px;
-  padding: 0 7px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--ink2);
-  background: var(--page);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-}
+/* a coin in a wallet's table: its icon beside its name */
 .nw-coin {
   display: flex;
   align-items: center;
   gap: 10px;
   min-width: 0;
 }
-.nw-coin-mark {
-  --cm: var(--muted);
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 28px;
-  height: 28px;
-  font-size: 12px;
-  font-weight: 700;
-  color: color-mix(in srgb, var(--cm) 85%, var(--ink));
-  background: color-mix(in srgb, var(--cm) 12%, var(--raised));
-  border: 1px solid color-mix(in srgb, var(--cm) 30%, var(--line));
-  border-radius: 50%;
-}
-.coin-btc { --cm: #e8901a; }
-.coin-eth { --cm: #627eea; }
-.coin-bnb { --cm: #d9a400; }
-.coin-pol { --cm: #8247e5; }
-.coin-sol { --cm: #8a5cf6; }
-.coin-trx { --cm: #e5322d; }
-.coin-usdt { --cm: #26a17b; }
-.coin-usdc { --cm: #2775ca; }
-.nw-crypto-empty {
-  margin-top: 12px;
-}
 
 /* the add-wallet dialog */
 .modal.aw {
   max-width: 640px;
 }
-.aw-in {
-  padding: 18px 20px 20px;
-}
-.aw-head {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-}
-.aw-title {
-  flex: 1;
-  min-width: 0;
-  padding: 2px 0 0 4px;
-}
-.aw-title h2 {
-  font-size: 24px;
-}
-.aw-title p {
-  margin-top: 4px;
-  font-size: 13px;
-  color: var(--ink2);
-}
-.aw-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin: 18px 0 0;
-  padding: 0;
-  list-style: none;
-}
-.aw-grid > li {
-  display: flex;
-  animation: fade-up 0.35s var(--ease) both;
-  animation-delay: calc(var(--i, 0) * 25ms);
-}
+
 @keyframes fade-up {
   from {
     opacity: 0;
     transform: translateY(4px);
   }
 }
-.aw-wallet {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
-  width: 100%;
-  padding: 14px;
-  font: inherit;
-  color: inherit;
-  text-align: left;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  cursor: pointer;
-  transition: border-color 0.15s, background-color 0.15s, transform 0.2s var(--ease);
-}
-.aw-wallet:hover {
-  background: var(--raised);
-  border-color: var(--axis);
-  transform: translateY(-1px);
-}
-.aw-wallet-name {
-  font-size: 14px;
-  font-weight: 600;
-}
-.aw-wallet-sub {
-  font-size: 11.5px;
-  color: var(--muted);
-}
-.aw-wallet-sub.is-on {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--ok);
-  font-weight: 500;
-}
-.aw-wallet-sub.is-on::before {
-  content: '';
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #4f9a5b;
-}
-.aw-ways {
-  display: grid;
-  gap: 10px;
-  margin-top: 18px;
-}
-.aw-way {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 14px;
-  padding: 16px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-}
-.aw-way.is-off {
-  opacity: 0.72;
-}
-.aw-way-icon {
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  color: var(--ink2);
-  background: var(--page);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-}
-.aw-way-icon svg {
-  width: 18px;
-  height: 18px;
-}
-.aw-way-text h3 {
-  font-size: 14px;
-}
-.aw-way-text p {
-  margin-top: 2px;
-  font-size: 12.5px;
-  color: var(--ink2);
-}
-.aw-way-text code {
-  font-family: var(--mono);
-  font-size: 11.5px;
-}
+
 .aw-problem {
   color: var(--bear-ink) !important;
 }
-.aw-ext-icon {
-  width: 16px;
-  height: 16px;
-  border-radius: 4px;
-}
-.aw-phone.is-waiting {
-  grid-template-columns: auto minmax(0, 1fr);
-}
-.aw-phone.is-waiting .aw-qr {
-  grid-column: 1 / -1;
-}
+
 .aw-qr {
   display: flex;
   flex-direction: column;
@@ -6985,31 +5920,7 @@ fieldset.bare:disabled {
   width: 100%;
   height: 100%;
 }
-.aw-paste-link {
-  justify-self: center;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 4px;
-  font: inherit;
-  font-size: 12.5px;
-  color: var(--ink2);
-  background: none;
-  border: 0;
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  text-decoration-color: var(--axis);
-}
-.aw-paste-link svg {
-  width: 13px;
-  height: 13px;
-}
-.aw-review {
-  display: grid;
-  gap: 16px;
-  margin-top: 18px;
-}
+
 .aw-name {
   display: flex;
   align-items: center;
@@ -7054,84 +5965,6 @@ fieldset.bare:disabled {
   width: 13px;
   height: 13px;
 }
-.aw-none {
-  font-size: 12.5px;
-  color: var(--muted);
-}
-.aw-more {
-  display: flex;
-  gap: 8px;
-}
-.aw-more .input {
-  flex: 1;
-  font-size: 12.5px;
-}
-.aw-bad {
-  color: var(--bear-ink);
-}
-.aw-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding-top: 14px;
-  border-top: 1px solid var(--grid);
-  font-size: 12px;
-}
-
-@media (max-width: 900px) {
-  .nw-hero {
-    grid-template-columns: 1fr;
-  }
-  .nw-ring-wrap {
-    flex-direction: row;
-    align-items: center;
-    gap: 24px;
-    border-left: 0;
-    border-top: 1px solid var(--grid);
-  }
-  .nw-ring-wrap .nw-cats {
-    flex: 1;
-  }
-  .nw-ring {
-    width: 150px;
-    height: 150px;
-    flex: none;
-  }
-}
-@media (max-width: 640px) {
-  .nw-ring-wrap {
-    flex-direction: column;
-  }
-  .nw-tiles {
-    grid-template-columns: 1fr 1fr;
-  }
-  .nw-tile-value {
-    font-size: 20px;
-  }
-  .aw-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .aw-way {
-    grid-template-columns: auto minmax(0, 1fr);
-  }
-  .aw-way > .btn {
-    grid-column: 1 / -1;
-  }
-  .nw-wallet-bar {
-    flex-direction: column;
-  }
-  .nw-detail-value {
-    display: none;
-  }
-}
-@media (max-width: 420px) {
-  .nw-tiles {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* ---------- Crypto icons and the add-wallet dialog, take two ---------- */
 
 /* icons from lib/icons.js */
 .ci {
@@ -7220,46 +6053,11 @@ fieldset.bare:disabled {
   color: var(--ink2);
 }
 
-/* a broker, bank or MT5 account: a solid brand tile */
-.bm {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: var(--bs);
-  height: var(--bs);
-  font-family: var(--font);
-  font-size: calc(var(--bs) * 0.44);
-  font-weight: 700;
-  color: #fff;
-  background: var(--bc);
-  border-radius: calc(var(--bs) * 0.3);
-}
-.bm svg {
-  width: 50%;
-  height: 50%;
-}
-
 /* the dialog */
 .modal.aw {
   max-width: 560px;
 }
-.aw-in {
-  padding: 18px 18px 18px;
-}
-.aw-head {
-  align-items: center;
-  gap: 8px;
-}
-.aw-close {
-  margin-left: auto;
-  align-self: flex-start;
-}
-.aw-title {
-  padding: 2px 0 0 6px;
-}
-.aw-title h2 {
-  font-size: 23px;
-}
+
 .aw-search {
   display: flex;
   align-items: center;
@@ -7351,21 +6149,7 @@ fieldset.bare:disabled {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.aw-on {
-  color: var(--ok) !important;
-  font-weight: 500;
-}
-.aw-on::before {
-  content: '';
-  width: 6px;
-  height: 6px;
-  margin-right: 2px;
-  border-radius: 50%;
-  background: #4f9a5b;
-}
-.aw-row-nets {
-  opacity: 0.9;
-}
+
 .aw-go {
   width: 15px;
   height: 15px;
@@ -7397,18 +6181,7 @@ fieldset.bare:disabled {
 }
 
 /* step two: the wallet's identity, then its coins */
-.aw-ident {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex: 1;
-  min-width: 0;
-  padding-left: 2px;
-}
-.aw-ident-text {
-  flex: 1;
-  min-width: 0;
-}
+
 .aw-name {
   width: 100%;
   padding: 2px 6px;
@@ -7431,10 +6204,7 @@ fieldset.bare:disabled {
   background: var(--raised);
   border-color: var(--focus);
 }
-.aw-ident-text p {
-  font-size: 12.5px;
-  color: var(--ink2);
-}
+
 .aw-connect {
   margin-top: 16px;
   padding: 12px 14px;
@@ -7479,22 +6249,7 @@ fieldset.bare:disabled {
   height: 168px;
   padding: 10px;
 }
-.aw-coins {
-  margin-top: 18px;
-}
-.aw-coins-head {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-.aw-coins-head h3 {
-  font-size: 13px;
-}
-.aw-coins-head .count {
-  font-size: 12px;
-  color: var(--muted);
-}
+
 .aw-addrs {
   display: grid;
   gap: 6px;
@@ -7656,28 +6411,13 @@ fieldset.bare:disabled {
 .aw-covered span {
   flex: 1;
 }
-.aw-none {
-  padding: 14px;
-  font-size: 12.5px;
-  color: var(--muted);
-  text-align: center;
-  border: 1px dashed var(--line);
-  border-radius: 12px;
-}
-.aw-foot {
-  margin-top: 18px;
-}
+
 .nw-coin {
   gap: 12px;
 }
-.nw-wallet-addrs li {
-  padding: 0 10px 0 6px;
-}
 
 @media (max-width: 600px) {
-  .aw-row-nets {
-    display: none;
-  }
+  
   .aw-connect-row {
     flex-direction: column;
     align-items: stretch;
@@ -7724,7 +6464,7 @@ fieldset.bare:disabled {
   box-shadow: 0 0 0 1.5px var(--raised);
 }
 
-/* ---------- Net worth: marks, figures, the total, where it sits, the ledger ---------- */
+/* ---------- Net worth (components/NetWorth.js) ---------- */
 
 /* An account's mark: its own logo in its own colours, bare, in a square box; each logo scaled
    (--k) so they all look the same size whatever their shape */
@@ -7797,17 +6537,41 @@ fieldset.bare:disabled {
   color: var(--bear-ink);
 }
 
-/* the top: the date and tools on one line, the figure large under it, the history across */
-.hx {
-  margin-top: 22px;
-  padding-bottom: 8px;
+/* the status line: what's been read and when, what's coming, what needs you */
+.nw-status {
+  margin: 18px 0 0;
+  padding: 4px 6px 4px 14px;
 }
-.hx-bar {
+.nw-status .btn-sm {
+  height: 28px;
+}
+.nw-status.is-warn > i {
+  background: var(--medium);
+  animation: none;
+}
+.nw-sk-hero {
+  height: 232px;
+  margin-top: 14px;
+}
+.nw-sk .sk-rows {
+  margin-top: 36px;
+}
+
+/* the top: the total on the left, its history beside it, in one panel */
+.hx {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  margin-top: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.hx-main {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 38px;
+  flex-direction: column;
+  min-width: 0;
+  padding: 20px 24px 22px;
 }
 .hx-eyebrow {
   font-size: 11.5px;
@@ -7817,24 +6581,15 @@ fieldset.bare:disabled {
   color: var(--ink2);
 }
 .hx-eyebrow span {
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: none;
   color: var(--muted);
 }
-.hx-tools {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.hx-top {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px 24px;
-  flex-wrap: wrap;
-}
 .hx-big {
-  margin-top: 6px;
+  margin-top: 14px;
   font-family: var(--figs);
-  font-size: clamp(52px, 7.4vw, 92px);
+  font-size: clamp(46px, 5.6vw, 70px);
   line-height: 1;
   color: var(--ink);
 }
@@ -7860,21 +6615,22 @@ fieldset.bare:disabled {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 20px;
-  margin-top: 16px;
-  font-size: 13.5px;
+  gap: 8px 18px;
+  margin-top: auto;
+  padding-top: 22px;
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
 }
 .hx-change {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 30px;
-  padding: 0 12px;
+  height: 28px;
+  padding: 0 11px;
   font-weight: 600;
   border-radius: 99px;
   border: 1px solid var(--line);
-  background: var(--surface);
+  background: var(--raised);
 }
 .hx-change svg {
   width: 9px;
@@ -7900,16 +6656,36 @@ fieldset.bare:disabled {
 .hx-fact {
   color: var(--ink2);
 }
+.hx-side {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 14px 20px 14px;
+  border-left: 1px solid var(--grid);
+}
+.hx-side-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 30px;
+  font-size: 12px;
+  color: var(--muted);
+}
 .hx-chart {
   --c: var(--bull);
-  margin-top: 26px;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  margin-top: 8px;
 }
 .hx-chart.is-down {
   --c: var(--bear);
 }
 .hx-plot {
   position: relative;
-  height: 200px;
+  flex: 1;
+  min-height: 132px;
   cursor: crosshair;
   touch-action: pan-y;
 }
@@ -7935,7 +6711,7 @@ fieldset.bare:disabled {
 .hx-line {
   fill: none;
   stroke: var(--c);
-  stroke-width: 2.25;
+  stroke-width: 2;
   stroke-linejoin: round;
   stroke-linecap: round;
   vector-effect: non-scaling-stroke;
@@ -7948,6 +6724,16 @@ fieldset.bare:disabled {
   stroke: var(--axis);
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
+}
+/* with only a few days recorded, each day is a point you can see */
+.hx-pt {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  margin: -2.5px 0 0 -2.5px;
+  border-radius: 50%;
+  background: var(--c);
+  pointer-events: none;
 }
 .hx-dot {
   position: absolute;
@@ -7964,22 +6750,25 @@ fieldset.bare:disabled {
   position: absolute;
   display: grid;
   gap: 1px;
-  padding: 6px 10px;
-  margin: -54px 0 0 10px;
-  font-size: 11.5px;
+  padding: 5px 9px;
+  margin: -50px 0 0 10px;
+  font-size: 11px;
   white-space: nowrap;
   color: var(--ink2);
   background: var(--raised);
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: 8px;
   box-shadow: var(--shadow);
   pointer-events: none;
 }
 .hx-tip.is-left {
   transform: translateX(calc(-100% - 20px));
 }
+.hx-tip.is-below {
+  margin-top: 12px;
+}
 .hx-tip b {
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
@@ -7993,7 +6782,8 @@ fieldset.bare:disabled {
 }
 /* day one: the month ahead as a ruler, today lit at its start */
 .hx-chart.is-empty {
-  margin-top: 34px;
+  justify-content: flex-end;
+  padding-bottom: 6px;
 }
 .hx-ruler {
   display: flex;
@@ -8030,17 +6820,12 @@ fieldset.bare:disabled {
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--bull) 14%, transparent);
 }
 .hx-ruler-text {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 6px 20px;
-  flex-wrap: wrap;
-  margin-top: 10px;
+  margin-top: 12px;
   font-size: 12.5px;
+  line-height: 1.5;
   color: var(--muted);
 }
-.hx-ruler-today b {
-  margin-right: 4px;
+.hx-ruler-text b {
   font-weight: 600;
   color: var(--ink);
 }
@@ -8048,36 +6833,18 @@ fieldset.bare:disabled {
   font-weight: 500;
   color: var(--ink2);
 }
-.hx-foot {
-  margin-top: 14px;
-  font-size: 12px;
-  color: var(--muted);
-}
 
-/* where it sits: one quiet panel, like the screener's figures, split by hairlines into a block
-   for each account, sized by what it holds; the logos are the only colour */
+/* where it sits: a band under the total, split by hairlines into a block for each account, sized
+   by what it holds; the logos are the only colour */
 .pic {
-  margin-top: 40px;
-}
-.pic-head,
-.lg-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-.pic-sub {
-  font-size: 12.5px;
-  color: var(--muted);
+  margin-top: 12px;
 }
 .pic-map {
   position: relative;
-  margin-top: 14px;
   overflow: hidden;
   background: var(--raised);
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--radius);
   box-shadow: var(--shadow);
   transition: height 0.4s var(--ease);
 }
@@ -8112,7 +6879,7 @@ fieldset.bare:disabled {
   background: var(--surface);
 }
 .pic-block.is-on {
-  background: color-mix(in srgb, var(--ink) 3%, var(--raised));
+  background: color-mix(in srgb, var(--ink) 3.5%, var(--raised));
 }
 .pic-block:focus-visible {
   outline: 2px solid var(--focus);
@@ -8121,32 +6888,16 @@ fieldset.bare:disabled {
 .pic-in {
   position: absolute;
   inset: 0 1px 1px 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 16px 18px 15px;
+  display: grid;
   overflow: hidden;
-}
-.pic-top {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
-}
-.pic-share {
-  font-size: 12px;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  color: var(--muted);
 }
 .pic-text {
   display: grid;
-  gap: 2px;
+  gap: 1px;
   min-width: 0;
 }
 .pic-text b {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 500;
   color: var(--ink2);
   overflow: hidden;
@@ -8154,134 +6905,65 @@ fieldset.bare:disabled {
   white-space: nowrap;
 }
 .pic-val {
-  font-size: 26px;
+  font-size: 18px;
   font-weight: 600;
-  line-height: 1.12;
-  letter-spacing: -0.015em;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
   color: var(--ink);
 }
-.pic-note {
-  margin-top: 2px;
+.pic-share {
   font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
   color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
-.pic-block.is-mid .pic-in,
-.pic-block.is-tight .pic-in {
-  padding: 12px 14px;
-}
-.pic-block.is-mid .pic-val,
-.pic-block.is-tight .pic-val {
-  font-size: 17px;
-  letter-spacing: -0.02em;
-}
-.pic-block.is-mid .pic-text b {
-  font-size: 12px;
-}
-.pic-block.is-tight .pic-in {
-  gap: 4px;
-}
-.pic-block.is-small .pic-in {
+/* every block the same way, its content centred top to bottom, so names and values line up
+   across the band: across (logo, name over value, share) where it fits, the logo over the value
+   in a narrow block, the logo alone in a sliver */
+.pic-block.is-row .pic-in {
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: center;
-  padding: 4px;
+  column-gap: 12px;
+  padding: 0 18px;
 }
-/* one account: a band, the logo and name on the left, the figure at the far end */
-.pic-block.is-one .pic-in {
-  flex-direction: row;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 14px;
-  padding: 16px 22px;
+.pic-block.is-stack .pic-in {
+  align-content: center;
+  justify-items: start;
+  gap: 7px;
+  padding: 0 14px;
 }
-.pic-block.is-one .pic-text {
-  flex: 1;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas:
-    'name val'
-    'note val';
-  align-items: center;
-  column-gap: 16px;
-}
-.pic-block.is-one .pic-text b {
-  grid-area: name;
+.pic-block.is-stack .pic-val {
   font-size: 15px;
-  font-weight: 600;
-  color: var(--ink);
 }
-.pic-block.is-one .pic-note {
-  grid-area: note;
-  margin: 0;
+.pic-block.is-logo .pic-in {
+  place-items: center;
+  padding: 0;
 }
-.pic-block.is-one .pic-val {
-  grid-area: val;
-  font-size: 28px;
+
+/* the ledger: one card, like the tables on the other Kaizen sites. Column heads along its top, a
+   band for each group, and an account opens in place: its row and panel turn white, nothing moves */
+.lg {
+  --lg-cols: 34px minmax(0, 1fr) 8.5rem 9.5rem 16px;
+  --lg-pad: 20px;
+  margin-top: 40px;
 }
-.pic-empty {
-  display: grid;
-  place-content: center;
-  gap: 4px;
-  height: 150px;
-  margin-top: 14px;
-  padding: 20px;
-  text-align: center;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 14px;
+.lg-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
 }
-.pic-empty p {
-  font-family: var(--serif);
-  font-size: 19px;
-  color: var(--ink);
-}
-.pic-empty span {
+.lg-title .count {
+  font-family: var(--font);
   font-size: 13px;
   color: var(--muted);
 }
-
-/* the ledger: each group, its accounts, and the total under a hairline */
-.lg {
-  margin-top: 42px;
-  --lg-cols: 38px minmax(0, 1fr) 9.5rem 10rem;
-}
-.lg-cols {
-  display: grid;
-  grid-template-columns: 9.5rem 10rem;
-  gap: 16px;
-  padding-right: 12px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--muted);
-  text-align: right;
-}
-.lg-group {
-  margin-top: 24px;
-}
-.lg-group-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  padding: 0 12px 9px;
-  border-bottom: 1px solid var(--line);
-}
-.lg-group-name {
-  font-size: 11.5px;
-  font-weight: 650;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink2);
-}
-.lg-rows {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.lg-rows > li + li {
-  border-top: 1px solid var(--grid);
+.lg-card {
+  margin-top: 14px;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
 }
 .lg-row {
   display: grid;
@@ -8289,27 +6971,107 @@ fieldset.bare:disabled {
   align-items: center;
   gap: 16px;
   width: 100%;
-  padding: 12px;
+  padding: 13px var(--lg-pad);
   font: inherit;
   color: inherit;
   text-align: left;
   background: none;
   border: 0;
-  border-radius: 12px;
   cursor: pointer;
-  transition: background-color 0.15s, box-shadow 0.15s;
-}
-.lg-row:hover {
-  background: var(--surface);
-}
-.lg-row.is-on {
-  background: var(--raised);
-  box-shadow:
-    inset 0 0 0 1px var(--line),
-    0 1px 2px rgb(22 26 22 / 0.04);
+  /* opened from below the fold, it comes up to just under the top bar */
+  scroll-margin-top: 84px;
+  transition: background-color 0.15s;
 }
 .lg-row:focus-visible {
   outline-offset: -2px;
+  border-radius: 0;
+}
+.lg-colhead {
+  padding-top: 10px;
+  padding-bottom: 10px;
+  font-size: 11.5px;
+  color: var(--muted);
+  text-align: right;
+  cursor: default;
+  background: color-mix(in srgb, var(--page) 55%, var(--surface));
+  border-bottom: 1px solid var(--line);
+}
+.lg-colhead-name {
+  grid-column: 1 / 3;
+  text-align: left;
+}
+.lg-group + .lg-group {
+  border-top: 1px solid var(--line);
+}
+/* a group's band: its name, its subtotal under the values, and its + under the chevrons */
+.lg-group-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 9.5rem 16px;
+  align-items: center;
+  gap: 16px;
+  padding: 14px var(--lg-pad) 4px;
+}
+.lg-group-sum {
+  text-align: right;
+}
+.lg-plus {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin: -5px;
+  padding: 0;
+  color: var(--muted);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: color 0.15s, background-color 0.15s, border-color 0.15s;
+}
+.lg-plus:hover {
+  color: var(--ink);
+  background: var(--raised);
+  border-color: var(--line);
+}
+.lg-plus svg {
+  width: 15px;
+  height: 15px;
+}
+.lg-group-name {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink2);
+}
+.lg-group-count {
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--muted);
+}
+.lg-group-head .lg-amt {
+  font-size: 13px;
+  color: var(--muted);
+}
+.lg-rows {
+  margin: 0;
+  padding: 0 0 6px;
+  list-style: none;
+}
+.lg-rows > li + li {
+  border-top: 1px solid var(--grid);
+}
+.lg-rows > li {
+  transition: background-color 0.2s;
+}
+.lg-rows > li:not(.is-open) > .lg-row:hover {
+  background: var(--raised);
+}
+.lg-rows > li.is-open {
+  background: var(--raised);
 }
 .lg-name {
   display: grid;
@@ -8327,9 +7089,13 @@ fieldset.bare:disabled {
   display: flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
   font-size: 12px;
   color: var(--muted);
+}
+.lg-name small > span {
   overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 .lg-dot {
@@ -8338,10 +7104,6 @@ fieldset.bare:disabled {
   height: 6px;
   border-radius: 50%;
   background: var(--axis);
-}
-.lg-dot.tone-ok,
-.lg-dot.tone-live {
-  background: #4f9a5b;
 }
 .lg-dot.tone-warn {
   background: var(--medium);
@@ -8355,8 +7117,12 @@ fieldset.bare:disabled {
   color: var(--ink2);
   font-variant-numeric: tabular-nums;
 }
+.lg-share > span:last-child {
+  min-width: 2.4em;
+  text-align: right;
+}
 .lg-bar {
-  width: 64px;
+  width: 56px;
   height: 4px;
   background: var(--grid);
   border-radius: 99px;
@@ -8379,17 +7145,10 @@ fieldset.bare:disabled {
   letter-spacing: 0;
   color: var(--ink);
 }
-.lg-group-head .lg-amt {
-  font-size: 13.5px;
-  color: var(--ink2);
-}
-.lg-group-head .lg-amt .fig-frac {
-  display: none;
-}
 .lg-row.is-off .lg-name b {
   color: var(--ink2);
 }
-.lg-connect {
+.lg-action {
   display: inline-flex;
   align-items: center;
   height: 28px;
@@ -8400,43 +7159,28 @@ fieldset.bare:disabled {
   background: var(--raised);
   border: 1px solid var(--line);
   border-radius: 8px;
+  transition: border-color 0.15s;
 }
-.lg-row:hover .lg-connect {
+.lg-row:hover .lg-action {
   border-color: var(--axis);
 }
-.lg-add .lg-name b {
-  font-weight: 500;
-  color: var(--ink2);
+/* open, the account's own panel has the button: the pill would say it twice */
+.lg-row[aria-expanded='true'] .lg-action {
+  visibility: hidden;
 }
-.lg-add:hover .lg-name b {
-  color: var(--ink);
-}
-.lg-add-icon {
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  color: var(--ink2);
-  background: var(--raised);
-  border-radius: 11px;
-  box-shadow:
-    inset 0 0 0 1px var(--line),
-    0 1px 2px rgb(22 26 22 / 0.05);
-  transition: color 0.15s, box-shadow 0.15s;
-}
-.lg-add:hover .lg-add-icon {
-  color: var(--ink);
-  box-shadow:
-    inset 0 0 0 1px var(--axis),
-    0 2px 6px rgb(22 26 22 / 0.07);
-}
-.lg-add-icon svg {
+.lg-chev {
+  justify-self: end;
   width: 16px;
   height: 16px;
-  transition: transform 0.25s var(--ease);
+  color: var(--axis);
+  transition: transform 0.2s var(--ease), color 0.15s;
 }
-.lg-add:hover .lg-add-icon svg {
-  transform: rotate(90deg);
+.lg-row:hover .lg-chev,
+.lg-row[aria-expanded='true'] .lg-chev {
+  color: var(--ink2);
+}
+.lg-row[aria-expanded='true'] .lg-chev {
+  transform: rotate(180deg);
 }
 .lg-wait {
   display: inline-block;
@@ -8445,11 +7189,6 @@ fieldset.bare:disabled {
   border-radius: 99px;
   background: var(--grid);
   animation: acc-wait 1.2s ease-in-out infinite;
-}
-.lg-add-icon .lg-wait {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
 }
 @keyframes acc-wait {
   0%,
@@ -8460,41 +7199,477 @@ fieldset.bare:disabled {
     opacity: 1;
   }
 }
-.lg-total {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-  margin-top: 8px;
-  padding: 18px 12px 0;
-  border-top: 1px solid var(--axis);
+/* an empty group's one row: what adding to it does */
+.lg-addrow .lg-name b {
+  font-weight: 500;
+  color: var(--ink2);
 }
-.lg-total > span:first-child {
-  font-family: var(--serif);
-  font-size: 22px;
+.lg-addrow:hover .lg-name b {
   color: var(--ink);
 }
-.lg-total-amt {
-  font-size: 28px;
-  font-weight: 650;
-  letter-spacing: -0.015em;
-  color: var(--ink);
-}
-.lg-foot {
-  margin-top: 12px;
-  padding: 0 12px;
-  font-size: 12px;
+.lg-addmark {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
   color: var(--muted);
+  border: 1px dashed var(--axis);
+  border-radius: 50%;
+  transition: color 0.15s, border-color 0.15s, background-color 0.15s;
+}
+.lg-addrow:hover .lg-addmark {
+  color: var(--ink);
+  border-color: var(--ink2);
+  background: var(--surface);
+}
+.lg-addmark svg {
+  width: 15px;
+  height: 15px;
 }
 
-/* the open account's heading */
-/* the open account, set apart from the ledger above it */
-.nw-detail {
-  margin-top: 64px;
+/* the open account, under its row, its edges in line with the row's */
+.lg-open {
+  padding: 4px var(--lg-pad) 22px;
+  animation: lg-open 0.2s ease-out both;
 }
-.nw-detail-head {
-  gap: 16px;
+@keyframes lg-open {
+  from {
+    opacity: 0;
+  }
 }
+/* one rhythm inside: 14px between the blocks of an account, a little more above each section's
+   heading; nothing keeps its own outside margin */
+.lg-open .kt {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.lg-open .kt > *,
+.lg-open .kt .group:first-of-type,
+.lg-open .kt-pair > .group {
+  margin: 0;
+}
+.lg-open .kt > .group,
+.lg-open .kt > .kt-pair {
+  padding-top: 8px;
+}
+.lg-open .group > .kt-brief,
+.lg-open .group > .kt-perf,
+.lg-open .group > .kt-table,
+.lg-open .group > .kt-note {
+  margin-top: 12px;
+}
+.lg-open .group-head h2 {
+  font-size: 18px;
+}
+.lg-open .rows-card,
+.lg-open .brief {
+  box-shadow: none;
+}
+
+/* a source that needs something first (today's login, setting up, the server waking): what and
+   why on the left, the one thing to do on the right */
+.src {
+  padding: 16px 18px 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.src-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px 28px;
+}
+.src-head > div {
+  flex: 1 1 380px;
+  min-width: 0;
+}
+.src h3 {
+  font-family: var(--serif);
+  font-size: 19px;
+  font-weight: 400;
+  line-height: 1.2;
+  color: var(--ink);
+}
+.src-head p {
+  max-width: 640px;
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink2);
+}
+.src code {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  padding: 1px 5px;
+  background: var(--page);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  overflow-wrap: anywhere;
+}
+/* Kite's day, 6 AM to 6 AM: the part a login made now would cover, tinted */
+.src-day {
+  position: relative;
+  margin-top: 18px;
+  padding-top: 24px;
+}
+.src-now {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--ink);
+}
+.src-now.is-end {
+  transform: translateX(calc(-100% + 1px));
+}
+.src-now.is-start {
+  transform: translateX(-1px);
+}
+.src-now b {
+  font-weight: 500;
+  color: var(--bull-ink);
+}
+.src-bar {
+  position: relative;
+  height: 10px;
+  background: var(--grid);
+  border-radius: 99px;
+}
+.src-bar i {
+  position: absolute;
+  top: 3px;
+  width: 1px;
+  height: 4px;
+  background: color-mix(in srgb, var(--axis) 70%, transparent);
+}
+.src-bar i.is-major {
+  top: 1px;
+  height: 8px;
+  background: var(--axis);
+}
+.src-bar i:first-child,
+.src-bar i:last-child {
+  display: none;
+}
+.src-left {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: color-mix(in srgb, var(--bull) 24%, var(--raised));
+  border: 1px solid color-mix(in srgb, var(--bull) 38%, var(--line));
+  border-left: 0;
+  border-radius: 0 99px 99px 0;
+  transform-origin: left center;
+  animation: grow-x 0.8s var(--ease) both;
+}
+.src-mark {
+  position: absolute;
+  top: -5px;
+  width: 2px;
+  height: 20px;
+  margin-left: -1px;
+  background: var(--bull);
+  border-radius: 1px;
+}
+.src-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.src-fine {
+  margin-top: 14px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.src-fine .linkish {
+  font-size: 12px;
+}
+
+/* one crypto wallet: its addresses across the full width (one fills it, more share it), its coins,
+   then a toolbar */
+.nw-addrs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.nw-addr {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto 13px;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 54px;
+  padding: 8px 14px 8px 12px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  cursor: copy;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+.nw-addr:hover {
+  background: var(--raised);
+  border-color: var(--axis);
+}
+.nw-addr.is-warn {
+  border-color: color-mix(in srgb, var(--medium) 45%, var(--line));
+}
+.nw-addr-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  line-height: 1.2;
+}
+.nw-addr-text small {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.nw-addr-text span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink2);
+}
+.nw-addr-end {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  line-height: 1.2;
+}
+.nw-addr-end b {
+  font-family: var(--figs);
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.nw-addr-end small {
+  font-size: 11px;
+  color: var(--muted);
+}
+.nw-addr-end small.is-warn {
+  color: var(--warn);
+}
+.nw-addr.is-empty .nw-addr-text span {
+  color: var(--muted);
+}
+.nw-addr-copy {
+  width: 13px;
+  height: 13px;
+  color: var(--axis);
+  transition: color 0.15s;
+}
+.nw-addr:hover .nw-addr-copy {
+  color: var(--ink2);
+}
+.nw-wal-foot {
+  display: flex;
+  justify-content: flex-end;
+}
+/* a joined toolbar: the wallet's few actions as one object, the risky one last, apart by a hairline */
+.tb {
+  display: inline-flex;
+  overflow: hidden;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  box-shadow: 0 1px 2px rgb(22 26 22 / 0.04);
+}
+.tb-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 12px;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink2);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  transition: color 0.15s, background-color 0.15s;
+}
+.tb-btn + .tb-btn {
+  border-left: 1px solid var(--grid);
+}
+.tb-btn:hover:not(:disabled) {
+  color: var(--ink);
+  background: var(--surface);
+}
+.tb-btn:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+.tb-btn svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+.tb-btn.is-danger {
+  padding: 0 11px;
+}
+.tb-btn.is-danger:hover {
+  color: var(--bear-ink);
+  background: color-mix(in srgb, var(--bear) 6%, var(--raised));
+}
+.tb-btn:focus-visible {
+  outline-offset: -2px;
+}
+.nw-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  animation: lg-open 0.2s ease-out both;
+}
+.nw-confirm > span {
+  margin-right: 6px;
+  font-size: 12.5px;
+  color: var(--ink2);
+}
+.nw-confirm b {
+  color: var(--ink);
+}
+
+/* a balance typed in by hand: today's figure, set large and edited where it stands (grouped as
+   it's typed, + or − an amount to adjust it); where it's held and when it was last typed beside it */
+.nw-bal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 18px 40px;
+}
+.nw-bal-main {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.nw-bal-label,
+.nw-bal-facts dt {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.nw-bal-fig {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 48px;
+  border-bottom: 1px solid var(--grid);
+  transition: border-color 0.15s;
+}
+.nw-bal-fig:hover {
+  border-bottom-color: var(--axis);
+}
+.nw-bal-fig:focus-within {
+  border-bottom-color: var(--focus);
+}
+.nw-bal-fig.is-changed {
+  border-bottom-color: var(--ink2);
+}
+.nw-bal-cur {
+  align-self: flex-start;
+  margin-top: 9px;
+  font-family: var(--figs);
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--ink2);
+}
+.nw-bal-fig input {
+  field-sizing: content;
+  min-width: 3ch;
+  max-width: 100%;
+  height: 46px;
+  padding: 0 2px;
+  font-family: var(--figs);
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  outline: none;
+}
+.nw-bal-go {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: 14px;
+  animation: lg-open 0.15s ease-out both;
+}
+.nw-bal-hint {
+  min-height: 18px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.nw-bal-hint b {
+  font-weight: 600;
+  color: var(--ink);
+}
+.nw-bal-hint b.up {
+  color: var(--bull-ink);
+}
+.nw-bal-hint b.down {
+  color: var(--bear-ink);
+}
+.nw-bal-hint .is-bad {
+  color: var(--bear-ink);
+}
+.nw-bal-hint kbd {
+  min-width: 18px;
+  height: 18px;
+  font-size: 11px;
+}
+.nw-bal-facts {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: 10px 36px;
+  margin: 0;
+  padding-bottom: 26px;
+}
+.nw-bal-facts dd {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 5px 0 0;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.nw-bal-facts dd.is-stale {
+  color: var(--warn);
+}
+.nw-bal-facts dd span {
+  font-weight: 400;
+}
+.nw-bal-edit {
+  margin: 0 0 26px auto;
+}
+
 /* an empty section: a quiet row of its own, not loose grey text under a heading */
 .nw .empty-note {
   margin-top: 12px;
@@ -8504,24 +7679,6 @@ fieldset.bare:disabled {
   background: var(--surface);
   border: 1px solid var(--grid);
   border-radius: 12px;
-}
-.nw-detail-value {
-  font-size: 26px;
-  font-weight: 600;
-  letter-spacing: -0.015em;
-  color: var(--ink);
-}
-.nw-crypto-empty .mstack {
-  margin-bottom: 4px;
-}
-/* a wallet's addresses: the address in the site's figures, spaced a little, not a code font */
-.nw-wallet-addrs .nw-mono {
-  font-family: var(--font);
-  font-size: 12.5px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  font-variant-numeric: tabular-nums;
-  color: var(--ink2);
 }
 
 /* the dialogs: what you're adding, as one quiet line at the top */
@@ -8607,28 +7764,66 @@ fieldset.bare:disabled {
   color: var(--muted);
 }
 
+@media (min-width: 901px) {
+  /* the Zerodha funds: as many columns as there are figures worth showing */
+  .kt-brief {
+    grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr));
+  }
+}
+@media (max-width: 900px) {
+  .hx {
+    grid-template-columns: 1fr;
+  }
+  .hx-side {
+    border-left: 0;
+    border-top: 1px solid var(--grid);
+  }
+  .hx-plot {
+    min-height: 120px;
+  }
+}
 @media (max-width: 760px) {
   .lg {
-    --lg-cols: 36px minmax(0, 1fr) auto;
+    --lg-cols: 32px minmax(0, 1fr) auto 14px;
+    --lg-pad: 14px;
   }
-  .lg-share,
-  .lg-cols span:first-child {
+  .lg-row {
+    gap: 12px;
+  }
+  .lg-share {
     display: none;
   }
-  .lg-cols {
-    grid-template-columns: auto;
+  .lg-colhead {
+    display: none;
   }
-  .pic-block.is-one .pic-val {
-    font-size: 24px;
-  }
-  .lg-total-amt {
-    font-size: 24px;
+  .lg-group-head {
+    grid-template-columns: minmax(0, 1fr) auto 14px;
+    gap: 12px;
   }
 }
 @media (max-width: 600px) {
-  /* beside the range buttons on a phone, the date would wrap: the label alone */
-  .hx-eyebrow span {
+  .hx-main {
+    padding: 16px 16px 18px;
+  }
+  .hx-side {
+    padding: 12px 14px;
+  }
+  /* on a phone the date would wrap: the label alone */
+  .hx-eyebrow span,
+  .nw-status-rate {
     display: none;
+  }
+  .nw-bal-main {
+    flex: 1 1 100%;
+  }
+  .nw-bal-fig input {
+    font-size: 28px;
+  }
+  .nw-bal-facts {
+    padding-bottom: 0;
+  }
+  .nw-bal-edit {
+    margin: 0;
   }
 }
 

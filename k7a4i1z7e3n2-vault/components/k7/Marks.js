@@ -1,9 +1,9 @@
 "use client";
 
-import { CandlestickChart, Landmark, Wallet } from "lucide-react";
+import { Landmark, Wallet } from "lucide-react";
 import { BANKS } from "@/lib/cards";
 import { LOGOS } from "@/lib/logos";
-import { WALLETS_MONO } from "@/lib/icons";
+import { WALLETS as WALLET_LOGOS } from "@/lib/icons";
 import { walletOf } from "@/lib/wallets";
 import BankLogo, { initialOf } from "./BankLogo";
 
@@ -13,16 +13,9 @@ import BankLogo, { initialOf } from "./BankLogo";
 // `k`: the logo's size as a share of the mark's box. A filled disc carries more weight than an
 // open shape, so it's drawn a little smaller.
 const BRANDS = {
-    zerodha: { src: "/brands/zerodha.svg", name: "Zerodha", k: 0.8 },
+    zerodha: { src: "/brands/zerodha.svg", name: "Zerodha", k: 0.72 },
     groww: { src: "/brands/groww.png", name: "Groww", k: 0.84 },
-    exness: { src: "/brands/exness.png", name: "Exness", k: 0.84 },
 };
-
-/** Which broker a name, server or company belongs to, if it's one with a logo here. */
-export function brandFor(text = "") {
-    const t = String(text).toLowerCase().replace(/[^a-z]/g, "");
-    return Object.keys(BRANDS).find((k) => t.includes(k)) || null;
-}
 
 const norm = (s) =>
     String(s || "")
@@ -38,11 +31,7 @@ export function bankIn(name) {
     return BANKS.find((b) => words.includes(norm(b.short)) || n.startsWith(norm(b.name)) || (b.aliases || []).some((a) => n.includes(norm(a)))) || null;
 }
 
-// wallet logos are drawn flat in one brand colour (no gradients); a few colours set by hand where
-// the brand's own is too loud on the page
-const WALLET_INK = { trust: "#3375bb", safe: "#12a35a", okx: "#161a16", ledger: "#161a16", trezor: "#161a16", bitbox: "#161a16" };
-
-const GLYPHS = { bank: Landmark, forex: CandlestickChart, wallet: Wallet };
+const GLYPHS = { bank: Landmark, wallet: Wallet };
 
 function Logo({ mark }) {
     if (mark?.brand && BRANDS[mark.brand]) {
@@ -57,8 +46,9 @@ function Logo({ mark }) {
     }
     if (mark?.wallet) {
         const w = walletOf(mark.wallet);
-        const svg = w.icon && WALLETS_MONO[w.icon];
-        if (svg) return <span className="mk-logo" style={{ "--k": 1, color: WALLET_INK[w.id] || w.color }} dangerouslySetInnerHTML={{ __html: svg }} />;
+        const svg = w.icon && WALLET_LOGOS[w.icon];
+        // the wallet logos sit in a 24-unit box with room around them: drawn at full size to match
+        if (svg) return <span className="mk-logo" style={{ "--k": 1 }} dangerouslySetInnerHTML={{ __html: svg }} />;
         return <Glyph glyph="wallet" />;
     }
     if (mark?.bank) {

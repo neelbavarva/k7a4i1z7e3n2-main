@@ -1,5 +1,5 @@
 // Net worth: what each source is worth in rupees, split the same way for all of them, and the
-// total across sources. Prop (funded) trading accounts are the firm's money and stay out of it.
+// total across sources.
 
 import { holdingsSummary, positionsSummary } from "./kite";
 
@@ -7,7 +7,6 @@ export const CATS = [
     { key: "stocks", label: "Stocks and ETFs" },
     { key: "funds", label: "Mutual funds" },
     { key: "cash", label: "Broker cash" },
-    { key: "forex", label: "Forex accounts" },
     { key: "crypto", label: "Crypto" },
     { key: "bank", label: "Bank and cash" },
     { key: "other", label: "Other assets" },
@@ -46,26 +45,6 @@ export function growwWorth(sections) {
     }
     parts.cash = sections?.funds?.data?.clear_cash || 0;
     return { parts, total: sum(parts), day, unpriced };
-}
-
-/** How many rupees one unit of an MT5 account's currency is. USC accounts count in US cents. */
-export function perUnit(currency, rate) {
-    const c = String(currency || "").toUpperCase();
-    if (c === "INR") return 1;
-    if (c === "USD") return rate || null;
-    if (c === "USC") return rate ? rate / 100 : null;
-    return null;
-}
-
-/** One MT5 account: its equity in rupees. A funded (prop) one is shown but not counted. */
-export function mt5Worth(acc, rate) {
-    const parts = empty();
-    const k = perUnit(acc?.info?.currency, rate);
-    const equity = acc?.info?.equity;
-    const value = equity != null && k != null ? equity * k : null;
-    const counted = acc?.counted ?? !acc?.prop;
-    if (value != null && counted) parts.forex = value;
-    return { parts, total: sum(parts), value, counted, floating: acc?.info ? (acc.info.equity || 0) - (acc.info.balance || 0) : 0 };
 }
 
 const MANUAL_CAT = { bank: "bank", cash: "bank", deposit: "bank", crypto: "crypto", property: "other", other: "other", loan: "loans" };

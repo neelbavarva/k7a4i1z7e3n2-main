@@ -28,12 +28,10 @@ import {
 import { demoAccount, demoCandles, demoQuote } from "@/lib/kiteDemo";
 import { sideOf } from "@/lib/format";
 import Seg from "./k7/Seg";
-import { useCountUp } from "./k7/hooks";
+import { useCountUp, useNow } from "./k7/hooks";
 
 // The Zerodha account, read through the API server: funds, today's trading, holdings,
 // mutual funds, GTTs and alerts, plus quotes and charts when the Kite plan includes market data.
-
-const SHOWS = ["Funds", "Positions", "Orders", "Charges", "Holdings", "Mutual funds", "GTT", "Alerts"];
 
 /** The Zerodha connection: the login hand-off, this device's session and the account it reads. */
 export function useZerodha() {
@@ -169,57 +167,108 @@ export default function Zerodha({ z, onPreview }) {
     return <Account account={account} session={session} busy={busy} onRefresh={refresh} onDisconnect={disconnect} />;
 }
 
+/** Before there's an account to show: set up, the server waking up, or today's login. */
 function Connect({ phase, onPreview, onRetry }) {
-    const unset = phase === "unset";
-    const offline = phase === "offline";
-    return (
-        <div className="kt-connect fade-in">
-            <span className="kt-connect-mark" aria-hidden="true">
-                <ZerodhaMark />
-            </span>
-            <h2>{unset ? "Zerodha isn’t set up yet" : offline ? "Couldn’t reach the server" : "Connect your Zerodha account"}</h2>
-            {unset ? (
-                <p>
-                    Add <code>KITE_API_KEY</code>, <code>KITE_API_SECRET</code> and <code>KITE_USER_ID</code> to the API server, and set the Kite app’s redirect URL to{" "}
-                    <code>{API_BASE}/kite/callback</code>.
-                </p>
-            ) : offline ? (
-                <p>The API server didn’t answer. It may be waking up; try again in a moment.</p>
-            ) : (
-                <p>Log in at Kite once a day and this device can read your account until 6 AM. Read only: nothing here can place an order.</p>
-            )}
-            <ul className="kt-connect-list" aria-label="What it shows">
-                {SHOWS.map((s) => (
-                    <li key={s}>{s}</li>
-                ))}
-            </ul>
-            <div className="kt-connect-actions">
-                {phase === "connect" && (
-                    <a className="btn btn-primary" href={connectUrl()}>
-                        Connect Zerodha
-                        <ArrowUpRight aria-hidden="true" />
-                    </a>
-                )}
-                {offline && (
+    if (phase === "unset")
+        return (
+            <div className="src fade-in">
+                <div className="src-head">
+                    <div>
+                        <h3>Zerodha isn’t set up yet</h3>
+                        <p>
+                            Add <code>KITE_API_KEY</code>, <code>KITE_API_SECRET</code> and <code>KITE_USER_ID</code> to the API server, and set the Kite app’s redirect URL to{" "}
+                            <code>{API_BASE}/kite/callback</code>.
+                        </p>
+                    </div>
+                    <button type="button" className="btn" onClick={onPreview}>
+                        Preview with sample data
+                    </button>
+                </div>
+            </div>
+        );
+    if (phase === "offline")
+        return (
+            <div className="src fade-in">
+                <div className="src-head">
+                    <div>
+                        <h3>The server didn’t answer</h3>
+                        <p>It sleeps when no one’s used it for a while and takes up to a minute to wake. Try again in a moment.</p>
+                    </div>
                     <button type="button" className="btn btn-primary" onClick={onRetry}>
                         Try again
                     </button>
-                )}
-                <button type="button" className={phase === "connect" || offline ? "btn btn-ghost" : "btn"} onClick={onPreview}>
-                    Preview with sample data
-                </button>
+                </div>
             </div>
-        </div>
-    );
+        );
+    return <TodaysLogin onPreview={onPreview} />;
 }
 
-function ZerodhaMark() {
-    // a plain kite: four points, no brand artwork
+const DAY_MS = 864e5;
+
+/** The next 6:00 AM India time, when every Kite login ends (00:30 UTC). */
+export function nextKiteReset(now = Date.now()) {
+    const d = new Date(now);
+    let t = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 30);
+    if (t <= now) t += DAY_MS;
+    return t;
+}
+
+/** "3 h 12 min", "48 min" */
+function span(ms) {
+    const m = Math.max(1, Math.round(ms / 6e4));
+    const h = Math.floor(m / 60);
+    return h ? `${h} h${m % 60 ? ` ${m % 60} min` : ""}` : `${m} min`;
+}
+
+/**
+ * Kite's day runs from 6 AM to 6 AM, and a login lasts until the end of it. The day as a ruler,
+ * now marked on it, says how long a login made now would last: a full day, or only until 6 AM.
+ */
+function TodaysLogin({ onPreview }) {
+    const now = useNow(30000);
+    const end = nextKiteReset(now);
+    const start = end - DAY_MS;
+    const at = ((now - start) / DAY_MS) * 100;
+    const left = end - now;
+    const when = (t) => new Date(t).toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" });
+    const hours = Array.from({ length: 25 }, (_, h) => h);
     return (
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round">
-            <path d="M12 2.5 19 10l-7 11.5L5 10z" />
-            <path d="M5 10h14M12 2.5v19" opacity="0.45" />
-        </svg>
+        <div className="src fade-in">
+            <div className="src-head">
+                <div>
+                    <h3>Log in to Kite for today</h3>
+                    <p>Zerodha ends every app’s login at 6:00 AM. Log in once and this browser can read the account until then. Read only: nothing here can place an order.</p>
+                </div>
+                <a className="btn btn-primary" href={connectUrl()}>
+                    Log in at Kite
+                    <ArrowUpRight aria-hidden="true" />
+                </a>
+            </div>
+            <div className="src-day" role="img" aria-label={`A login now would last ${span(left)}, until ${when(end)}.`}>
+                {/* over its mark; near either end it hangs off the mark inwards, so it stays in the box */}
+                <span className={`src-now${at > 80 ? " is-end" : at < 20 ? " is-start" : ""}`} style={{ left: `${at}%` }}>
+                    Now <b>· lasts {span(left)}</b>
+                </span>
+                <div className="src-bar">
+                    {hours.map((h) => (
+                        <i key={h} className={h % 6 === 0 ? "is-major" : ""} style={{ left: `${(h / 24) * 100}%` }} />
+                    ))}
+                    <span className="src-left" style={{ left: `${at}%` }} />
+                    <span className="src-mark" style={{ left: `${at}%` }} />
+                </div>
+                <div className="src-axis">
+                    <span>{when(start)}</span>
+                    <span>{when(end)}</span>
+                </div>
+            </div>
+            <p className="src-fine">
+                {left < 3 * 36e5 ? `Close to 6 AM: a login now ends in ${span(left)}, and you’ll log in again after that. ` : ""}
+                Reads funds, positions, orders, holdings, mutual funds, GTTs and alerts.{" "}
+                <button type="button" className="linkish" onClick={onPreview}>
+                    Preview with sample data
+                </button>
+            </p>
+        </div>
     );
 }
 
@@ -243,6 +292,17 @@ function Account({ account, session, busy, onRefresh, onDisconnect }) {
     const s = account.sections;
     const profile = s.profile?.data;
     const demo = session?.demo;
+    const has = (section) => Boolean(section?.error) || (Array.isArray(section?.data) ? section.data.length > 0 : false);
+    const today = has(s.orders) || has(s.trades) || Boolean(s.positions?.error) || (s.positions?.data?.net || []).length > 0;
+
+    // what the account doesn't have, said once at the end instead of a heading over each empty box
+    const none = [
+        !today && "no positions or orders today",
+        !has(s.holdings) && "no holdings",
+        !has(s.mfHoldings) && !has(s.sips) && "no mutual funds",
+        !has(s.gtt) && "no GTT orders",
+        !has(s.alerts) && "no alerts",
+    ].filter(Boolean);
 
     return (
         <div className="kt fade-in">
@@ -272,20 +332,82 @@ function Account({ account, session, busy, onRefresh, onDisconnect }) {
             </div>
 
             <Funds funds={s.funds} profile={profile} />
-            <Today positions={s.positions} orders={s.orders} trades={s.trades} charges={s.charges} />
-            <Holdings holdings={s.holdings} />
+            {today && <Today positions={s.positions} orders={s.orders} trades={s.trades} charges={s.charges} />}
+            {has(s.holdings) && <Holdings holdings={s.holdings} />}
             <Funds2 mf={s.mfHoldings} sips={s.sips} />
-            <Triggers gtt={s.gtt} alerts={s.alerts} />
+            {(has(s.gtt) || has(s.alerts)) && <Triggers gtt={s.gtt} alerts={s.alerts} />}
+            {none.length > 0 && (
+                <p className="kt-none">
+                    {none.length === 5 ? "Nothing else on the account: " : "Nothing else: "}
+                    {list(none)}.
+                </p>
+            )}
             <Market session={session} holdings={s.holdings?.data || []} />
         </div>
     );
 }
+
+/** "a, b and c" */
+const list = (items) => (items.length > 1 ? `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}` : items[0] || "");
 
 // ---------- Funds ----------
 
 function Funds({ funds, profile }) {
     const eq = funds?.data?.equity;
     const co = funds?.data?.commodity;
+    const used = eq?.utilised?.debits || 0;
+    const opening = eq?.available?.opening_balance || 0;
+    // only the figures that say something: no margin box at ₹0, no commodity box when it's off
+    const cells = eq
+        ? [
+              <div key="net" className="brief-cell">
+                  <dt>Available to trade</dt>
+                  <dd className="brief-num sm">
+                      <Rupees value={eq.net} />
+                  </dd>
+                  <dd className="brief-sub">
+                      Cash {inr(eq.available?.cash, { whole: true })}
+                      {eq.available?.collateral ? <> · collateral {inr(eq.available.collateral, { whole: true })}</> : null}
+                  </dd>
+              </div>,
+              used > 0 && (
+                  <div key="used" className="brief-cell">
+                      <dt>Margin used</dt>
+                      <dd className="brief-num sm">
+                          <Rupees value={used} />
+                      </dd>
+                      <dd className="meter" aria-hidden="true">
+                          <span className="meter-fill" style={{ width: `${Math.min(100, (used / ((eq.net || 0) + used || 1)) * 100)}%` }} />
+                      </dd>
+                      <dd className="brief-sub">
+                          {[
+                              eq.utilised?.span ? `SPAN ${inr(eq.utilised.span, { whole: true })}` : "",
+                              eq.utilised?.exposure ? `exposure ${inr(eq.utilised.exposure, { whole: true })}` : "",
+                              eq.utilised?.option_premium ? `premium ${inr(eq.utilised.option_premium, { whole: true })}` : "",
+                          ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                      </dd>
+                  </div>
+              ),
+              <div key="open" className="brief-cell">
+                  <dt>Opening balance</dt>
+                  <dd className="brief-num sm">
+                      <Rupees value={opening} />
+                  </dd>
+                  <dd className="brief-sub">{Math.abs(opening - eq.net) < 0.005 ? "Untouched today" : "Equity, at the start of today"}</dd>
+              </div>,
+              co?.enabled !== false && (
+                  <div key="co" className="brief-cell">
+                      <dt>Commodity</dt>
+                      <dd className="brief-num sm">
+                          <Rupees value={co?.net || 0} />
+                      </dd>
+                      <dd className="brief-sub">Used {inr(co?.utilised?.debits || 0, { whole: true })}</dd>
+                  </div>
+              ),
+          ].filter(Boolean)
+        : [];
     return (
         <section className="group" aria-labelledby="kt-funds">
             <div className="group-head">
@@ -293,43 +415,9 @@ function Funds({ funds, profile }) {
                 {profile?.exchanges?.length ? <span className="group-note">{profile.exchanges.join(" · ")}</span> : null}
             </div>
             <Missing what="Funds" section={funds} />
-            {eq && (
-                <dl className="brief kt-brief">
-                    <div className="brief-cell">
-                        <dt>Available to trade</dt>
-                        <dd className="brief-num sm">
-                            <Rupees value={eq.net} />
-                        </dd>
-                        <dd className="brief-sub">
-                            Cash {inr(eq.available?.cash, { whole: true })}
-                            {eq.available?.collateral ? <> · collateral {inr(eq.available.collateral, { whole: true })}</> : null}
-                        </dd>
-                    </div>
-                    <div className="brief-cell">
-                        <dt>Margin used</dt>
-                        <dd className="brief-num sm">
-                            <Rupees value={eq.utilised?.debits || 0} />
-                        </dd>
-                        <dd className="meter" aria-hidden="true">
-                            <span className="meter-fill" style={{ width: `${Math.min(100, ((eq.utilised?.debits || 0) / ((eq.net || 0) + (eq.utilised?.debits || 0) || 1)) * 100)}%` }} />
-                        </dd>
-                        <dd className="brief-sub">
-                            SPAN {inr(eq.utilised?.span, { whole: true })} · exposure {inr(eq.utilised?.exposure, { whole: true })}
-                            {eq.utilised?.option_premium ? <> · premium {inr(eq.utilised.option_premium, { whole: true })}</> : null}
-                        </dd>
-                    </div>
-                    <div className="brief-cell">
-                        <dt>Opening balance</dt>
-                        <dd className="brief-num sm">
-                            <Rupees value={eq.available?.opening_balance || 0} />
-                        </dd>
-                        <dd className="brief-sub">Equity, at the start of today</dd>
-                    </div>
-                    <div className="brief-cell">
-                        <dt>Commodity</dt>
-                        <dd className="brief-num sm">{co?.enabled === false ? <span className="muted">Off</span> : <Rupees value={co?.net || 0} />}</dd>
-                        <dd className="brief-sub">{co?.enabled === false ? "Segment not enabled" : `Used ${inr(co?.utilised?.debits || 0, { whole: true })}`}</dd>
-                    </div>
+            {cells.length > 0 && (
+                <dl className="brief kt-brief" style={{ "--n": cells.length }}>
+                    {cells}
                 </dl>
             )}
         </section>
@@ -689,77 +777,74 @@ const OPS = { "<=": "≤", ">=": "≥", "<": "<", ">": ">", "==": "=" };
 function Triggers({ gtt, alerts }) {
     const g = gtt?.data || [];
     const a = alerts?.data || [];
-    return (
-        <section className="group" aria-labelledby="kt-triggers">
+    // each its own section, side by side when there are both; no heading over the pair
+    const showG = g.length > 0 || Boolean(gtt?.error);
+    const showA = a.length > 0 || Boolean(alerts?.error);
+    const gttPart = (
+        <section className="group" aria-labelledby="kt-gtt">
             <div className="group-head">
-                <h2 id="kt-triggers">GTT and alerts</h2>
-                <span className="group-note">Set in Kite; shown here to keep an eye on</span>
+                <h2 id="kt-gtt">GTT orders</h2>
+                <span className="count">{g.filter((x) => x.status === "active").length} active</span>
             </div>
-            <div className="kt-pair">
-                <div>
-                    <div className="kt-sub-head">
-                        <h3 className="group-title">GTT orders</h3>
-                        <span className="count">{g.filter((x) => x.status === "active").length} active</span>
-                    </div>
-                    <Missing what="GTT orders" section={gtt} />
-                    {g.length ? (
-                        <Table
-                            label="GTT orders"
-                            cols="minmax(0, 1.3fr) minmax(0, 1fr) 5.5rem"
-                            head={["Instrument", "Trigger", "Status"]}
-                            rows={g}
-                            rowKey={(r) => r.id}
-                            render={(r) => {
-                                const c = r.condition || {};
-                                const o = r.orders?.[0] || {};
-                                return [
-                                    <Sym key="s" title={c.tradingsymbol} sub={`${r.type === "two-leg" ? "OCO" : "Single"} · ${o.transaction_type || ""} ${num(o.quantity, 0)}`} />,
-                                    <span key="t" className="kt-trig">
-                                        <b>{(c.trigger_values || []).map((v) => num(v)).join(" / ")}</b>
-                                        <small>LTP {num(c.last_price)}</small>
-                                    </span>,
-                                    <Chip key="st" tone={r.status === "active" ? "done" : r.status === "triggered" ? "open" : "failed"}>
-                                        {capital(r.status)}
-                                    </Chip>,
-                                ];
-                            }}
-                        />
-                    ) : (
-                        !gtt?.error && <p className="empty-note">No GTT orders.</p>
-                    )}
-                </div>
-                <div>
-                    <div className="kt-sub-head">
-                        <h3 className="group-title">Alerts</h3>
-                        <span className="count">{a.filter((x) => x.status === "enabled").length} on</span>
-                    </div>
-                    <Missing what="Alerts" section={alerts} />
-                    {a.length ? (
-                        <Table
-                            label="Alerts"
-                            cols="minmax(0, 1.6fr) 4.5rem 5.5rem"
-                            head={["Alert", "Hits", "Status"]}
-                            rows={a}
-                            rowKey={(r) => r.uuid}
-                            render={(r) => [
-                                <Sym
-                                    key="s"
-                                    title={r.name}
-                                    sub={`${r.lhs_tradingsymbol} ${OPS[r.operator] || r.operator} ${r.rhs_type === "constant" ? num(r.rhs_constant) : r.rhs_tradingsymbol}`}
-                                />,
-                                <span key="h" className="kt-num">{r.alert_count ?? 0}</span>,
-                                <Chip key="st" tone={r.status === "enabled" ? "done" : "muted"}>
-                                    {r.status === "enabled" ? "On" : "Off"}
-                                </Chip>,
-                            ]}
-                        />
-                    ) : (
-                        !alerts?.error && <p className="empty-note">No alerts.</p>
-                    )}
-                </div>
-            </div>
+            <Missing what="GTT orders" section={gtt} />
+            {g.length > 0 && (
+                <Table
+                    label="GTT orders"
+                    cols="minmax(0, 1.3fr) minmax(0, 1fr) 5.5rem"
+                    head={["Instrument", "Trigger", "Status"]}
+                    rows={g}
+                    rowKey={(r) => r.id}
+                    render={(r) => {
+                        const c = r.condition || {};
+                        const o = r.orders?.[0] || {};
+                        return [
+                            <Sym key="s" title={c.tradingsymbol} sub={`${r.type === "two-leg" ? "OCO" : "Single"} · ${o.transaction_type || ""} ${num(o.quantity, 0)}`} />,
+                            <span key="t" className="kt-trig">
+                                <b>{(c.trigger_values || []).map((v) => num(v)).join(" / ")}</b>
+                                <small>LTP {num(c.last_price)}</small>
+                            </span>,
+                            <Chip key="st" tone={r.status === "active" ? "done" : r.status === "triggered" ? "open" : "failed"}>
+                                {capital(r.status)}
+                            </Chip>,
+                        ];
+                    }}
+                />
+            )}
         </section>
     );
+    const alertPart = (
+        <section className="group" aria-labelledby="kt-alerts">
+            <div className="group-head">
+                <h2 id="kt-alerts">Alerts</h2>
+                <span className="count">{a.filter((x) => x.status === "enabled").length} on</span>
+            </div>
+            <Missing what="Alerts" section={alerts} />
+            {a.length > 0 && (
+                <Table
+                    label="Alerts"
+                    cols="minmax(0, 1.6fr) 4.5rem 5.5rem"
+                    head={["Alert", "Hits", "Status"]}
+                    rows={a}
+                    rowKey={(r) => r.uuid}
+                    render={(r) => [
+                        <Sym key="s" title={r.name} sub={`${r.lhs_tradingsymbol} ${OPS[r.operator] || r.operator} ${r.rhs_type === "constant" ? num(r.rhs_constant) : r.rhs_tradingsymbol}`} />,
+                        <span key="h" className="kt-num">{r.alert_count ?? 0}</span>,
+                        <Chip key="st" tone={r.status === "enabled" ? "done" : "muted"}>
+                            {r.status === "enabled" ? "On" : "Off"}
+                        </Chip>,
+                    ]}
+                />
+            )}
+        </section>
+    );
+    if (showG && showA)
+        return (
+            <div className="kt-pair">
+                {gttPart}
+                {alertPart}
+            </div>
+        );
+    return showG ? gttPart : alertPart;
 }
 
 // ---------- Quote and chart ----------
@@ -839,18 +924,9 @@ function Market({ session, holdings }) {
     const change = quote ? quote.net_change || quote.last_price - (quote.ohlc?.close || quote.last_price) : 0;
     const changePct = quote?.ohlc?.close ? (change / quote.ohlc.close) * 100 : null;
 
-    // not in this plan: one quiet line, not a search box that can only fail
+    // not in this plan: a line of fine print under the account, not a section of its own
     if (state === "plan")
-        return (
-            <section className="group" aria-labelledby="kt-market">
-                <div className="group-head">
-                    <h2 id="kt-market">Quote and chart</h2>
-                </div>
-                <p className="empty-note kt-plan-note">
-                    Live quotes and charts come with the paid Kite Connect plan: ₹500 a month, covered by Zerodha in a month you pay ₹2,000 or more in brokerage.
-                </p>
-            </section>
-        );
+        return <p className="kt-fine">Live quotes and charts come with the paid Kite Connect plan: ₹500 a month, covered by Zerodha in a month you pay ₹2,000 or more in brokerage.</p>;
 
     return (
         <section className="group" aria-labelledby="kt-market">
@@ -891,15 +967,7 @@ function Market({ session, holdings }) {
                     </div>
                 </div>
 
-                {state === "plan" ? (
-                    <div className="kt-plan">
-                        <h3>Quotes and charts aren’t in this plan</h3>
-                        <p>
-                            Live prices and candles come with the paid Kite Connect plan (₹500 a month, covered by Zerodha in a month you pay ₹2,000 or more in brokerage). Everything above works on the free
-                            plan.
-                        </p>
-                    </div>
-                ) : state === "error" ? (
+                {state === "error" ? (
                     <div className="kt-plan">
                         <h3>No quote for {asked}</h3>
                         <p>Check the exchange and symbol, like NSE:INFY, NFO:NIFTY26OCTFUT or MCX:GOLDM26NOVFUT.</p>

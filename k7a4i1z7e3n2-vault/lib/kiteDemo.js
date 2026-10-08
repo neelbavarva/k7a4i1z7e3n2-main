@@ -52,14 +52,13 @@ function inDays(n) {
 
 export function demoAccount() {
     const orders = [
-        order("D101", "09:21:04", "SBIN", "NSE", "BUY", "MIS", "MARKET", 100, 812.4, "COMPLETE"),
-        order("D102", "10:02:47", "NIFTY26OCT25000CE", "NFO", "BUY", "NRML", "LIMIT", 75, 182.4, "COMPLETE"),
-        order("D103", "11:38:12", "GOLDM26NOVFUT", "MCX", "BUY", "NRML", "LIMIT", 1, 121450, "COMPLETE"),
+        order("D101", "09:21:04", "SBIN", "NSE", "BUY", "MIS", "MARKET", 20, 812.4, "COMPLETE"),
+        order("D102", "10:02:47", "NIFTY26OCT25500CE", "NFO", "BUY", "NRML", "LIMIT", 75, 36.4, "COMPLETE"),
         order("D104", "12:14:55", "TATAMOTORS", "NSE", "SELL", "CNC", "LIMIT", 10, 730, "REJECTED", {
             status_message: "Insufficient holdings to sell",
         }),
-        order("D105", "13:05:30", "SBIN", "NSE", "SELL", "MIS", "MARKET", 100, 818.8, "COMPLETE"),
-        order("D106", "14:22:09", "INFY", "NSE", "BUY", "CNC", "LIMIT", 5, 1500, "OPEN"),
+        order("D105", "13:05:30", "SBIN", "NSE", "SELL", "MIS", "MARKET", 20, 818.8, "COMPLETE"),
+        order("D106", "14:22:09", "INFY", "NSE", "BUY", "CNC", "LIMIT", 2, 1500, "OPEN"),
     ];
     const done = orders.filter((o) => o.status === "COMPLETE");
 
@@ -73,7 +72,7 @@ export function demoAccount() {
                     user_name: "Demo Trader",
                     user_shortname: "Demo",
                     broker: "ZERODHA",
-                    exchanges: ["NSE", "BSE", "NFO", "CDS", "MCX", "MF"],
+                    exchanges: ["NSE", "BSE", "NFO", "MF"],
                     products: ["CNC", "NRML", "MIS"],
                 },
             },
@@ -81,36 +80,28 @@ export function demoAccount() {
                 data: {
                     equity: {
                         enabled: true,
-                        net: 184320.55,
-                        available: { cash: 245000, opening_balance: 245000, live_balance: 184320.55, collateral: 52000, intraday_payin: 0 },
-                        utilised: { debits: 60679.45, span: 38200, exposure: 12100, option_premium: 13680, m2m_realised: 640, m2m_unrealised: 2415 },
+                        net: 9142.8,
+                        available: { cash: 12000, opening_balance: 12000, live_balance: 9142.8, collateral: 0, intraday_payin: 0 },
+                        utilised: { debits: 2857.2, span: 0, exposure: 0, option_premium: 2730, m2m_realised: 128, m2m_unrealised: 480 },
                     },
-                    commodity: {
-                        enabled: true,
-                        net: 48210,
-                        available: { cash: 60000, opening_balance: 60000, live_balance: 48210, collateral: 0, intraday_payin: 0 },
-                        utilised: { debits: 11790, span: 9800, exposure: 1990, option_premium: 0, m2m_realised: 0, m2m_unrealised: -4700 },
-                    },
+                    commodity: { enabled: false, net: 0, available: { cash: 0, opening_balance: 0 }, utilised: { debits: 0 } },
                 },
             },
             holdings: {
                 data: [
-                    holding("RELIANCE", 15, 1310, 1402.6, 1394.2),
-                    holding("HDFCBANK", 20, 1602, 1688.5, 1679.1),
-                    holding("INFY", 12, 1480.2, 1532.4, 1521),
-                    holding("TATAMOTORS", 30, 980, 712.3, 718.9),
-                    holding("GOLDBEES", 100, 62.1, 98.4, 97.6),
-                    holding("NIFTYBEES", 40, 241, 288.6, 286.9),
-                    holding("ITC", 50, 418, 409.8, 411.2, { t1_quantity: 0 }),
+                    holding("NIFTYBEES", 60, 241, 288.6, 286.9),
+                    holding("HDFCBANK", 6, 1602, 1688.5, 1679.1),
+                    holding("GOLDBEES", 80, 62.1, 98.4, 97.6),
+                    holding("RELIANCE", 4, 1310, 1402.6, 1394.2),
+                    holding("TATAMOTORS", 8, 980, 712.3, 718.9),
+                    holding("ITC", 10, 418, 409.8, 411.2),
                 ],
             },
             positions: {
                 data: {
                     net: [
-                        { tradingsymbol: "NIFTY26OCT25000CE", exchange: "NFO", product: "NRML", quantity: 75, average_price: 182.4, last_price: 214.6, pnl: 2415, realised: 0, unrealised: 2415, multiplier: 1 },
-                        { tradingsymbol: "GOLDM26NOVFUT", exchange: "MCX", product: "NRML", quantity: 1, average_price: 121450, last_price: 120980, pnl: -4700, realised: 0, unrealised: -4700, multiplier: 10 },
-                        { tradingsymbol: "EURINR26OCTFUT", exchange: "CDS", product: "NRML", quantity: 1, average_price: 103.21, last_price: 103.36, pnl: 150, realised: 0, unrealised: 150, multiplier: 1000 },
-                        { tradingsymbol: "SBIN", exchange: "NSE", product: "MIS", quantity: 0, average_price: 0, last_price: 817.9, pnl: 640, realised: 640, unrealised: 0, multiplier: 1 },
+                        { tradingsymbol: "NIFTY26OCT25500CE", exchange: "NFO", product: "NRML", quantity: 75, average_price: 36.4, last_price: 42.8, pnl: 480, realised: 0, unrealised: 480, multiplier: 1 },
+                        { tradingsymbol: "SBIN", exchange: "NSE", product: "MIS", quantity: 0, average_price: 0, last_price: 817.9, pnl: 128, realised: 128, unrealised: 0, multiplier: 1 },
                     ],
                     day: [],
                 },
@@ -130,12 +121,7 @@ export function demoAccount() {
                 })),
             },
             charges: {
-                data: [
-                    charge("SBIN", 21.86, 20, 0, 3.67, 0),
-                    charge("NIFTY26OCT25000CE", 47.12, 20, 0, 4.98, 0.41),
-                    charge("GOLDM26NOVFUT", 31.97, 20, 0, 4.24, 2.43),
-                    charge("SBIN", 44.21, 20, 20.47, 3.74, 0),
-                ],
+                data: [charge("SBIN", 6.42, 4.87, 0, 0.92, 0.02), charge("NIFTY26OCT25500CE", 25.11, 20, 0, 3.75, 0.08), charge("SBIN", 10.66, 4.91, 4.09, 0.95, 0)],
             },
             gtt: {
                 data: [
@@ -146,7 +132,7 @@ export function demoAccount() {
                         created_at: `${inDays(-12)} 10:15:00`,
                         expires_at: `${inDays(353)} 10:15:00`,
                         condition: { exchange: "NSE", tradingsymbol: "INFY", trigger_values: [1420], last_price: 1532.4 },
-                        orders: [{ transaction_type: "BUY", quantity: 10, price: 1421, order_type: "LIMIT", product: "CNC" }],
+                        orders: [{ transaction_type: "BUY", quantity: 3, price: 1421, order_type: "LIMIT", product: "CNC" }],
                     },
                     {
                         id: 1002,
@@ -156,40 +142,28 @@ export function demoAccount() {
                         expires_at: `${inDays(335)} 09:40:00`,
                         condition: { exchange: "NSE", tradingsymbol: "HDFCBANK", trigger_values: [1580, 1820], last_price: 1688.5 },
                         orders: [
-                            { transaction_type: "SELL", quantity: 20, price: 1578, order_type: "LIMIT", product: "CNC" },
-                            { transaction_type: "SELL", quantity: 20, price: 1818, order_type: "LIMIT", product: "CNC" },
+                            { transaction_type: "SELL", quantity: 6, price: 1578, order_type: "LIMIT", product: "CNC" },
+                            { transaction_type: "SELL", quantity: 6, price: 1818, order_type: "LIMIT", product: "CNC" },
                         ],
-                    },
-                    {
-                        id: 1003,
-                        type: "single",
-                        status: "triggered",
-                        created_at: `${inDays(-40)} 11:02:00`,
-                        expires_at: `${inDays(325)} 11:02:00`,
-                        condition: { exchange: "NSE", tradingsymbol: "TATAMOTORS", trigger_values: [720], last_price: 712.3 },
-                        orders: [{ transaction_type: "BUY", quantity: 10, price: 721, order_type: "LIMIT", product: "CNC" }],
                     },
                 ],
             },
             alerts: {
                 data: [
                     { uuid: "a1", name: "Nifty below 24,800", status: "enabled", lhs_exchange: "INDICES", lhs_tradingsymbol: "NIFTY 50", lhs_attribute: "LastTradedPrice", operator: "<=", rhs_type: "constant", rhs_constant: 24800, alert_count: 0 },
-                    { uuid: "a2", name: "Gold mini above 1,25,000", status: "enabled", lhs_exchange: "MCX", lhs_tradingsymbol: "GOLDM26NOVFUT", lhs_attribute: "LastTradedPrice", operator: ">=", rhs_type: "constant", rhs_constant: 125000, alert_count: 2 },
-                    { uuid: "a3", name: "Reliance breakout", status: "disabled", lhs_exchange: "NSE", lhs_tradingsymbol: "RELIANCE", lhs_attribute: "LastTradedPrice", operator: ">", rhs_type: "constant", rhs_constant: 1450, alert_count: 1 },
+                    { uuid: "a2", name: "Reliance breakout", status: "disabled", lhs_exchange: "NSE", lhs_tradingsymbol: "RELIANCE", lhs_attribute: "LastTradedPrice", operator: ">", rhs_type: "constant", rhs_constant: 1450, alert_count: 1 },
                 ],
             },
             mfHoldings: {
                 data: [
-                    { tradingsymbol: "INF879O01027", fund: "Parag Parikh Flexi Cap Fund - Direct Plan", folio: "1234567/89", quantity: 412.533, average_price: 68.21, last_price: 86.94, pnl: 7726.75 },
-                    { tradingsymbol: "INF789F1AUX7", fund: "UTI Nifty 50 Index Fund - Direct Plan", folio: "7654321/12", quantity: 820.112, average_price: 141.3, last_price: 168.2, pnl: 22061.01 },
-                    { tradingsymbol: "INF179KC1BQ5", fund: "HDFC Liquid Fund - Direct Plan", folio: "5551234/00", quantity: 9.84, average_price: 4810.5, last_price: 5023.7, pnl: 2097.89 },
+                    { tradingsymbol: "INF879O01027", fund: "Parag Parikh Flexi Cap Fund - Direct Plan", folio: "1234567/89", quantity: 182.406, average_price: 74.21, last_price: 86.94, pnl: 2322.03 },
+                    { tradingsymbol: "INF789F1AUX7", fund: "UTI Nifty 50 Index Fund - Direct Plan", folio: "7654321/12", quantity: 61.38, average_price: 152.3, last_price: 168.2, pnl: 975.94 },
                 ],
             },
             sips: {
                 data: [
-                    { sip_id: "S1", fund: "Parag Parikh Flexi Cap Fund - Direct Plan", instalment_amount: 10000, frequency: "monthly", status: "ACTIVE", next_instalment: inDays(3), completed_instalments: 26 },
-                    { sip_id: "S2", fund: "UTI Nifty 50 Index Fund - Direct Plan", instalment_amount: 5000, frequency: "monthly", status: "ACTIVE", next_instalment: inDays(8), completed_instalments: 18 },
-                    { sip_id: "S3", fund: "Quant Small Cap Fund - Direct Plan", instalment_amount: 3000, frequency: "monthly", status: "PAUSED", next_instalment: null, completed_instalments: 9 },
+                    { sip_id: "S1", fund: "Parag Parikh Flexi Cap Fund - Direct Plan", instalment_amount: 1000, frequency: "monthly", status: "ACTIVE", next_instalment: inDays(3), completed_instalments: 14 },
+                    { sip_id: "S2", fund: "UTI Nifty 50 Index Fund - Direct Plan", instalment_amount: 500, frequency: "monthly", status: "ACTIVE", next_instalment: inDays(8), completed_instalments: 9 },
                 ],
             },
         },
