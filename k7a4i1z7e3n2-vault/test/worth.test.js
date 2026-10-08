@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { combine, cryptoWorth, growwWorth, manualWorth, zerodhaWorth } from "@/lib/worth";
+import { combine, cryptoWorth, manualWorth, mt5Worth, perUnit, zerodhaWorth } from "@/lib/worth";
 import { demoAccount } from "@/lib/kiteDemo";
-import { demoCrypto, demoGroww, demoManual } from "@/lib/worthDemo";
+import { demoCrypto, demoManual, demoMt5 } from "@/lib/worthDemo";
 
 describe("net worth", () => {
     it("values Zerodha as holdings, Coin funds, and opening cash plus today's position P&L", () => {
@@ -11,15 +11,17 @@ describe("net worth", () => {
         expect(w.parts.cash).toBeCloseTo(12000 + 480 + 128);
         expect(w.total).toBeCloseTo(w.parts.stocks + w.parts.funds + w.parts.cash);
     });
-    it("values Groww holdings at price, or at cost when there's no price", () => {
-        const w = growwWorth({
-            holdings: { data: [{ quantity: 10, average_price: 100, last_price: 120, close_price: 110 }, { quantity: 5, average_price: 40, last_price: null }] },
-            funds: { data: { clear_cash: 500 } },
-        });
-        expect(w.parts.stocks).toBe(1200 + 200);
-        expect(w.parts.cash).toBe(500);
-        expect(w.day).toBe(100);
-        expect(w.unpriced).toBe(1);
+    it("converts MT5 equity to rupees, US cents too, and leaves funded accounts out", () => {
+        expect(perUnit("USD", 90)).toBe(90);
+        expect(perUnit("USC", 90)).toBe(0.9);
+        expect(perUnit("INR", 90)).toBe(1);
+        expect(perUnit("EUR", 90)).toBe(null);
+        const [own, funded] = demoMt5().accounts.map((a) => mt5Worth(a, 100));
+        expect(own.total).toBeCloseTo(43115);
+        expect(own.counted).toBe(true);
+        expect(funded.total).toBe(0);
+        expect(funded.value).toBeCloseTo(500000);
+        expect(funded.counted).toBe(false);
     });
     it("counts typed-in entries in rupees and takes loans off", () => {
         const w = manualWorth(demoManual(), 100);
@@ -28,9 +30,9 @@ describe("net worth", () => {
         expect(w.total).toBeCloseTo(w.parts.bank - 6420);
     });
     it("adds the sources up, skipping ones that didn't load", () => {
-        const all = combine([zerodhaWorth(demoAccount()), growwWorth(demoGroww().sections), null, manualWorth(demoManual(), 100)]);
+        const all = combine([zerodhaWorth(demoAccount()), null, manualWorth(demoManual(), 100)]);
         expect(all.total).toBeCloseTo(all.gross - all.parts.loans);
-        expect(all.parts.stocks).toBeGreaterThan(zerodhaWorth(demoAccount()).parts.stocks);
+        expect(all.parts.stocks).toBeCloseTo(zerodhaWorth(demoAccount()).parts.stocks);
     });
     it("counts crypto wallets, and a typed-in crypto entry, as crypto", () => {
         const c = cryptoWorth(demoCrypto());

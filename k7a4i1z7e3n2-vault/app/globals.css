@@ -7164,6 +7164,19 @@ fieldset.bare:disabled {
 .lg-row:hover .lg-action {
   border-color: var(--axis);
 }
+/* shown, not counted (a funded MT5 account): the figure in grey, and why under it */
+.lg-uncounted {
+  display: inline-grid;
+  justify-items: end;
+  line-height: 1.15;
+}
+.lg-uncounted .lg-amt {
+  color: var(--muted);
+}
+.lg-uncounted small {
+  font-size: 11px;
+  color: var(--muted);
+}
 /* open, the account's own panel has the button: the pill would say it twice */
 .lg-row[aria-expanded='true'] .lg-action {
   visibility: hidden;
@@ -7384,6 +7397,44 @@ fieldset.bare:disabled {
   font-size: 11px;
   color: var(--muted);
 }
+/* a how-to as numbered steps, each led by what it does */
+.src-steps {
+  display: grid;
+  gap: 10px;
+  margin: 16px 0 0;
+  padding: 14px 0 0;
+  list-style: none;
+  counter-reset: step;
+  border-top: 1px solid var(--grid);
+}
+.src-steps li {
+  position: relative;
+  padding-left: 34px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink2);
+  counter-increment: step;
+}
+.src-steps li::before {
+  content: counter(step);
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 50%;
+}
+.src-steps b {
+  font-weight: 600;
+  color: var(--ink);
+}
 .src-fine {
   margin-top: 14px;
   font-size: 12px;
@@ -7484,7 +7535,27 @@ fieldset.bare:disabled {
 }
 .nw-wal-foot {
   display: flex;
-  justify-content: flex-end;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 20px;
+}
+.nw-wal-foot > .tb,
+.nw-wal-foot > .nw-confirm {
+  margin-left: auto;
+}
+/* where an account lives, quietly, beside its toolbar */
+.nw-meta {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.nw-name-input {
+  width: 220px;
+  height: 30px;
+  font-size: 13px;
+}
+.tb-btn.is-on svg {
+  color: var(--ok);
 }
 /* a joined toolbar: the wallet's few actions as one object, the risky one last, apart by a hairline */
 .tb {

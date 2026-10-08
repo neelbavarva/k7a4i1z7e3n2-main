@@ -1,19 +1,43 @@
-// Sample Groww, hand-typed and crypto data, shaped like the server's answers, at the size of a
+// Sample MT5, hand-typed and crypto data, shaped like the server's answers, at the size of a
 // real retail account rather than a showcase. Nothing here is real.
 
 export const demoFx = () => ({ rate: 96.73, date: new Date().toISOString().slice(0, 10), source: "Sample" });
 
-export function demoGroww() {
-    const h = (trading_symbol, quantity, average_price, last_price, close_price) => ({ trading_symbol, isin: `DEMO${trading_symbol}`, quantity, average_price, last_price, close_price });
+export function demoMt5() {
+    const ago = (ms) => new Date(Date.now() - ms).toISOString();
     return {
         fetchedAt: new Date().toISOString(),
-        sections: {
-            holdings: {
-                data: [h("BEL", 40, 212.5, 401.35, 398.1), h("SBIN", 8, 590, 817.9, 812.3), h("TCS", 2, 3420, 3561.2, 3540.8), h("ZOMATO", 20, 148.2, 312.6, 309.95), h("IRCTC", 5, 702, 768.9, 772.4)],
+        sources: { addon: { ok: true, accounts: 2 } },
+        accounts: [
+            {
+                id: "mt5-81234567",
+                login: "81234567",
+                source: "addon",
+                live: true,
+                updatedAt: ago(40e3),
+                label: "Exness",
+                server: "Exness-MT5Real8",
+                prop: false,
+                counted: true,
+                info: { broker: "Exness Technologies Ltd", server: "Exness-MT5Real8", login: 81234567, currency: "USD", balance: 412.6, equity: 431.15, margin: 21.4, freeMargin: 409.75, leverage: 500, marginLevel: 2014.7 },
+                positions: [{ id: "1", symbol: "XAUUSD", type: "POSITION_TYPE_BUY", volume: 0.01, openPrice: 2641.2, currentPrice: 2659.75, profit: 18.55, swap: -0.12 }],
+                error: null,
             },
-            positions: { data: [] },
-            funds: { data: { clear_cash: 3240.5, net_margin_used: 0, collateral_available: 0 } },
-        },
+            {
+                id: "mt5-20935336",
+                login: "20935336",
+                source: "addon",
+                live: false,
+                updatedAt: ago(5 * 36e5),
+                label: "FundingPips 20935336",
+                server: "FundingPips-SIM1",
+                prop: true,
+                counted: false,
+                info: { broker: "FundingPips", server: "FundingPips-SIM1", login: 20935336, currency: "USD", balance: 5000, equity: 5000, margin: 0, freeMargin: 5000, leverage: 100, marginLevel: 0 },
+                positions: [],
+                error: null,
+            },
+        ],
     };
 }
 

@@ -28,7 +28,8 @@ npm run build
     each account opens in place under its row; an `AddMenu` beside the heading), `Zerodha` (Kite
     account, only the sections that have something, plus `TodaysLogin` for the 6 AM login window;
     also exports `Table`, `Sym`, `SideTag`, `Rupees`, `Chip`), `AddWallet`, `BalanceDialog`.
-    Sources: Zerodha, Groww, crypto wallets, typed-in balances. MetaTrader was removed (Oct 2026).
+    Sources: Zerodha, MT5 accounts (via the Kaizen Reporter add-on, `public/KaizenReporter.mq5`, which
+    POSTs to `/mt5/push` with `MT5_PUSH_TOKEN`), crypto wallets, typed-in balances. Groww was removed.
   - `k7/`: shared pieces: `Modal`, `Seg` (segmented switch), `PairPicker`, `DatePicker`,
     `BankPicker`, `BankLogo`, `Marks` (brand/bank/wallet marks), `CryptoIcons`, `MarketIcon`,
     `hooks` (`useKey`, `useScrolled`, `useCountUp`, `useNow`).
@@ -58,7 +59,7 @@ block the IP for a day, so never test `/otp/unlock` with made-up codes. `.env` h
 ## API routes the vault uses (`../k7a4i1z7e3n2-api`)
 
 `/passwords/*`, `/cards/*` (encrypted; decrypt with the vault key), `/trades/*` (+ strategy points),
-`/otp/*`, `/kite/*` (Zerodha, read only), `/groww/*`, `/crypto/wallets`,
+`/otp/*`, `/kite/*` (Zerodha, read only), `/mt5/accounts`, `/crypto/wallets`,
 `/worth/fx`, `/worth/manual`, `/worth/history`. Its README documents each one. API tests:
 `npm test` there (node:test).
 

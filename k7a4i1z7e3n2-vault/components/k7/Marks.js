@@ -1,6 +1,6 @@
 "use client";
 
-import { Landmark, Wallet } from "lucide-react";
+import { CandlestickChart, Landmark, Wallet } from "lucide-react";
 import { BANKS } from "@/lib/cards";
 import { LOGOS } from "@/lib/logos";
 import { WALLETS as WALLET_LOGOS } from "@/lib/icons";
@@ -14,8 +14,14 @@ import BankLogo, { initialOf } from "./BankLogo";
 // open shape, so it's drawn a little smaller.
 const BRANDS = {
     zerodha: { src: "/brands/zerodha.svg", name: "Zerodha", k: 0.72 },
-    groww: { src: "/brands/groww.png", name: "Groww", k: 0.84 },
+    exness: { src: "/brands/exness.png", name: "Exness", k: 0.84 },
 };
+
+/** Which broker a name, server or company belongs to, if it's one with a logo here. */
+export function brandFor(text = "") {
+    const t = String(text).toLowerCase().replace(/[^a-z]/g, "");
+    return Object.keys(BRANDS).find((k) => t.includes(k)) || null;
+}
 
 const norm = (s) =>
     String(s || "")
@@ -31,7 +37,7 @@ export function bankIn(name) {
     return BANKS.find((b) => words.includes(norm(b.short)) || n.startsWith(norm(b.name)) || (b.aliases || []).some((a) => n.includes(norm(a)))) || null;
 }
 
-const GLYPHS = { bank: Landmark, wallet: Wallet };
+const GLYPHS = { bank: Landmark, forex: CandlestickChart, wallet: Wallet };
 
 function Logo({ mark }) {
     if (mark?.brand && BRANDS[mark.brand]) {
