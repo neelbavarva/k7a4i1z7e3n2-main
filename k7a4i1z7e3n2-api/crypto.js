@@ -137,20 +137,72 @@ async function readSol(address) {
 
 const READERS = { evm: readEvm, btc: readBtc, tron: readTron, sol: readSol };
 
-let priceCache = null;
-/** Each coin in rupees and dollars, refreshed every five minutes. */
-async function prices() {
-    if (priceCache && Date.now() - priceCache.at < 5 * 60 * 1000) return priceCache.value;
+let priceCache = null; // { at, value }: the last good prices
+let pricing = null; // the request in flight, shared by every wallet read at once
+
+const PRICE_TTL = 5 * 60 * 1000;
+
+/** CoinGecko: rupee and dollar prices with the day's change, in one call. */
+async function geckoPrices() {
     const key = (process.env.COINGECKO_KEY || "").trim();
     const j = await getJson(
         `https://api.coingecko.com/api/v3/simple/price?ids=${Object.values(COINS).join(",")}&vs_currencies=inr,usd&include_24hr_change=true`,
         key ? { "x-cg-demo-api-key": key } : {}
     );
-    const value = Object.fromEntries(
+    return Object.fromEntries(
         Object.entries(COINS).map(([sym, id]) => [sym, { inr: j[id]?.inr ?? null, usd: j[id]?.usd ?? null, change24h: j[id]?.inr_24h_change ?? j[id]?.usd_24h_change ?? null }])
     );
-    priceCache = { at: Date.now(), value };
-    return value;
+}
+
+/**
+ * Binance's public market data (no key, not region-locked): each coin against USDT, turned into
+ * rupees at the day's USD/INR. For when CoinGecko's free tier is rate-limiting this server.
+ */
+async function binancePrices() {
+    const pairs = Object.keys(COINS).filter((s) => s !== "USDT").map((s) => `${s}USDT`);
+    const [list, fx] = await Promise.all([
+        getJson(`https://data-api.binance.vision/api/v3/ticker/24hr?symbols=${encodeURIComponent(JSON.stringify(pairs))}`),
+        require("./market").usdInr(),
+    ]);
+    const bySym = new Map((Array.isArray(list) ? list : []).map((t) => [t.symbol, t]));
+    return Object.fromEntries(
+        Object.keys(COINS).map((sym) => {
+            if (sym === "USDT") return [sym, { usd: 1, inr: fx.rate, change24h: 0 }];
+            const t = bySym.get(`${sym}USDT`);
+            const usd = t ? Number(t.lastPrice) : null;
+            return [sym, { usd, inr: usd != null ? usd * fx.rate : null, change24h: t ? Number(t.priceChangePercent) : null }];
+        })
+    );
+}
+
+/**
+ * Each coin's price in rupees and dollars, with its 24-hour change. Cached for five minutes; from
+ * CoinGecko, else Binance; if both fail, the last good prices rather than none.
+ */
+async function prices() {
+    if (priceCache && Date.now() - priceCache.at < PRICE_TTL) return priceCache.value;
+    if (!pricing) {
+        pricing = (async () => {
+            const problems = [];
+            for (const source of [geckoPrices, binancePrices]) {
+                try {
+                    const value = await source();
+                    if (Object.values(value).some((p) => p.inr != null)) {
+                        priceCache = { at: Date.now(), value };
+                        return value;
+                    }
+                    problems.push(`${source.name}: no prices`);
+                } catch (err) {
+                    problems.push(err.message);
+                }
+            }
+            if (priceCache) return priceCache.value; // stale beats nothing
+            throw new Error(problems.join("; "));
+        })().finally(() => {
+            pricing = null;
+        });
+    }
+    return pricing;
 }
 
 const balanceCache = new Map(); // "chain:address" → { at, value }
@@ -170,6 +222,7 @@ async function readWallet(chain, address, { fresh = false } = {}) {
 
 const clearCaches = () => {
     priceCache = null;
+    pricing = null;
     balanceCache.clear();
 };
 

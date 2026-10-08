@@ -56,8 +56,17 @@ const SOL = "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM";
 const realFetch = globalThis.fetch;
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 let ethDown = false;
+let geckoLimited = false; // CoinGecko's free tier saying 429
+let binanceDown = false;
 function outside(url, init = {}) {
     const u = new URL(url);
+    if (u.host === "api.coingecko.com" && geckoLimited) return json({ status: { error_code: 429 } }, 429);
+    if (u.host === "data-api.binance.vision") {
+        if (binanceDown) return Promise.reject(new Error("down"));
+        const t = (symbol, lastPrice, priceChangePercent) => ({ symbol, lastPrice: String(lastPrice), priceChangePercent: String(priceChangePercent) });
+        return json([t("BTCUSDT", 80000, -2.5), t("ETHUSDT", 2500, 1.5), t("SOLUSDT", 110, 3), t("USDCUSDT", 1, 0)]);
+    }
+    if (u.host === "api.frankfurter.dev") return json({ date: "2026-10-08", rates: { INR: 96 } });
     if (u.host === "api.coingecko.com") {
         return json({ bitcoin: { inr: 8000000, usd: 80000 }, ethereum: { inr: 250000, usd: 2500 }, binancecoin: { inr: 75000, usd: 750 }, "polygon-ecosystem-token": { inr: 10, usd: 0.1 }, tron: { inr: 30, usd: 0.3 }, solana: { inr: 11000, usd: 110 }, tether: { inr: 96, usd: 1 }, "usd-coin": { inr: 96, usd: 1 } });
     }
@@ -161,4 +170,34 @@ test("renames and removes a wallet", async () => {
     assert.equal((await req(`/crypto/wallets/${id}`, { method: "PUT", body: { addresses: [TRON, "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"] } })).status, 409); // that one's in Old BTC
     assert.equal((await req(`/crypto/wallets/${id}`, { method: "DELETE" })).status, 200);
     assert.equal((await req(`/crypto/wallets/${id}`, { method: "DELETE" })).status, 404);
+});
+
+test("prices: CoinGecko rate-limited falls back to Binance, and both down keeps the last good prices", async () => {
+    const crypto = require("../crypto");
+    crypto.clearCaches();
+    geckoLimited = true;
+    try {
+        const p = await crypto.prices();
+        assert.equal(p.BTC.usd, 80000);
+        assert.equal(p.BTC.inr, 80000 * 96);
+        assert.equal(p.BTC.change24h, -2.5);
+        assert.equal(p.USDT.inr, 96);
+        // later, with both sources down and the cache past its five minutes: the last good prices
+        binanceDown = true;
+        const realNow = Date.now;
+        Date.now = () => realNow() + 10 * 60 * 1000;
+        try {
+            const stale = await crypto.prices();
+            assert.equal(stale.BTC.usd, 80000);
+        } finally {
+            Date.now = realNow;
+        }
+        // nothing ever loaded: an error that says why
+        crypto.clearCaches();
+        await assert.rejects(crypto.prices(), /429/);
+    } finally {
+        geckoLimited = false;
+        binanceDown = false;
+        crypto.clearCaches();
+    }
 });
