@@ -9,15 +9,6 @@ const EVENT = "k7-auth";
 let held = 0; // the unlock time, when localStorage can't be used
 let heldSession = "";
 
-/**
- * On a local dev server (`next dev`) there's no lock screen, so changes show straight away. The
- * live API still wants the day's pass for real data: one from an unlock here is still sent, and
- * without one the server's answers fail on their own instead of bringing back the lock screen.
- * NEXT_PUBLIC_VAULT_LOCK=on keeps the lock in development too.
- */
-export const LOCK_OFF = process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_VAULT_LOCK !== "on";
-const OPENED = Date.now(); // stands in for the unlock time while the lock is off
-
 /** When this browser was unlocked, or 0 if it's locked (or the day is up). */
 export function unlockedAt(now = Date.now()) {
     let ts;
@@ -27,7 +18,7 @@ export function unlockedAt(now = Date.now()) {
         ts = held; // storage blocked: use what this page holds
     }
     if (ts && now - ts < UNLOCK_MS) return ts;
-    return LOCK_OFF ? OPENED : 0;
+    return 0;
 }
 
 export function unlock(now = Date.now(), session = "") {
