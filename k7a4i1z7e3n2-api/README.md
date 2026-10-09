@@ -63,7 +63,7 @@ The vault's **Trades → Net worth** page adds these up with Zerodha. All need t
 |---|---|
 | `GET /worth/fx` | US dollar in rupees (`rate`), and `rates`: each currency the net worth page can be shown in, per dollar (INR, EUR, GBP, SGD, JPY, AUD, CAD, CHF from the ECB via Frankfurter, the pegged AED; cached an hour). |
 | `GET, POST /worth/manual`, `PUT, DELETE /worth/manual/:id` | Entries typed in by hand: bank balances, deposits, cash, investment accounts, mutual funds (with their AMFI `scheme` code), loans. A new figure keeps the one it replaces in `history` (the last 60, with when each was typed), for the vault's trail. |
-| `GET /worth/funds` | Every open-ended mutual fund's Direct Growth plan, and the ETFs, from AMFI's daily `NAVAll.txt` (free, no key; cached six hours): code, clean name, fund house, kind, Groww-style category, NAV. |
+| `GET /worth/funds` | Every open-ended mutual fund's Direct Growth plan, and the ETFs, from AMFI's daily `NAVAll.txt` (free, no key; cached six hours; read in both its layouts, the plan in the name or, since October 2026, in columns of its own): code, clean name, fund house, kind, Groww-style category, NAV. |
 | `GET /worth/funds/:code` | One fund's latest NAV and its 1, 3 and 5 year returns (3 and 5 a year on average), from its NAV history on mfapi.in (cached six hours). |
 | `GET /groww/status`, `GET /groww/account` | Groww holdings (valued with delayed Yahoo Finance prices; Groww's free API has none), positions and funds. |
 | `GET /mt5/accounts`, `PUT /mt5/accounts/:id`, `POST /mt5/push` | Every MT5 account's balance, equity, margin and open positions; its name here and whether it counts; the add-on's reports. |

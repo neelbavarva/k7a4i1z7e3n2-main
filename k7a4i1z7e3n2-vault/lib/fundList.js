@@ -1,4 +1,4 @@
-// The full list of mutual funds (about 1,700, from AMFI through the API), loaded the first time a
+// The full list of mutual funds (about 2,000, from AMFI through the API), loaded the first time a
 // fund picker opens and kept for the tab's session, so it's asked for once. Until it's in, or if
 // the API can't give it, the picker shows the well-known funds in lib/funds.js.
 

@@ -55,6 +55,16 @@ describe("mutual funds", () => {
         expect(searchFunds("large cap", "all", api).map((x) => x.code)).toEqual([1, 2]);
         expect(searchFunds("", "gold", api).map((x) => x.code)).toEqual([3]);
     });
+    it("finds SBI Gold Fund in the full list by its plan's whole name, with its scheme", () => {
+        // as the API gives it from AMFI's newer layout ("SBI GOLD FUND;Direct Plan;Growth")
+        const api = [
+            { code: 119788, name: "SBI Gold Fund", house: "SBI", kind: "gold", category: "Commodities Gold", nav: 44.6571 },
+            { code: 111954, name: "SBI Gold ETF", house: "SBI", kind: "gold", category: "Commodities Gold", nav: 124.7022 },
+        ].map(fromApi);
+        expect(searchFunds("SBI Gold Direct Plan Growth", "all", api)[0]).toMatchObject({ code: 119788, name: "SBI Gold Fund", popular: true });
+        expect(fundOf("SBI Gold Direct Plan Growth", api)?.code).toBe(119788);
+        expect(searchFunds("", "gold", api).map((x) => x.code)).toEqual([119788, 111954]);
+    });
     it("gives every well-known fund a category in Groww's words", () => {
         expect(fundOf("SBI Gold Fund").category).toBe("Commodities Gold");
         expect(fundOf("SBI Silver ETF").category).toBe("Commodities Silver");

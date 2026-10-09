@@ -63,6 +63,24 @@ function planName(raw, etf) {
     return tidy(base);
 }
 
+// kept in capitals when a name written all in capitals is set in title case
+const ACRONYMS = new Set(["SBI", "HDFC", "ICICI", "UTI", "DSP", "IDFC", "HSBC", "PGIM", "LIC", "ITI", "JM", "NJ", "BOI", "IIFL", "BNP", "ETF", "ETFS", "FOF", "FMP", "ELSS", "PSU", "CPSE", "IT", "US", "USA", "ESG", "MNC", "FMCG", "BSE", "NSE", "BFSI", "CRISIL", "IBX", "SDL", "PSB", "AAA", "NASDAQ", "MSCI", "REIT", "INVIT", "EV", "AI", "II", "III", "IV"]);
+// words that stay small inside a name, and houses that write their own name their own way
+const SMALL = new Set(["of", "and", "the", "in", "for", "to", "on", "or"]);
+const OWN = { TRUSTMF: "TrustMF" };
+
+/** "SBI GOLD FUND" → "SBI Gold Fund": a name AMFI writes all in capitals, set like the rest. */
+function nameCase(name) {
+    if (!name || /[a-z]/.test(name)) return name;
+    let first = true;
+    return name.replace(/[A-Z0-9&']+/g, (w) => {
+        const lower = w.toLowerCase();
+        const out = OWN[w] || (ACRONYMS.has(w) || /\d/.test(w) ? w : !first && SMALL.has(lower) ? lower : w.charAt(0) + lower.slice(1));
+        first = false;
+        return out;
+    });
+}
+
 const DEBT_WORDS = /\b(sdl|g-?sec|gilt|bond|debt|crisil|t-?bills?|liquid|psu|target maturity|treasury|money market|overnight)\b/i;
 const ABROAD = /\b(international|global|overseas|world|nasdaq|s&p 500|nyse|fang|us|usa|china|japan|taiwan|hang seng|europe|emerging markets)\b/i;
 
@@ -105,8 +123,11 @@ function classify(amfiCategory, name) {
 
 /**
  * NAVAll.txt as a list. The file is blocks: a line for the category ("Open Ended Schemes(Equity
- * Scheme - Large Cap Fund)"), a line for each fund house, then one line per plan:
- * `code;ISIN growth;ISIN reinvest;name;NAV;date`. Close-ended and interval schemes are left out.
+ * Scheme - Large Cap Fund)"), a line for each fund house, then one line per plan. AMFI has written
+ * the plan two ways: in the name, `code;ISIN growth;ISIN reinvest;name;NAV;date`, and, since
+ * October 2026, in columns of its own, `code;ISIN growth;ISIN reinvest;name;plan;option;NAV;date`
+ * ("SBI GOLD FUND;Direct Plan;Growth"), though some lines still keep it in the name there too. Both
+ * are read. Close-ended and interval schemes are left out.
  */
 function parseNavAll(text) {
     const funds = [];
@@ -126,10 +147,15 @@ function parseNavAll(text) {
             continue;
         }
         if (!category || !house) continue;
-        const [code, isin, , schemeName, navText, dateText] = line.split(";").map((x) => x.trim());
+        const cols = line.split(";").map((x) => x.trim());
+        const [code, isin, , schemeName] = cols;
         if (!/^\d+$/.test(code)) continue; // the column heads
-        const etf = /etf/i.test(category) || /\betf\b|\bbees\b/i.test(schemeName);
-        const name = planName(schemeName, etf);
+        const [plan, option, navText, dateText] = cols.length >= 8 ? cols.slice(4, 8) : ["", "", cols[4], cols[5]];
+        // an ETF (not a fund of funds that holds one) has the one plan, whatever the file calls it
+        // ("Regular Plan", "IDCW"); for everything else the plan and option are read as part of the
+        // name, the way the older lines write them
+        const etf = (/etf/i.test(category) || /\betf\b|\bbees\b/i.test(schemeName)) && !/\bfund of funds?\b|\bfof\b/i.test(schemeName);
+        const name = nameCase(planName(etf ? schemeName : [schemeName, plan, option].filter(Boolean).join(" - "), etf));
         if (!name) continue;
         const key = `${house}|${name.toLowerCase()}`;
         if (seen.has(key)) continue;
@@ -225,4 +251,4 @@ function fundDetail(code) {
     });
 }
 
-module.exports = { allFunds, fundDetail, parseNavAll, planName, classify, returnsOf, isoDay };
+module.exports = { allFunds, fundDetail, parseNavAll, planName, nameCase, classify, returnsOf, isoDay };

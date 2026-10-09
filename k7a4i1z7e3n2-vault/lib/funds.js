@@ -1,5 +1,5 @@
 // Indian mutual funds to pick from when a holding is typed in. The full list (every Direct Growth
-// plan and ETF, about 1,700) comes from the API, which reads AMFI's daily NAV file; it loads in
+// plan and ETF, about 2,000) comes from the API, which reads AMFI's daily NAV file; it loads in
 // lib/fundList.js. FUNDS below are the well-known ones: shown first as the popular picks, and the
 // whole list when the API's can't be had. Names are the current ones; `aka` keeps a scheme's old
 // name findable after SEBI's renames (SBI Bluechip → SBI Large Cap).

@@ -117,6 +117,77 @@ test("reads AMFI's file: Direct Growth plans and ETFs, clean names, the house, a
     assert.ok(!list.some((f) => /fixed maturity/i.test(f.name)));
 });
 
+// the same file since October 2026: the plan and option in columns of their own, though some
+// lines still keep them in the name
+const NAV_ALL_WIDE = [
+    "Scheme Code;ISIN Div Payout/ ISIN Growth;ISIN Div Reinvestment;Scheme Name;Plan;Option;Net Asset Value;Date",
+    "",
+    "Open Ended Schemes(Other Scheme - FoF Domestic)",
+    "",
+    "SBI Mutual Fund",
+    "",
+    "119789;INF200K01RN3;INF200K01RO1;SBI GOLD FUND;Direct Plan;IDCW;44.5929;08-Oct-2026",
+    "115676;INF200K01HA1;-;SBI GOLD FUND;Regular Plan;Growth;42.5785;08-Oct-2026",
+    "119788;INF200K01RP8;-;SBI GOLD FUND;Direct Plan;Growth;44.6571;08-Oct-2026",
+    "152734;INF200KB1225;INF200KB1274;SBI Silver ETF Fund of Fund;Regular Plan;IDCW;22.8104;08-Oct-2026",
+    "152735;INF200KB1233;-;SBI Silver ETF Fund of Fund;Direct Plan;Growth;22.9875;08-Oct-2026",
+    "",
+    "Open Ended Schemes(Equity Scheme - Small Cap Fund)",
+    "",
+    "quant Mutual Fund",
+    "",
+    "120828;INF966L01689;-;quant Small Cap Fund - Growth Option - Direct Plan;;;290.77;08-Oct-2026",
+    "",
+    "Open Ended Schemes(Solution Oriented Scheme - Children’s Fund)",
+    "",
+    "Axis Mutual Fund",
+    "",
+    "135759;INF846K01WJ1;-;Axis Children's Fund;Regular Plan;Growth Option;25.1051;08-Oct-2026",
+    "135762;INF846K01WO1;-;Axis Children's Fund;Direct Plan;Growth Option;28.8444;08-Oct-2026",
+    "",
+    "Open Ended Schemes(Other Scheme - Gold ETF)",
+    "",
+    "Quantum Mutual Fund",
+    "",
+    "107693;INF082J01408;-;Quantum Gold ETF;;;121.1919;08-Oct-2026",
+    "",
+    "Open Ended Schemes(Other Scheme - Other  ETFs)",
+    "",
+    "SBI Mutual Fund",
+    "",
+    "134014;INF200KA1572;-;SBI BSE 100 ETF;Regular Plan;IDCW;264.3017;08-Oct-2026",
+].join("\r\n");
+
+test("reads AMFI's newer layout too, the plan and option in columns of their own", () => {
+    const { date, count, funds: list } = funds.parseNavAll(NAV_ALL_WIDE);
+    assert.equal(date, "2026-10-08");
+    const by = Object.fromEntries(list.map((f) => [f.name, f]));
+    assert.deepEqual(Object.keys(by).sort(), ["Axis Children's Fund", "Quant Small Cap Fund", "Quantum Gold ETF", "SBI BSE 100 ETF", "SBI Gold Fund", "SBI Silver ETF Fund of Fund"]);
+    assert.equal(count, 6);
+    // the Direct Growth plan, whichever line it's on, its NAV from its own column
+    assert.equal(by["SBI Gold Fund"].code, 119788);
+    assert.equal(by["SBI Gold Fund"].nav, 44.6571);
+    assert.equal(by["SBI Gold Fund"].isin, "INF200K01RP8");
+    assert.deepEqual([by["SBI Gold Fund"].kind, by["SBI Gold Fund"].category], ["gold", "Commodities Gold"]);
+    assert.equal(by["Axis Children's Fund"].code, 135762);
+    // a fund of funds that holds an ETF has plans like any fund; an ETF's one plan is taken as it is
+    assert.equal(by["SBI Silver ETF Fund of Fund"].code, 152735);
+    assert.equal(by["SBI BSE 100 ETF"].code, 134014);
+    assert.equal(by["Quantum Gold ETF"].nav, 121.1919);
+    // a line that still keeps the plan in its name
+    assert.equal(by["Quant Small Cap Fund"].code, 120828);
+});
+
+test("sets a name written all in capitals like the rest", () => {
+    assert.equal(funds.nameCase("SBI GOLD FUND"), "SBI Gold Fund");
+    assert.equal(funds.nameCase("BANK OF INDIA LARGE & MID CAP FUND"), "Bank of India Large & Mid Cap Fund");
+    assert.equal(funds.nameCase("SBI CHILDREN'S FUND"), "SBI Children's Fund");
+    assert.equal(funds.nameCase("TRUSTMF SMALL CAP FUND"), "TrustMF Small Cap Fund");
+    assert.equal(funds.nameCase("HDFC NIFTY50 VALUE 20 ETF"), "HDFC NIFTY50 Value 20 ETF");
+    // a name with any small letters is left as AMFI writes it
+    assert.equal(funds.nameCase("quant Small Cap Fund"), "quant Small Cap Fund");
+});
+
 test("names the plan out of the many ways AMFI writes it", () => {
     assert.equal(funds.planName("Parag Parikh Flexi Cap Fund - Direct Plan - Growth"), "Parag Parikh Flexi Cap Fund");
     assert.equal(funds.planName("HDFC Flexi Cap Fund - Growth Option - Direct Plan"), "HDFC Flexi Cap Fund");
