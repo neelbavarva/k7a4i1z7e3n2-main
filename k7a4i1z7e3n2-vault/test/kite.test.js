@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { chargesSummary, clock, holdingsSummary, inr, loadSession, orderCounts, pct, positionsSummary, saveSession, takeHandoff } from "@/lib/kite";
-import { demoAccount } from "@/lib/kiteDemo";
 
 afterEach(() => {
     localStorage.clear();
@@ -51,12 +50,6 @@ describe("sums", () => {
         const c = chargesSummary([{ charges: { total: 10, brokerage: 4, transaction_tax: 3, gst: { total: 1 }, stamp_duty: 0.5 } }]);
         expect(c).toEqual({ total: 10, brokerage: 4, taxes: 4.5, other: 1.5 });
         expect(orderCounts([{ status: "COMPLETE" }, { status: "OPEN" }, { status: "TRIGGER PENDING" }, { status: "REJECTED" }, { status: "CANCELLED" }])).toEqual({ done: 1, open: 2, failed: 2 });
-    });
-    it("has sample data shaped like the server's answer", () => {
-        const { sections } = demoAccount();
-        for (const name of ["profile", "funds", "holdings", "positions", "orders", "trades", "charges", "gtt", "alerts", "mfHoldings", "sips"]) {
-            expect(sections[name].data, name).toBeTruthy();
-        }
     });
 });
 

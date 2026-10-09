@@ -26,7 +26,6 @@ import {
     shortDay,
     takeHandoff,
 } from "@/lib/kite";
-import { demoAccount, demoCandles, demoQuote } from "@/lib/kiteDemo";
 import { sideOf } from "@/lib/format";
 import Seg from "./k7/Seg";
 import { useCountUp, useNow } from "./k7/hooks";
@@ -37,7 +36,7 @@ import { useCountUp, useNow } from "./k7/hooks";
 /** The Zerodha connection: the login hand-off, this device's session and the account it reads. */
 export function useZerodha() {
     const [phase, setPhase] = useState("loading"); // loading | unset | offline | connect | ready
-    const [session, setSession] = useState(null); // { session, expiresAt, userName } or { demo: true }
+    const [session, setSession] = useState(null); // { session, expiresAt, userName }
     const [account, setAccount] = useState(null);
     const [busy, setBusy] = useState(false);
     const started = useRef(false);
@@ -51,11 +50,6 @@ export function useZerodha() {
 
     const load = useCallback(
         async (s) => {
-            if (s.demo) {
-                setAccount(demoAccount());
-                setPhase("ready");
-                return;
-            }
             try {
                 setAccount(await kiteGet("/kite/account", s.session));
                 setPhase("ready");
@@ -116,21 +110,7 @@ export function useZerodha() {
         setBusy(false);
     };
 
-    /** Leaves the sample data for whatever was there before: a saved session, or the connect card. */
-    const exitPreview = useCallback(async () => {
-        setAccount(null);
-        const saved = loadSession();
-        if (saved) {
-            setSession(saved);
-            await load(saved);
-            return;
-        }
-        setSession(null);
-        await check();
-    }, [load, check]);
-
     const disconnect = async () => {
-        if (session?.demo) return exitPreview();
         setBusy(true);
         try {
             await kitePost("/kite/logout", session.session);
@@ -142,18 +122,12 @@ export function useZerodha() {
         toConnect();
     };
 
-    const preview = () => {
-        const s = { demo: true };
-        setSession(s);
-        load(s);
-    };
-
-    return { phase, session, account, busy, refresh, disconnect, preview, exitPreview, check };
+    return { phase, session, account, busy, refresh, disconnect, check };
 }
 
-/** The Zerodha account in full, from useZerodha(). `onPreview` lets the page preview everything at once. */
-export default function Zerodha({ z, onPreview }) {
-    const { phase, session, account, busy, refresh, disconnect, preview, check } = z;
+/** The Zerodha account in full, from useZerodha(). */
+export default function Zerodha({ z }) {
+    const { phase, session, account, busy, refresh, disconnect, check } = z;
     if (phase === "loading") {
         return (
             <div className="skeleton" aria-busy="true" aria-label="Loading Zerodha">
@@ -163,13 +137,13 @@ export default function Zerodha({ z, onPreview }) {
             </div>
         );
     }
-    if (phase !== "ready" || !account) return <Connect phase={phase} onPreview={onPreview || preview} onRetry={check} />;
+    if (phase !== "ready" || !account) return <Connect phase={phase} onRetry={check} />;
 
     return <Account account={account} session={session} busy={busy} onRefresh={refresh} onDisconnect={disconnect} />;
 }
 
 /** Before there's an account to show: set up, the server waking up, or today's login. */
-function Connect({ phase, onPreview, onRetry }) {
+function Connect({ phase, onRetry }) {
     if (phase === "unset")
         return (
             <div className="src fade-in">
@@ -181,9 +155,6 @@ function Connect({ phase, onPreview, onRetry }) {
                             <code>{API_BASE}/kite/callback</code>.
                         </p>
                     </div>
-                    <button type="button" className="btn" onClick={onPreview}>
-                        Preview with sample data
-                    </button>
                 </div>
             </div>
         );
@@ -201,7 +172,7 @@ function Connect({ phase, onPreview, onRetry }) {
                 </div>
             </div>
         );
-    return <TodaysLogin onPreview={onPreview} />;
+    return <TodaysLogin />;
 }
 
 const DAY_MS = 864e5;
@@ -225,7 +196,7 @@ function span(ms) {
  * Kite's day runs from 6 AM to 6 AM, and a login lasts until the end of it. The day as a ruler,
  * now marked on it, says how long a login made now would last: a full day, or only until 6 AM.
  */
-function TodaysLogin({ onPreview }) {
+function TodaysLogin() {
     const now = useNow(30000);
     const end = nextKiteReset(now);
     const start = end - DAY_MS;
@@ -264,10 +235,7 @@ function TodaysLogin({ onPreview }) {
             </div>
             <p className="src-fine">
                 {left < 3 * 36e5 ? `Close to 6 AM: a login now ends in ${span(left)}, and you’ll log in again after that. ` : ""}
-                Reads funds, positions, orders, holdings, mutual funds, GTTs and alerts.{" "}
-                <button type="button" className="linkish" onClick={onPreview}>
-                    Preview with sample data
-                </button>
+                Reads funds, positions, orders, holdings, mutual funds, GTTs and alerts.
             </p>
         </div>
     );
@@ -292,7 +260,6 @@ function Missing({ what, section }) {
 function Account({ account, session, busy, onRefresh, onDisconnect }) {
     const s = account.sections;
     const profile = s.profile?.data;
-    const demo = session?.demo;
     const has = (section) => Boolean(section?.error) || (Array.isArray(section?.data) ? section.data.length > 0 : false);
     const today = has(s.orders) || has(s.trades) || Boolean(s.positions?.error) || (s.positions?.data?.net || []).length > 0;
 
@@ -309,34 +276,22 @@ function Account({ account, session, busy, onRefresh, onDisconnect }) {
         <div className="kt fade-in">
             {/* who's signed in, and the account's menu at the end of the line, as a wallet has it */}
             <div className="kt-top">
-                <div className={`statusbar kt-bar${demo ? " is-idle" : ""}`} role="status">
+                <div className="statusbar kt-bar" role="status">
                     <i aria-hidden="true" />
                     <p>
-                        {demo ? (
-                            <>
-                                <b>Sample data</b> <span className="muted">·</span> nothing here is from your account
-                            </>
-                        ) : (
-                            <>
-                                <b>{profile?.user_name || session?.userName || "Zerodha"}</b>
-                                {profile?.user_id ? <span className="muted"> {profile.user_id}</span> : null} <span className="muted">·</span> signed in until 6:00 AM{" "}
-                                <span className="muted">·</span>{" "}
-                                {busy ? "reading again…" : `updated ${new Date(account.fetchedAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`}
-                            </>
-                        )}
+                        <b>{profile?.user_name || session?.userName || "Zerodha"}</b>
+                        {profile?.user_id ? <span className="muted"> {profile.user_id}</span> : null} <span className="muted">·</span> signed in until 6:00 AM{" "}
+                        <span className="muted">·</span>{" "}
+                        {busy ? "reading again…" : `updated ${new Date(account.fetchedAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`}
                     </p>
                 </div>
                 <MoreMenu
                     label="Zerodha: more"
-                    items={
-                        demo
-                            ? [{ label: "Exit preview", hint: "Back to your own accounts", icon: LogOut, run: onDisconnect }]
-                            : [
-                                  { label: busy ? "Reading…" : "Read again", hint: "Fresh figures from Kite", icon: RefreshCw, run: onRefresh, disabled: busy },
-                                  "-",
-                                  { label: "Disconnect", hint: "Ends the Kite login everywhere", icon: LogOut, run: onDisconnect, disabled: busy, danger: true },
-                              ]
-                    }
+                    items={[
+                        { label: busy ? "Reading…" : "Read again", hint: "Fresh figures from Kite", icon: RefreshCw, run: onRefresh, disabled: busy },
+                        "-",
+                        { label: "Disconnect", hint: "Ends the Kite login everywhere", icon: LogOut, run: onDisconnect, disabled: busy, danger: true },
+                    ]}
                 />
             </div>
 
@@ -873,14 +828,13 @@ function Market({ session, holdings }) {
     const [quote, setQuote] = useState(null);
     const [candles, setCandles] = useState(null);
     const [state, setState] = useState("idle"); // idle | loading | plan | error
-    const demo = session?.demo;
 
     useEffect(() => {
         let gone = false;
         (async () => {
             setState("loading");
             try {
-                const q = demo ? demoQuote(asked) : await kiteGet(`/kite/quote?i=${encodeURIComponent(asked)}`, session.session);
+                const q = await kiteGet(`/kite/quote?i=${encodeURIComponent(asked)}`, session.session);
                 const one = q?.[asked];
                 if (gone) return;
                 if (!one) {
@@ -899,10 +853,9 @@ function Market({ session, holdings }) {
         return () => {
             gone = true;
         };
-    }, [asked, demo, session]);
+    }, [asked, session]);
 
     const token = quote?.instrument_token;
-    const last = quote?.last_price;
     useEffect(() => {
         if (!token) return;
         let gone = false;
@@ -910,9 +863,7 @@ function Market({ session, holdings }) {
         (async () => {
             setCandles(null);
             try {
-                const c = demo
-                    ? demoCandles(asked, r.interval, r.days, last)
-                    : await kiteGet(`/kite/candles/${token}?interval=${r.interval}&days=${r.days}`, session.session);
+                const c = await kiteGet(`/kite/candles/${token}?interval=${r.interval}&days=${r.days}`, session.session);
                 if (!gone) setCandles(c.candles || []);
             } catch {
                 if (!gone) setCandles([]);
@@ -921,7 +872,7 @@ function Market({ session, holdings }) {
         return () => {
             gone = true;
         };
-    }, [token, range, asked, demo, session, last]);
+    }, [token, range, session]);
 
     const submit = (e) => {
         e.preventDefault();

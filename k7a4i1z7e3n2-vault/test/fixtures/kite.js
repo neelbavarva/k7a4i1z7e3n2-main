@@ -1,5 +1,4 @@
-// Sample Zerodha data, shaped exactly like the server's /kite/account answer, so the view can be
-// seen before Kite is set up. Nothing here is real.
+// A made-up Zerodha account for the tests, shaped exactly like the server's /kite/account answer.
 
 const holding = (tradingsymbol, quantity, average_price, last_price, close_price, extra = {}) => ({
     tradingsymbol,
@@ -168,53 +167,4 @@ export function demoAccount() {
             },
         },
     };
-}
-
-/** A made-up but steady quote and candles for whatever's asked, so the chart can be tried. */
-export function demoQuote(instrument) {
-    let seed = [...instrument].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) >>> 0, 7);
-    const rand = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32);
-    const base = 200 + rand() * 2800;
-    const close = +(base * (0.97 + rand() * 0.06)).toFixed(2);
-    const last = +(close * (0.985 + rand() * 0.03)).toFixed(2);
-    const high = +Math.max(last, close) * (1 + rand() * 0.01);
-    const low = +Math.min(last, close) * (1 - rand() * 0.01);
-    const depth = (side) =>
-        Array.from({ length: 5 }, (_, i) => ({
-            price: +(last + (side === "buy" ? -1 : 1) * (i + 1) * 0.05).toFixed(2),
-            quantity: Math.round(50 + rand() * 900),
-            orders: Math.round(1 + rand() * 12),
-        }));
-    return {
-        [instrument]: {
-            instrument_token: 400000 + (seed % 99999),
-            last_price: last,
-            net_change: +(last - close).toFixed(2),
-            volume: Math.round(1e5 + rand() * 4e6),
-            ohlc: { open: +(close * (0.995 + rand() * 0.01)).toFixed(2), high: +high.toFixed(2), low: +low.toFixed(2), close },
-            depth: { buy: depth("buy"), sell: depth("sell") },
-            last_trade_time: new Date().toISOString(),
-        },
-    };
-}
-
-/** Candles that wander but end at `last`, so the chart agrees with the quote beside it. */
-export function demoCandles(instrument, interval, days, last) {
-    let seed = [...`${instrument}${interval}`].reduce((a, ch) => (a * 33 + ch.charCodeAt(0)) >>> 0, 11);
-    const rand = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32);
-    const step = { "15minute": 15 * 6e4, "60minute": 36e5, day: 864e5 }[interval] || 864e5;
-    const count = Math.min(400, Math.round((days * 864e5) / step / (interval === "day" ? 1 : 3.4)));
-    let price = 1000 + rand() * 600;
-    const candles = [];
-    const end = Date.now();
-    for (let i = count; i > 0; i--) {
-        const o = price;
-        price = price * (1 + (rand() - 0.485) * 0.02);
-        candles.push({ t: new Date(end - i * step).toISOString(), o, h: Math.max(o, price) * 1.004, l: Math.min(o, price) * 0.996, c: price, v: Math.round(rand() * 1e5) });
-    }
-    if (last && candles.length) {
-        const k = last / candles[candles.length - 1].c;
-        for (const c of candles) for (const f of ["o", "h", "l", "c"]) c[f] *= k;
-    }
-    return { interval, days, candles };
 }

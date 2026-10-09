@@ -119,11 +119,11 @@ function KindField({ value, onChange }) {
 
 /** `kind` starts a new balance as that kind (from the Brokerage or Mutual funds group's +). */
 /** `gross`: everything owned, in rupees, and `rate` rupees per dollar, for the preview's share. */
-export default function BalanceDialog({ open, initial, kind, demo, gross, rate, onClose, onSaved, onDeleted }) {
+export default function BalanceDialog({ open, initial, kind, gross, rate, onClose, onSaved, onDeleted }) {
     const [busy, setBusy] = useState(false);
     return (
         <Modal open={open} onClose={onClose} busy={busy} title={initial ? "Edit balance" : ADD_TITLE[kind] || "Add a balance"} sub="Typed in by hand. Update it when it changes." className="manage bal">
-            <div className="modal-body">{open && <BalanceForm initial={initial} preset={kind} demo={demo} gross={gross} rate={rate} onBusy={setBusy} onClose={onClose} onSaved={onSaved} onDeleted={onDeleted} />}</div>
+            <div className="modal-body">{open && <BalanceForm initial={initial} preset={kind} gross={gross} rate={rate} onBusy={setBusy} onClose={onClose} onSaved={onSaved} onDeleted={onDeleted} />}</div>
         </Modal>
     );
 }
@@ -131,7 +131,7 @@ export default function BalanceDialog({ open, initial, kind, demo, gross, rate, 
 // the ledger group each kind lands in, for the preview's heading
 const GROUP_OF = { bank: "Bank and cash", deposit: "Bank and cash", cash: "Bank and cash", invest: "Brokerage", funds: "Mutual funds", loan: "Owed", other: "Other assets" };
 
-function BalanceForm({ initial, preset, demo, gross, rate, onBusy, onClose, onSaved, onDeleted }) {
+function BalanceForm({ initial, preset, gross, rate, onBusy, onClose, onSaved, onDeleted }) {
     const start = initial ? balanceInfo(initial) : null;
     const [kind, setKind] = useState(initial?.kind && LINE[initial.kind] ? initial.kind : LINE[preset] ? preset : "bank");
     // mutual funds are usually on Groww: a new holding starts there
@@ -200,11 +200,7 @@ function BalanceForm({ initial, preset, demo, gross, rate, onBusy, onClose, onSa
         onBusy(true);
         setError("");
         try {
-            const doc = demo
-                ? { ...initial, ...body, _id: initial?._id || `d${Date.now()}`, updatedAt: new Date().toISOString() }
-                : initial
-                  ? await http(`/worth/manual/${initial._id}`, { method: "PUT", body })
-                  : await http("/worth/manual", { method: "POST", body });
+            const doc = initial ? await http(`/worth/manual/${initial._id}`, { method: "PUT", body }) : await http("/worth/manual", { method: "POST", body });
             toast.success(initial ? "Balance saved" : "Balance added", { description: `${info.title}: ${money(value)}` });
             onSaved(doc, Boolean(initial));
             onClose();
@@ -221,7 +217,7 @@ function BalanceForm({ initial, preset, demo, gross, rate, onBusy, onClose, onSa
         setSaving(true);
         onBusy(true);
         try {
-            if (!demo) await http(`/worth/manual/${initial._id}`, { method: "DELETE" });
+            await http(`/worth/manual/${initial._id}`, { method: "DELETE" });
             toast(`${info.title} removed`);
             onDeleted(initial);
             onClose();

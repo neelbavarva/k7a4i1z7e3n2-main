@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { combine, cryptoWorth, manualWorth, zerodhaWorth } from "@/lib/worth";
-import { demoAccount } from "@/lib/kiteDemo";
-import { demoCrypto, demoManual } from "@/lib/worthDemo";
+import { demoAccount } from "./fixtures/kite";
+import { demoCrypto, demoManual } from "./fixtures/worth";
 
 describe("net worth", () => {
     it("values Zerodha as holdings, Coin funds, and opening cash plus today's position P&L", () => {

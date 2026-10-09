@@ -1,13 +1,5 @@
-// Sample hand-typed and crypto data, shaped like the server's answers, at the size of a
-// real retail account rather than a showcase. Nothing here is real.
-
-export const demoFx = () => ({
-    rate: 96.73,
-    date: new Date().toISOString().slice(0, 10),
-    source: "Sample",
-    // each currency per US dollar, as /worth/fx gives them
-    rates: { USD: 1, INR: 96.73, EUR: 0.894, GBP: 0.757, AED: 3.6725, SGD: 1.282, JPY: 158.3, AUD: 1.44, CAD: 1.426, CHF: 0.834 },
-});
+// Made-up hand-typed and crypto data for the tests, shaped like the server's answers, at the size
+// of a real retail account rather than a showcase.
 
 export function demoManual() {
     const ago = (days) => new Date(Date.now() - days * 864e5).toISOString();
@@ -37,12 +29,6 @@ export function demoManual() {
     ];
 }
 
-/** A held fund as the API describes it (`/worth/funds/:code`): made-up figures. */
-export function demoFund(code) {
-    const day = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
-    return { code: Number(code), name: "Parag Parikh Flexi Cap Fund", house: "PPFAS", kind: "equity", category: "Equity Flexi Cap", nav: 92.41, date: day, since: "2013-05-28", returns: { "1Y": 14.2, "3Y": 21.6, "5Y": 24.9 } };
-}
-
 export function demoCrypto() {
     const h = (network, symbol, amount, inr, usd, change24h = 0) => ({ network, symbol, amount, inr: amount * inr, usd: amount * usd, change24h });
     const at = (chain, address, holdings) => ({ chain, address, holdings, inr: holdings.reduce((a, x) => a + x.inr, 0), usd: holdings.reduce((a, x) => a + x.usd, 0), error: null });
@@ -66,17 +52,4 @@ export function demoCrypto() {
             wallet("c2", "Phantom", "phantom", [at("sol", "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM", [h("Solana", "SOL", 0.6, 11323.64, 117.04, 1.8), h("Solana", "USDC", 20, 96.7, 1)])]),
         ],
     };
-}
-
-/** Five months of daily totals that wander upwards; the page scales them to end at the sample's total. */
-export function demoHistory() {
-    let seed = 42;
-    const rand = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32);
-    const out = [];
-    let v = 100;
-    for (let i = 150; i >= 1; i--) {
-        v *= 1 + (rand() - 0.46) * 0.018;
-        out.push({ date: new Date(Date.now() + 5.5 * 36e5 - i * 864e5).toISOString().slice(0, 10), total: v });
-    }
-    return out;
 }

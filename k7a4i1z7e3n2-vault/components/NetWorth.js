@@ -1,15 +1,14 @@
 "use client";
 
 import React, { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, ChevronDown, Copy, Eye, Pencil, Plus, RefreshCw, Trash2, X } from "lucide-react";
+import { ArrowRight, ChevronDown, Copy, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { RETRIES, http, waitToRetry } from "@/lib/http";
 import { hasHandoff, inr, num, pct } from "@/lib/kite";
 import { fmtAgo, sideOf } from "@/lib/format";
 import { countsInWorth, equityOf, statsOf } from "@/lib/trades";
 import { combine, cryptoWorth, manualWorth, zerodhaWorth } from "@/lib/worth";
-import { demoCrypto, demoFund, demoFx, demoHistory, demoManual } from "@/lib/worthDemo";
-import { CHAIN_INFO, CHAIN_SHORT, NETWORK_KEY, chainOf, shortAddress } from "@/lib/wallets";
+import { CHAIN_INFO, CHAIN_SHORT, NETWORK_KEY, shortAddress } from "@/lib/wallets";
 import { CoinIcon, NetworkStack } from "./k7/CryptoIcons";
 import { Mark } from "./k7/Marks";
 import MoreMenu from "./k7/MoreMenu";
@@ -43,15 +42,15 @@ const usd = (x, { sign = false } = {}) => {
  * cache) up to three times, a little later each time, before it's shown as it is; meanwhile what
  * did come back is shown, as "retrying". reload({ fresh: true }) starts from `path`.
  */
-function useSource(path, demo, sample, again) {
+function useSource(path, again) {
     const [s, setS] = useState({ state: "loading" });
     const [ask, setAsk] = useState({ n: 0, fresh: false }); // a new one to load again
     useEffect(() => {
         let gone = false;
         (async () => {
             try {
-                let data = await (demo ? sample() : http(ask.fresh && again ? again.path : path));
-                for (let i = 0; !demo && again && i < RETRIES && again.when(data); i++) {
+                let data = await http(ask.fresh && again ? again.path : path);
+                for (let i = 0; again && i < RETRIES && again.when(data); i++) {
                     if (gone) return;
                     setS({ state: "retrying", data });
                     await waitToRetry(i);
@@ -69,7 +68,7 @@ function useSource(path, demo, sample, again) {
         return () => {
             gone = true;
         };
-    }, [path, demo, sample, again, ask]);
+    }, [path, again, ask]);
     const reload = ({ fresh = false } = {}) => {
         setS((p) => ({ ...p, state: p.data ? "refreshing" : "loading" }));
         setAsk((a) => ({ n: a.n + 1, fresh }));
@@ -81,11 +80,11 @@ function useSource(path, demo, sample, again) {
 const CHAINS_AGAIN = { path: "/crypto/wallets?fresh=1", when: (d) => Boolean(d?.priceError || d?.wallets?.some((w) => w.error)) };
 
 /** What's known of each fund held, by its AMFI scheme code: category, NAV, returns. */
-function useFundDetails(codes, demo) {
+function useFundDetails(codes) {
     const [got, setGot] = useState({});
     const key = codes.join(",");
     useEffect(() => {
-        if (demo || !key) return;
+        if (!key) return;
         let live = true;
         for (const code of key.split(",")) {
             http(`/worth/funds/${code}`).then(
@@ -96,8 +95,8 @@ function useFundDetails(codes, demo) {
         return () => {
             live = false;
         };
-    }, [key, demo]);
-    return demo ? Object.fromEntries(codes.map((c) => [c, demoFund(c)])) : got;
+    }, [key]);
+    return got;
 }
 
 const OPEN_KEY = "worthOpen";
@@ -155,13 +154,11 @@ const STALE_DAYS = 30;
  */
 export default function NetWorth({ ask, fx, journal, band, onNewTrade, onShowTrades }) {
     const z = useZerodha();
-    const demo = Boolean(z.session?.demo);
-    const manual = useSource("/worth/manual", demo, demoManual);
-    const wallets = useSource("/crypto/wallets", demo, demoCrypto, CHAINS_AGAIN);
-    const history = useSource("/worth/history?days=1825", demo, demoHistory);
-    // rupees to the dollar; the sample has its own when the server hasn't answered
-    const rate = fx.data?.rate || (demo ? demoFx().rate : null);
-    const fundInfo = useFundDetails([...new Set((manual.data || []).filter((e) => e.kind === "funds" && e.scheme).map((e) => e.scheme))], demo);
+    const manual = useSource("/worth/manual");
+    const wallets = useSource("/crypto/wallets", CHAINS_AGAIN);
+    const history = useSource("/worth/history?days=1825");
+    const rate = fx.data?.rate || null; // rupees to the dollar
+    const fundInfo = useFundDetails([...new Set((manual.data || []).filter((e) => e.kind === "funds" && e.scheme).map((e) => e.scheme))]);
     // the full fund list, if a picker has loaded it this session: a fund's category while its details are still out
     const fundList = useFundList(false).list;
     const fundKnown = (code) => (fundInfo[code]?.category ? fundInfo[code] : fundList?.find((x) => x.code === code) || null);
@@ -332,7 +329,7 @@ export default function NetWorth({ ask, fx, journal, band, onNewTrade, onShowTra
     const partsKey = JSON.stringify(totals.parts);
     const posting = useRef(false);
     useEffect(() => {
-        if (demo || !settled || !counted || posting.current) return;
+        if (!settled || !counted || posting.current) return;
         let last = null;
         try {
             last = JSON.parse(localStorage.getItem(POSTED_KEY) || "null");
@@ -354,7 +351,7 @@ export default function NetWorth({ ask, fx, journal, band, onNewTrade, onShowTra
             .finally(() => {
                 posting.current = false;
             });
-    }, [demo, settled, counted, totals.total, partsKey]);
+    }, [settled, counted, totals.total, partsKey]);
 
     // the days recorded before the trading was counted didn't have it: each gets what the Real
     // trades closed by then had made, at today's rate, so the line shows the trading as it grew
@@ -365,7 +362,7 @@ export default function NetWorth({ ask, fx, journal, band, onNewTrade, onShowTra
     const closesKey = closes.map((c) => c.join(":")).join(",");
     const points = useMemo(() => {
         let list = [...(history.data || [])];
-        if (!demo && rate && closesKey) {
+        if (rate && closesKey) {
             const made = closesKey.split(",").map((c) => c.split(":"));
             let i = -1;
             list = list.map((p) => {
@@ -373,20 +370,14 @@ export default function NetWorth({ ask, fx, journal, band, onNewTrade, onShowTra
                 return p.parts?.forex != null || i < 0 ? p : { ...p, total: p.total + Number(made[i][1]) * rate };
             });
         }
-        // the sample's line is drawn to scale: it ends where the sample's total is
-        if (demo && list.length && settled && totals.total) {
-            const k = totals.total / list[list.length - 1].total;
-            list = list.map((p) => ({ ...p, total: p.total * k }));
-        }
         const today = new Date(Date.now() + 5.5 * 36e5).toISOString().slice(0, 10);
         if (settled && counted) {
             if (list.length && list[list.length - 1].date === today) list[list.length - 1] = { ...list[list.length - 1], total: totals.total };
             else list.push({ date: today, total: totals.total });
         }
         return list;
-    }, [history.data, demo, rate, closesKey, settled, counted, totals.total]);
+    }, [history.data, rate, closesKey, settled, counted, totals.total]);
 
-    const preview = () => z.preview();
     const refreshAll = () => {
         z.refresh();
         fx.reload();
@@ -407,17 +398,7 @@ export default function NetWorth({ ask, fx, journal, band, onNewTrade, onShowTra
         setSavingWallet(true);
         try {
             const editing = adding && adding !== "new" ? adding : null;
-            if (demo) {
-                const addresses = fields.addresses.map((address) => ({ address, chain: chainOf(address), holdings: [], inr: 0, usd: 0, error: null }));
-                const id = editing?._id || `d${Date.now()}`;
-                wallets.setData((d) => ({
-                    ...d,
-                    wallets: editing
-                        ? d.wallets.map((w) => (w._id === editing._id ? { ...w, ...fields, addresses } : w))
-                        : [...d.wallets, { _id: id, ...fields, addresses, holdings: [], inr: 0, usd: 0, error: null }],
-                }));
-                openLine(`crypto:${id}`, { toggle: false });
-            } else if (editing) {
+            if (editing) {
                 await http(`/crypto/wallets/${editing._id}`, { method: "PUT", body: fields });
                 wallets.reload();
             } else {
@@ -435,13 +416,11 @@ export default function NetWorth({ ask, fx, journal, band, onNewTrade, onShowTra
     };
 
     // the chains read again now, past the server's five-minute cache
-    const rereadWallets = () => {
-        if (!demo) wallets.reload({ fresh: true });
-    };
+    const rereadWallets = () => wallets.reload({ fresh: true });
 
     const removeWallet = async (w) => {
         try {
-            if (!demo) await http(`/crypto/wallets/${w._id}`, { method: "DELETE" });
+            await http(`/crypto/wallets/${w._id}`, { method: "DELETE" });
             wallets.setData((d) => ({ ...d, wallets: d.wallets.filter((x) => x._id !== w._id) }));
             setOpen(null);
         } catch {
@@ -451,7 +430,7 @@ export default function NetWorth({ ask, fx, journal, band, onNewTrade, onShowTra
 
     const removeBalance = async (e) => {
         try {
-            if (!demo) await http(`/worth/manual/${e._id}`, { method: "DELETE" });
+            await http(`/worth/manual/${e._id}`, { method: "DELETE" });
             manual.setData((list = []) => list.filter((x) => x._id !== e._id));
             setOpen(null);
             toast(`${balanceInfo(e).title} removed`);
@@ -461,11 +440,11 @@ export default function NetWorth({ ask, fx, journal, band, onNewTrade, onShowTra
     };
 
     const detail = (l) => {
-        if (l.kind === "zerodha") return <Zerodha z={z} onPreview={preview} />;
-        if (l.kind === "setup") return <SetupNote onPreview={preview} />;
+        if (l.kind === "zerodha") return <Zerodha z={z} />;
+        if (l.kind === "setup") return <SetupNote />;
         if (l.kind === "trading")
             return <TradingPanel stats={l.stats} rate={rate} left={journal.trades.length - counting.length} failed={journal.failed} onRetry={journal.retry} onShow={() => onShowTrades("Real")} />;
-        if (l.kind === "wallet") return <WalletPanel wallet={l.wallet} src={wallets} demo={demo} onEdit={(w) => setAdding(w)} onReread={rereadWallets} onRemove={removeWallet} />;
+        if (l.kind === "wallet") return <WalletPanel wallet={l.wallet} src={wallets} onEdit={(w) => setAdding(w)} onReread={rereadWallets} onRemove={removeWallet} />;
         return (
             <BalancePanel
                 key={`${l.entry._id}:${l.entry.updatedAt}`}
@@ -474,7 +453,6 @@ export default function NetWorth({ ask, fx, journal, band, onNewTrade, onShowTra
                 known={l.entry.kind === "funds" && l.entry.scheme ? fundKnown(l.entry.scheme) : null}
                 onRemove={removeBalance}
                 rate={rate}
-                demo={demo}
                 onEdit={() => setBalance(l.entry)}
                 onSaved={(doc) => manual.setData((list = []) => list.map((x) => (x._id === doc._id ? doc : x)))}
             />
@@ -484,7 +462,6 @@ export default function NetWorth({ ask, fx, journal, band, onNewTrade, onShowTra
     return (
         <div className="nw fade-in">
             <Status
-                demo={demo}
                 loading={loadingNames}
                 busy={busy}
                 counted={counted}
@@ -492,8 +469,6 @@ export default function NetWorth({ ask, fx, journal, band, onNewTrade, onShowTra
                 rate={rate}
                 lines={lines}
                 onRefresh={refreshAll}
-                onExit={z.exitPreview}
-                onPreview={preview}
             />
 
             {firstLoad ? (
@@ -530,7 +505,6 @@ export default function NetWorth({ ask, fx, journal, band, onNewTrade, onShowTra
                 open={Boolean(balance)}
                 initial={balance?._id ? balance : null}
                 kind={balance?._id ? undefined : balance?.kind}
-                demo={demo}
                 onClose={() => setBalance(null)}
                 onSaved={(doc, edited) => {
                     manual.setData((list = []) => (edited ? list.map((x) => (x._id === doc._id ? doc : x)) : [...list, doc]));
@@ -548,20 +522,16 @@ export default function NetWorth({ ask, fx, journal, band, onNewTrade, onShowTra
 // ---------- the status line ----------
 
 /** What's been read and when, what's still coming, and what needs you: one line, as on the other Kaizen sites. */
-function Status({ demo, loading, busy, counted, readAt, rate, lines, onRefresh, onExit, onPreview }) {
+function Status({ loading, busy, counted, readAt, rate, lines, onRefresh }) {
     const m = useContext(Money);
     const needs = lines.filter((l) => l.state === "off").map((l) => l.name); // not "setup": an optional broker that was never set up doesn’t need you
-    const tone = demo || loading.length || busy ? " is-idle" : needs.length ? " is-warn" : "";
+    const tone = loading.length || busy ? " is-idle" : needs.length ? " is-warn" : "";
     const at = readAt ? new Date(readAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }) : "";
     return (
         <div className={`statusbar nw-status${tone}`} role="status">
             <i aria-hidden="true" />
             <p>
-                {demo ? (
-                    <>
-                        <b>Sample data</b> <span className="muted">·</span> nothing here is from your accounts
-                    </>
-                ) : loading.length ? (
+                {loading.length ? (
                     <>Reading {list(loading)}…</>
                 ) : busy ? (
                     <>Reading every account again…</>
@@ -601,23 +571,10 @@ function Status({ demo, loading, busy, counted, readAt, rate, lines, onRefresh, 
                     </span>
                 ) : null}
             </p>
-            {demo ? (
-                <button type="button" className="btn btn-ghost btn-sm" onClick={onExit}>
-                    <X aria-hidden="true" />
-                    <span className="btn-label">Exit preview</span>
-                </button>
-            ) : (
-                <>
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={onPreview} title="See the page filled in with sample accounts; nothing is saved">
-                        <Eye aria-hidden="true" />
-                        <span className="btn-label">Sample</span>
-                    </button>
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={onRefresh} disabled={busy || loading.length > 0} title="Read every account again">
-                        <RefreshCw className={busy ? "spin" : ""} aria-hidden="true" />
-                        <span className="btn-label">Refresh</span>
-                    </button>
-                </>
-            )}
+            <button type="button" className="btn btn-ghost btn-sm" onClick={onRefresh} disabled={busy || loading.length > 0} title="Read every account again">
+                <RefreshCw className={busy ? "spin" : ""} aria-hidden="true" />
+                <span className="btn-label">Refresh</span>
+            </button>
         </div>
     );
 }
@@ -1519,7 +1476,7 @@ function Ledger({ lines, totals, open, jump, shown, onShown, detail, onOpen, onA
 }
 
 /** How to turn on Zerodha when the API server isn't set up for it. */
-function SetupNote({ onPreview }) {
+function SetupNote() {
     return (
         <div className="src">
             <div className="src-head">
@@ -1530,10 +1487,6 @@ function SetupNote({ onPreview }) {
                         <code>KITE_USER_ID</code> to the API server.
                     </p>
                 </div>
-                <button type="button" className="btn" onClick={onPreview}>
-                    <Eye aria-hidden="true" />
-                    Preview with sample data
-                </button>
             </div>
         </div>
     );
@@ -1604,7 +1557,7 @@ function readBalance(text, was) {
 const retText = (x) => (x == null ? "—" : `${x > 0 ? "+" : x < 0 ? "−" : ""}${Math.abs(x).toFixed(2)}%`);
 
 /** `fund`: the held fund's NAV and returns; `known`: what's known of it (category, house). */
-function BalancePanel({ entry, fund, known, rate, demo, onEdit, onSaved, onRemove }) {
+function BalancePanel({ entry, fund, known, rate, onEdit, onSaved, onRemove }) {
     const info = balanceInfo(entry, known);
     const [confirm, setConfirm] = useState(false); // asked to remove: the panel asks to be sure
     const dollars = entry.currency === "USD";
@@ -1642,7 +1595,7 @@ function BalancePanel({ entry, fund, known, rate, demo, onEdit, onSaved, onRemov
         const body = { name: entry.name, kind: entry.kind, bank: entry.bank || "", amount: read.value, currency: entry.currency || "INR", note: entry.note || "", scheme: entry.scheme ?? null };
         setSaving(true);
         try {
-            const doc = demo ? { ...entry, ...body, updatedAt: new Date().toISOString() } : await http(`/worth/manual/${entry._id}`, { method: "PUT", body });
+            const doc = await http(`/worth/manual/${entry._id}`, { method: "PUT", body });
             onSaved(doc);
             toast.success("Balance updated", { description: `${info.title}: ${money(read.value)}` });
         } catch (err) {
@@ -1896,7 +1849,7 @@ function Trail({ entry }) {
 }
 
 /** When a source can't be shown: why, and what to do about it. */
-function Setup({ title, children, onPreview, onRetry }) {
+function Setup({ title, children, onRetry }) {
     return (
         <div className="src fade-in">
             <div className="src-head">
@@ -1910,13 +1863,6 @@ function Setup({ title, children, onPreview, onRetry }) {
                     </button>
                 ) : null}
             </div>
-            {onPreview && (
-                <p className="src-fine">
-                    <button type="button" className="linkish" onClick={onPreview}>
-                        Preview with sample data
-                    </button>
-                </p>
-            )}
         </div>
     );
 }
@@ -1935,7 +1881,7 @@ const failedChains = (error) => {
     return names.length ? names : ["Some chains"];
 };
 
-function WalletPanel({ wallet: w, src, demo, onEdit, onReread, onRemove }) {
+function WalletPanel({ wallet: w, src, onEdit, onReread, onRemove }) {
     const [confirm, setConfirm] = useState(false);
     // read again (or still being asked again, after a chain didn't answer): no warnings meanwhile
     const reading = src.state === "refreshing" || src.state === "retrying";
@@ -2006,7 +1952,7 @@ function WalletPanel({ wallet: w, src, demo, onEdit, onReread, onRemove }) {
                         label={`${w.name}: more`}
                         items={[
                             { label: "Edit wallet", hint: "Its app and addresses", icon: Pencil, run: () => onEdit(w) },
-                            { label: reading ? "Reading the chains…" : "Read again", hint: demo ? "Not in the sample" : "Fresh balances from every chain", icon: RefreshCw, run: onReread, disabled: reading || demo },
+                            { label: reading ? "Reading the chains…" : "Read again", hint: "Fresh balances from every chain", icon: RefreshCw, run: onReread, disabled: reading },
                             { label: addresses.length > 1 ? "Copy all addresses" : "Copy the address", hint: "One a line", icon: Copy, run: () => copy(addresses.map((a) => a.address).join("\n"), "Addresses copied") },
                             "-",
                             { label: "Remove wallet…", icon: Trash2, run: () => setConfirm(true), danger: true },
@@ -2022,12 +1968,10 @@ function WalletPanel({ wallet: w, src, demo, onEdit, onReread, onRemove }) {
                         {w.error && src.data?.priceError ? " " : ""}
                         {src.data?.priceError ? "Prices didn’t load, so some values are missing." : ""}
                     </span>
-                    {!demo && (
-                        <button type="button" className="btn btn-sm" onClick={onReread}>
-                            <RefreshCw aria-hidden="true" />
-                            Try again
-                        </button>
-                    )}
+                    <button type="button" className="btn btn-sm" onClick={onReread}>
+                        <RefreshCw aria-hidden="true" />
+                        Try again
+                    </button>
                 </div>
             )}
             {(w.holdings || []).length ? (

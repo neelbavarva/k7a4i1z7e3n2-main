@@ -60,6 +60,9 @@ describe("Finance", () => {
         const { onNewTrade } = await renderFinance();
         expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Finance");
         expect(tabs()).toEqual(["Overview", "Accounts", "Trades"]);
+        // the status line reads the accounts again; there's no sample data to look at instead
+        expect(screen.getByRole("button", { name: /Refresh/ })).toBeTruthy();
+        expect(screen.queryByRole("button", { name: /sample/i })).toBeNull();
         fireEvent.click(screen.getByRole("button", { name: /Log your first trade/ }));
         expect(onNewTrade).toHaveBeenCalledOnce();
         expect(document.querySelector(".jr")).toBeNull();

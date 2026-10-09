@@ -95,8 +95,9 @@ npm run build
     `logos.js` + `public/logos/*.json`: measured bank logos. `icons.js`: inline SVG wallets, tokens,
     networks. `wallets.js`: wallet list, coins, chain detection from an address, EIP-6963 extension
     discovery, WalletConnect.
-  - `kiteDemo.js`, `worthDemo.js`: sample data behind each panel's "preview" (`onPreview`).
 - `public/`: `brands/` (broker logos), `flags/`, `icons/` (pairs), `logos/` (bank logos).
+- `test/`: vitest + jsdom; `fixtures/` holds a made-up Kite account and typed-in and crypto
+  answers for the net worth maths. The app has no sample-data mode.
 
 ## The lock
 
