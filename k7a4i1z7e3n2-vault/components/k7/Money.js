@@ -5,7 +5,7 @@ import { Check, ChevronDown, Search } from "lucide-react";
 import { Popover } from "radix-ui";
 import { num } from "@/lib/kite";
 import { money as usdText } from "@/lib/format";
-import { POPULAR, currencyOf, flagOf, moneyParts, moneyText, perRupee } from "@/lib/currency";
+import { POPULAR, currenciesIn, currencyOf, flagOf, moneyParts, moneyText, perRupee } from "@/lib/currency";
 import { useCountUp } from "./hooks";
 
 // The currency the Finance page is shown in, for both halves: what you own (worked out in rupees)
@@ -14,9 +14,11 @@ import { useCountUp } from "./hooks";
 
 /**
  * `k`: how much of the page's currency one rupee is. `usd`: rupees to the dollar today, for trades
- * (null until the rates are in). Every figure is worked out in rupees first (see lib/currency.js).
+ * (null until the rates are in). `rates`: every currency per dollar, for an account kept in its own
+ * (toRupees, convert in lib/currency.js); `day`, the day they're for. Every figure is worked out in
+ * rupees first.
  */
-export const Money = createContext({ ...currencyOf("INR"), k: 1, usd: null });
+export const Money = createContext({ ...currencyOf("INR"), k: 1, usd: null, rates: { INR: 1 }, day: null });
 
 /** A rupee amount as text in the page's currency (for the figures inside sentences and tooltips). */
 export function useMoneyText() {
@@ -89,10 +91,16 @@ export function CurrencyMark({ c, size = 18 }) {
 /**
  * The currency the whole Finance page is shown in, net worth and trades alike: every one the day's
  * rates cover (the ECB's, and the Gulf ones by their dollar pegs), searched by name or code, the
- * usual few first. Under the list, what the one picked is worth in rupees today.
+ * usual few first. Under the list, what the one picked is worth in rupees today. With `field`, the
+ * same menu picks the currency a figure in a form is typed in (`value`), from inside its field;
+ * `offered`, `rates` and `day` then come from the page.
  */
-export function CurrencyMenu({ offered, rates, day, onPick }) {
-    const m = useContext(Money);
+export function CurrencyMenu({ offered, rates, day, onPick, value, field = false }) {
+    const page = useContext(Money);
+    rates ??= page.rates;
+    day ??= page.day;
+    offered ??= currenciesIn(rates);
+    const m = value ? currencyOf(value) : page;
     const [open, setOpen] = useState(false);
     const [q, setQ] = useState("");
     const query = q.trim().toLowerCase();
@@ -131,11 +139,19 @@ export function CurrencyMenu({ offered, rates, day, onPick }) {
             }}
         >
             <Popover.Trigger asChild>
-                <button type="button" className="btn nw-cur" aria-label={`Shown in ${m.name}. Change currency`} title="Show the whole page in another currency">
-                    <CurrencyMark c={m} size={15} />
-                    <span className="btn-label">{m.code}</span>
-                    <ChevronDown aria-hidden="true" />
-                </button>
+                {field ? (
+                    <button type="button" className="nw-cur-field" aria-label={`Typed in ${m.name}. Change currency`} title="Type it in another currency">
+                        <CurrencyMark c={m} size={14} />
+                        <span>{m.code}</span>
+                        <ChevronDown aria-hidden="true" />
+                    </button>
+                ) : (
+                    <button type="button" className="btn nw-cur" aria-label={`Shown in ${m.name}. Change currency`} title="Show the whole page in another currency">
+                        <CurrencyMark c={m} size={15} />
+                        <span className="btn-label">{m.code}</span>
+                        <ChevronDown aria-hidden="true" />
+                    </button>
+                )}
             </Popover.Trigger>
             <Popover.Portal>
                 <Popover.Content className="menu nw-cur-menu" align="end" sideOffset={6} collisionPadding={16}>
@@ -171,7 +187,8 @@ export function CurrencyMenu({ offered, rates, day, onPick }) {
                                 ·{" "}
                             </>
                         ) : null}
-                        ECB rates, {dayText}. Trades and accounts turn into it at today’s rate; each keeps its own inside.
+                        ECB rates, {dayText}.{" "}
+                        {field ? `The balance is kept in the currency picked here; the page shows it in ${page.name}.` : "Trades and accounts turn into it at today’s rate; each keeps its own inside."}
                     </p>
                 </Popover.Content>
             </Popover.Portal>

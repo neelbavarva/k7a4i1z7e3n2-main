@@ -69,13 +69,14 @@ export default function Finance({ refreshKey, ask, onNewTrade }) {
     // the trades' filters: the account in the top card, the time frame and pair over the journal
     const view = useTradeView(journal.trades);
 
-    // the page's currency: one with a rate, else rupees. Trades (logged in dollars) turn into it too.
+    // the page's currency: one with a rate, else rupees until its rate is in (the status line says so,
+    // `waiting`). Trades (logged in dollars) and accounts (each in its own) turn into it too.
     const rates = ratesOf(fx.data);
     const [currency, setCurrency] = useCurrencyCode();
     const code = perRupee(currency, rates) != null ? currency : "INR";
     const k = perRupee(code, rates);
     const usd = fx.data?.rate || null;
-    const money = { ...currencyOf(code), k, usd };
+    const money = { ...currencyOf(code), k, usd, rates, day: fx.data?.date || null, waiting: code !== currency ? currencyOf(currency) : null };
     const offered = currenciesIn(rates);
 
     /** The trades of one account (Real, Funded, Demo or Backtest), in the section below. */

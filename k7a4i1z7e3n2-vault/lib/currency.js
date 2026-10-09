@@ -80,6 +80,36 @@ export function perRupee(code, rates) {
     return r > 0 && inr > 0 ? r / inr : null;
 }
 
+/**
+ * An amount in any currency as rupees, at the day's rates: what every total is worked out in. Null
+ * without a rate for the currency, so a missing rate is never read as zero or as one.
+ */
+export function toRupees(amount, code, rates) {
+    const k = perRupee(code || "INR", rates);
+    return k ? (Number(amount) || 0) / k : null;
+}
+
+/** Rupees as an amount in `code`; null without a rate for it. */
+export function fromRupees(rupees, code, rates) {
+    const k = perRupee(code || "INR", rates);
+    return k ? (Number(rupees) || 0) * k : null;
+}
+
+/** An amount from one currency into another, through rupees; the same amount when they're the same. */
+export function convert(amount, from, to, rates) {
+    const a = from || "INR";
+    const b = to || "INR";
+    if (a === b) return Number(amount) || 0;
+    const r = toRupees(amount, a, rates);
+    return r == null ? null : fromRupees(r, b, rates);
+}
+
+/** An amount rounded the way the currency is written: to the cent, or whole for yen and the like. */
+export function roundIn(amount, code) {
+    const places = currencyOf(code || "INR").whole ? 0 : 2;
+    return Math.round((Number(amount) || 0) * 10 ** places) / 10 ** places;
+}
+
 const fmt = {};
 const grouping = (code, digits) => (fmt[`${code}:${digits}`] ??= new Intl.NumberFormat(code === "INR" ? "en-IN" : "en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits }));
 

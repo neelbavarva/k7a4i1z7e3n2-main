@@ -193,6 +193,23 @@ test("gives the dollar rate, and each currency the page can be shown in", async 
     assert.deepEqual(r.rates, { USD: 1, AED: 3.6725, SAR: 3.75, QAR: 3.64, OMR: 0.3845, BHD: 0.376, INR: 96.5, EUR: 0.89, GBP: 0.76, JPY: 158.3 });
 });
 
+test("keeps a typed-in balance in any currency, and turns down what isn't one", async () => {
+    const eur = await req("/worth/manual", { method: "POST", body: { name: "Deutsche Bank", kind: "bank", amount: 500, currency: "EUR" } });
+    assert.equal(eur.status, 201);
+    const doc = await eur.json();
+    assert.equal(doc.currency, "EUR");
+    assert.equal(doc.amount, 500);
+    // moved into another currency: its figure before goes on its trail with the currency it was in
+    const put = await req(`/worth/manual/${doc._id}`, { method: "PUT", body: { name: "Deutsche Bank", kind: "bank", amount: 560.54, currency: "USD" } });
+    assert.equal(put.status, 200);
+    const moved = await put.json();
+    assert.equal(moved.currency, "USD");
+    assert.deepEqual(moved.history.map((h) => [h.amount, h.currency]), [[500, "EUR"]]);
+    for (const currency of ["eur", "EURO", "", "12A", undefined])
+        assert.equal((await req("/worth/manual", { method: "POST", body: { name: "x", kind: "bank", amount: 1, currency } })).status, 400, String(currency));
+    await req(`/worth/manual/${doc._id}`, { method: "DELETE" });
+});
+
 test("keeps a balance's trail: each figure it replaces, with when it was typed", async () => {
     const { _id } = await (await req("/worth/manual", { method: "POST", body: { name: "HDFC", kind: "bank", amount: 1200, currency: "INR" } })).json();
     const put = (amount, note = "") => req(`/worth/manual/${_id}`, { method: "PUT", body: { name: "HDFC", kind: "bank", amount, currency: "INR", note } });

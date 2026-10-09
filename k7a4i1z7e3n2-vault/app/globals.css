@@ -4523,6 +4523,12 @@ fieldset.bare:disabled {
   gap: 13px;
   padding: 15px 20px 20px;
 }
+/* nothing in a dialog widens it: what can't fit wraps or shrinks inside it (a phone's sheet included) */
+.modal-body > *,
+.modal-body .form > *,
+.modal-body .field > * {
+  min-width: 0;
+}
 .modal-foot {
   display: flex;
   gap: 15px;
@@ -9054,6 +9060,8 @@ fieldset.bare:disabled {
 }
 .bal-figure input {
   flex: 1;
+  /* as wide as the room left, not an input's own 20 characters */
+  width: 0;
   min-width: 0;
   height: 100%;
   padding: 0;
@@ -9070,16 +9078,50 @@ fieldset.bare:disabled {
 .bal-figure input::placeholder {
   color: var(--axis);
 }
-/* the currency switch fills the field's height, the same small gap all round */
-.bal-figure .seg {
+/* a sign that's a word (AED, CHF) */
+.bal-figure-cur.is-code {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+/* the currency it's typed in: a quiet chip that fills the field's height, the same small gap all
+   round, opening the page's currency menu */
+.bal-figure-pick {
+  display: flex;
   flex: none;
   align-self: stretch;
   margin: 5px 0;
-  padding: 2px;
-  cursor: default;
 }
-.bal-figure .seg button {
-  padding: 0 10px;
+.nw-cur-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px 0 9px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+.nw-cur-field:hover {
+  border-color: var(--axis);
+  background: var(--raised);
+}
+.nw-cur-field > svg {
+  width: 12px;
+  height: 12px;
+  color: var(--muted);
+}
+.bal-figure-note {
+  margin: 5px 0 0;
+  font-size: 11.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 /* the fund: a field showing the one picked (its house's logo, its name, its kind), opening onto
    the list in the bank search's look */
@@ -9230,6 +9272,15 @@ fieldset.bare:disabled {
   content: '·';
   margin-right: 6px;
   color: var(--axis);
+}
+/* the balance's foot: what it counts as wraps under itself rather than pushing the buttons out */
+.bal-foot .nt-summary {
+  flex-wrap: wrap;
+  row-gap: 2px;
+  white-space: normal;
+}
+.bal-foot .btn {
+  flex: none;
 }
 .bal-remove {
   color: var(--muted);

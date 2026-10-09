@@ -24,7 +24,8 @@ const fields = [
     body("name").isString().trim().isLength({ min: 1, max: 60 }),
     body("kind").isIn(KINDS),
     body("amount").isFloat({ min: 0, max: 1e12 }).toFloat(),
-    body("currency").isIn(["INR", "USD"]),
+    // the currency it's kept in: any ISO code (the vault offers the ones /fx has a rate for)
+    body("currency").isString().matches(/^[A-Z]{3}$/),
     body("note").optional().isString().trim().isLength({ max: 120 }),
     body("bank").optional().isString().trim().isLength({ max: 40 }),
     body("scheme").optional({ values: "null" }).isInt({ min: 1, max: 99999999 }).toInt(),

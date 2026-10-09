@@ -30,4 +30,26 @@ describe("net worth", () => {
         expect(manualWorth([{ kind: "crypto", amount: 100, currency: "USD" }], 90).parts.crypto).toBe(9000);
         expect(combine([c, null]).parts.crypto).toBe(c.parts.crypto);
     });
+    it("counts a typed-in entry in any currency at the day's rates", () => {
+        const rates = { USD: 1, INR: 96.7, EUR: 0.9 };
+        const w = manualWorth(
+            [
+                { kind: "bank", amount: 787, currency: "INR" },
+                { kind: "bank", amount: 50, currency: "EUR" },
+                { kind: "invest", amount: 100, currency: "USD" },
+                { kind: "loan", amount: 10, currency: "USD" },
+            ],
+            rates
+        );
+        expect(w.parts.bank).toBeCloseTo(787 + 50 * (96.7 / 0.9));
+        expect(w.parts.stocks).toBeCloseTo(9670);
+        expect(w.parts.loans).toBeCloseTo(967);
+        expect(w.total).toBeCloseTo(787 + 50 * (96.7 / 0.9) + 9670 - 967);
+    });
+    it("counts nothing, rather than a guess, for a currency the rates don't have yet", () => {
+        const w = manualWorth([{ kind: "bank", amount: 50, currency: "EUR" }, { kind: "bank", amount: 787, currency: "INR" }], { INR: 1 });
+        expect(w.parts.bank).toBe(787);
+        // rupees to the dollar alone, as before, still counts dollars
+        expect(manualWorth([{ kind: "bank", amount: 2, currency: "USD" }], 90).parts.bank).toBe(180);
+    });
 });

@@ -177,7 +177,9 @@ describe("Trading in the net worth", () => {
         trades = TRADES;
         await renderFinance();
         const line = [...document.querySelectorAll(".lg-row")].find((r) => r.textContent.includes("Forex trading"));
-        expect(line.textContent).toContain("Real account · 1 closed · 1 open · −$40.00");
+        // its result is the row's figure, in the page's currency; the note doesn't repeat it in dollars
+        expect(line.textContent).toContain("Real account · 1 closed · 1 open");
+        expect(line.textContent).not.toContain("$");
         expect(line.querySelector(".mk-candles")).toBeTruthy(); // its own mark, not a bank's
         await counted();
         // nothing else is owned here, so the total is the Real account's −$40 at 96.7; the funded +$120 isn't in it
@@ -218,9 +220,9 @@ describe("The page's currency", () => {
         const answer = http.getMockImplementation();
         http.mockImplementation(async (path, o) => (o?.method === "PUT" ? { ...savings, ...o.body, updatedAt: "2026-10-09T10:00:00Z" } : answer(path, o)));
         await renderFinance();
-        // the row says what the account holds, in rupees, beside its dollars
+        // the row is in dollars only, nothing in another currency beside it
         const row = [...document.querySelectorAll("#lg-list .lg-row")].find((r) => r.textContent.includes("Savings account"));
-        expect(row.textContent).toContain("Savings account · ₹787");
+        expect(row.textContent).not.toContain("₹");
         open("Savings account");
         const field = screen.getByLabelText("Balance today");
         expect(field.value).toBe("8.14"); // ₹787 at 96.7
@@ -240,9 +242,6 @@ describe("The page's currency", () => {
         open("Savings account");
         expect(screen.getByLabelText("Balance today").value).toBe("787");
         expect(document.querySelector(".nw-amt-cur").textContent).toBe("₹");
-        // the row doesn't repeat what the account holds: it's the figure already
-        const row = [...document.querySelectorAll("#lg-list .lg-row")].find((r) => r.textContent.includes("Savings account"));
-        expect(row.textContent).not.toContain("· ₹787");
     });
 
     it("shows Zerodha's money in it, prices left as the exchange quotes them", async () => {
@@ -271,6 +270,144 @@ describe("The page's currency", () => {
         open("Zerodha");
         await counted();
         expect(document.querySelector(".kt .brief-sub").textContent).toBe("Cash $0.50");
+    });
+});
+
+describe("Every figure and form in the page's currency", () => {
+    const EUR_FX = { rate: 96.7, rates: { USD: 1, INR: 96.7, EUR: 0.9 }, date: "2026-10-09" };
+    const savings = { _id: "m2", name: "Savings account", kind: "bank", bank: "sbi", amount: 787, currency: "INR", note: "", updatedAt: "2026-10-05T10:00:00Z", history: [] };
+    const bofa = { _id: "m6", name: "BofA Investments", kind: "invest", bank: "bofa", amount: 100, currency: "USD", note: "", updatedAt: "2026-10-05T10:00:00Z", history: [] };
+    /** The usual answers, with some of them answered by `extra` first. */
+    const also = (extra) => {
+        const base = http.getMockImplementation();
+        http.mockImplementation(async (path, o) => (await extra(path, o)) ?? base(path, o));
+    };
+    const saves = () => also((path, o) => (o?.method === "PUT" || o?.method === "POST" ? { ...manual.find((m) => path.endsWith(m._id)), _id: "new", ...o.body, updatedAt: "2026-10-09T10:00:00Z" } : undefined));
+    // what was sent to save a balance (the history the page posts isn't one)
+    const sent = (method) => http.mock.calls.filter(([path, o]) => o?.method === method && path.startsWith("/worth/manual")).map(([path, o]) => [path, o.body.amount, o.body.currency]);
+    const row = (name) => [...document.querySelectorAll("#lg-list .lg-row")].find((r) => r.textContent.includes(name));
+    const amountField = () => document.querySelector("#bal-amount");
+    const typeIn = (field, value) => fireEvent.change(field, { target: { value, selectionStart: value.length } });
+    const pickCurrency = async (code) => {
+        fireEvent.click(document.querySelector(".nw-cur-field"));
+        const option = await screen.findByRole("option", { name: new RegExp(code) });
+        fireEvent.click(option);
+    };
+    const save = () =>
+        act(async () => {
+            fireEvent.click(document.querySelector(".bal-go"));
+        });
+    /** The balance's own panel, then its Edit balance, from its more menu. */
+    const edit = async (name) => {
+        if (row(name).getAttribute("aria-expanded") !== "true") fireEvent.click(row(name)); // it may be open already: the page remembers
+
+        fireEvent.keyDown(screen.getByRole("button", { name: `${name}: more` }), { key: "Enter" });
+        fireEvent.click(await screen.findByRole("menuitem", { name: /Edit balance/ }));
+        return screen.findByRole("dialog", { name: "Edit balance" });
+    };
+
+    it("shows every account and coin in it, and nothing in another currency", async () => {
+        localStorage.setItem("financeCurrency", "EUR");
+        also((path) => (path === "/worth/fx" ? EUR_FX : undefined));
+        manual = [savings, bofa];
+        wallets = () => ({
+            wallets: [{ _id: "w1", name: "Trust Wallet", kind: "trust", addresses: [], holdings: [{ network: "Tron", symbol: "USDT", amount: 3.2, usd: 3.2, inr: 309.44, change24h: 0 }], inr: 309.44, usd: 3.2, error: null }],
+        });
+        await renderFinance();
+        await counted();
+        // ₹787 + $100 + the wallet's ₹309.44, all in euros at 96.7 / 0.9
+        expect(document.querySelector(".hx-big .fig").getAttribute("aria-label")).toBe(`€${((787 + 9670 + 309.44) * (0.9 / 96.7)).toFixed(2)}`);
+        expect(row("Savings account").textContent).toContain("€7.32");
+        expect(row("BofA Investments").textContent).toContain("€90");
+        expect(document.querySelector("#lg-list").textContent).not.toMatch(/[₹$]/);
+        // a wallet's coins: their value in euros, in one column
+        fireEvent.click(row("Trust Wallet"));
+        const table = within(screen.getByRole("table", { name: "Trust Wallet coins" }));
+        expect(table.getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Coin", "Amount", "Value", "24h"]);
+        expect(table.getByText("€2.88")).toBeTruthy();
+    });
+
+    it("starts a new balance in it; a figure typed stays as typed when the currency is changed", async () => {
+        localStorage.setItem("financeCurrency", "EUR");
+        also((path) => (path === "/worth/fx" ? EUR_FX : undefined));
+        saves();
+        const { rerender } = await renderFinance({ ask: { what: "balance", kind: "bank", n: 1 } });
+        await act(async () => rerender(<Finance refreshKey={0} ask={{ what: "balance", kind: "bank", n: 2 }} onNewTrade={() => {}} />));
+        const dialog = screen.getByRole("dialog", { name: "Add a balance" });
+        expect(dialog.querySelector(".nw-cur-field").textContent).toBe("EUR");
+        expect(dialog.querySelector(".bal-figure-cur").textContent).toBe("€");
+        typeIn(amountField(), "500");
+        await pickCurrency("USD");
+        expect(amountField().value).toBe("500");
+        expect(dialog.querySelector(".bal-figure-cur").textContent).toBe("$");
+        // shown as the page will show it: $500 is €450
+        expect(dialog.querySelector(".bal-preview-amt").textContent).toBe("€450.00");
+        expect(dialog.querySelector(".bal-figure-note").textContent).toBe("€450 on the page, at today’s rate");
+        typeIn(dialog.querySelector("#bal-name"), "Chase");
+        await save();
+        expect(sent("POST")).toEqual([["/worth/manual", 500, "USD"]]);
+    });
+
+    it("edits a balance in it, and leaves the figure exactly as it was when only the name changes", async () => {
+        localStorage.removeItem("financeCurrency"); // the page as it starts: in dollars
+        manual = [savings];
+        saves();
+        await renderFinance();
+        const dialog = await edit("Savings account");
+        // ₹787 at 96.7 to the dollar, the page's currency
+        expect(dialog.querySelector(".nw-cur-field").textContent).toBe("USD");
+        expect(amountField().value).toBe("8.14");
+        expect(dialog.querySelector(".bal-preview-amt").textContent).toBe("$8.14");
+        expect(dialog.querySelector(".bal-figure-note").textContent).toBe("Kept in its own currency: ₹787, at today’s rate");
+        typeIn(dialog.querySelector("#bal-name"), "Salary account");
+        await save();
+        expect(sent("PUT")).toEqual([["/worth/manual/m2", 787, "INR"]]);
+    });
+
+    it("keeps a figure typed in the page's currency in the balance's own", async () => {
+        localStorage.removeItem("financeCurrency"); // the page as it starts: in dollars
+        manual = [savings];
+        saves();
+        await renderFinance();
+        const dialog = await edit("Savings account");
+        typeIn(amountField(), "10");
+        expect(dialog.querySelector(".bal-figure-note").textContent).toBe("Kept in its own currency: ₹967, at today’s rate");
+        await save();
+        expect(sent("PUT")).toEqual([["/worth/manual/m2", 967, "INR"]]);
+    });
+
+    it("shows a balance's own figure when its currency is picked, and moves it into another one picked", async () => {
+        localStorage.removeItem("financeCurrency"); // the page as it starts: in dollars
+        manual = [savings];
+        saves();
+        await renderFinance();
+        let dialog = await edit("Savings account");
+        // picked back into rupees, untouched: its own figure, exactly
+        await pickCurrency("INR");
+        expect(amountField().value).toBe("787");
+        expect(dialog.querySelector(".bal-figure-note").textContent).toBe("$8.14 on the page, at today’s rate");
+        await save();
+        expect(sent("PUT")).toEqual([["/worth/manual/m2", 787, "INR"]]);
+
+        // the dollars picked on purpose: from now on it's kept in them
+        cleanup();
+        http.mockClear();
+        await renderFinance();
+        dialog = await edit("Savings account");
+        await pickCurrency("USD");
+        expect(dialog.querySelector(".bal-figure-note").textContent).toBe("Kept in USD from now on, not INR");
+        await save();
+        expect(sent("PUT")).toEqual([["/worth/manual/m2", 8.14, "USD"]]);
+    });
+
+    it("waits for its rate in rupees, and says so", async () => {
+        localStorage.removeItem("financeCurrency");
+        also((path) => (path === "/worth/fx" ? Promise.reject(Object.assign(new Error("down"), { status: 502 })) : undefined));
+        manual = [savings];
+        await renderFinance();
+        await counted();
+        expect(document.querySelector(".nw-status").textContent).toContain("in rupees until today’s USD rate is in");
+        expect(document.querySelector(".hx-big .fig").getAttribute("aria-label")).toBe("₹787.00");
     });
 });
 

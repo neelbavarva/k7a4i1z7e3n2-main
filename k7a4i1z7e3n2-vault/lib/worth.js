@@ -2,6 +2,7 @@
 // total across sources.
 
 import { holdingsSummary, positionsSummary } from "./kite";
+import { toRupees } from "./currency";
 
 export const CATS = [
     { key: "stocks", label: "Stocks and ETFs" },
@@ -36,12 +37,14 @@ export function zerodhaWorth(account) {
 
 const MANUAL_CAT = { bank: "bank", cash: "bank", deposit: "bank", invest: "stocks", funds: "funds", crypto: "crypto", property: "other", other: "other", loan: "loans" };
 
-/** Hand-typed entries; dollar ones at today's rate, loans taken off. */
-export function manualWorth(entries = [], rate) {
+/** Hand-typed entries, each in its own currency at the day's rates (`rates`), loans taken off. */
+export function manualWorth(entries = [], rates) {
+    // the day's rates, or (as before) rupees to the dollar alone
+    const table = typeof rates === "number" ? { USD: 1, INR: rates } : rates;
     const parts = empty();
     for (const e of entries) {
-        const k = e.currency === "USD" ? rate || 0 : 1;
-        parts[MANUAL_CAT[e.kind] || "other"] += (e.amount || 0) * k;
+        // in its own currency, turned into rupees; one with no rate yet counts nothing rather than a guess
+        parts[MANUAL_CAT[e.kind] || "other"] += toRupees(e.amount || 0, e.currency, table) ?? 0;
     }
     return { parts, total: sum(parts) };
 }

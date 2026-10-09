@@ -1,12 +1,11 @@
 "use client";
 
-import React, { useContext, useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
-import { money, sideOf } from "@/lib/format";
-import { inr } from "@/lib/kite";
+import { sideOf } from "@/lib/format";
 import { GRADE_BANDS, equityOf, gradeKey, inPnl, shortDate, statsOf } from "@/lib/trades";
 import { useCountUp } from "./k7/hooks";
-import { BigFig, Money, useUsd } from "./k7/Money";
+import { BigFig, useUsd } from "./k7/Money";
 import MarketIcon from "./k7/MarketIcon";
 
 // How the trades have done: the trading in the top card (TradingDash) and the breakdown above the
@@ -44,14 +43,11 @@ export function TradingDash({ trades, replay, scope, head }) {
     const curve = useMemo(() => equityOf(counted), [counted]);
     const archived = trades.length - counted.length;
     const usd = useUsd();
-    const m = useContext(Money);
     const pf = s.profitFactor;
     const results = equityOf(trades).map((q) => q.pnl);
     const best = results.length ? Math.max(...results) : null;
     const worst = results.length ? Math.min(...results) : null;
     const first = curve.find((p) => Number.isFinite(p.at));
-    // the same in the other currency that matters: dollars (as logged) beside anything else, rupees beside dollars
-    const other = !usd.rate || !p.net ? null : m.code === "USD" ? inr(p.net * usd.rate, { whole: true }) : money(p.net);
 
     return (
         <div className="hx-trade tx" role="group" aria-labelledby="tx-title">
@@ -70,7 +66,6 @@ export function TradingDash({ trades, replay, scope, head }) {
                             <span className="muted">·</span> {usd.text(-p.lost)} <span className="muted">lost</span>
                         </span>
                     ) : null}
-                    {other && <span className="hx-fact">{other}</span>}
                     {archived > 0 && (
                         <span className="hx-fact muted">
                             {archived} archived, out of the P&amp;L

@@ -4,7 +4,7 @@ import React, { useContext, useEffect, useLayoutEffect, useMemo, useRef, useStat
 import { ArrowRight, ChevronDown, Copy, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { RETRIES, http, waitToRetry } from "@/lib/http";
-import { hasHandoff, inr, num, pct } from "@/lib/kite";
+import { hasHandoff, num, pct } from "@/lib/kite";
 import { fmtAgo, sideOf } from "@/lib/format";
 import { countsInWorth, equityOf, statsOf } from "@/lib/trades";
 import { combine, cryptoWorth, manualWorth, zerodhaWorth } from "@/lib/worth";
@@ -20,19 +20,13 @@ import { BigFig, Fig, Money, useMoneyText, useUsd } from "./k7/Money";
 import { grouped, regroup } from "@/lib/money";
 import { useFundList } from "@/lib/fundList";
 import { CITIES, landPoints, placeOf, sunVec, toVec } from "@/lib/places";
-import { currencyOf, moneyText } from "@/lib/currency";
+import { convert, currencyOf, moneyText, roundIn, toRupees } from "@/lib/currency";
 
 // Everything you own in one number: Zerodha, crypto wallets, what's typed in by hand (bank balances,
 // deposits, loans) and what the Real trading account's closed trades have made. Each source loads
 // on its own; the total counts the ones that answered, and the status line says which are still
 // coming or need something from you. Every account is a line in one ledger and opens in place,
 // under its own line. The page's currency comes from Finance (see k7/Money.js).
-
-const usd = (x, { sign = false } = {}) => {
-    const n = Number(x) || 0;
-    const abs = Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    return `${n < 0 ? "−" : sign && n > 0 ? "+" : ""}$${abs}`;
-};
 
 /**
  * One source's answer: loading, ready, refreshing, retrying, unset (not configured), or error. A read
@@ -102,9 +96,6 @@ function useFundDetails(codes) {
 const OPEN_KEY = "worthOpen";
 const LIST_KEY = "worthListOpen";
 const POSTED_KEY = "worthPosted";
-
-/** Whole rupees for a line in a table; a few paise of dust reads as "<₹1", not "₹0". */
-const rupees = (x) => (x > 0 && x < 1 ? "<₹1" : inr(x, { whole: true }));
 
 /** "a, b and c" */
 const list = (items) => (items.length > 1 ? `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}` : items[0] || "");
@@ -263,8 +254,8 @@ export default function NetWorth({ ask, fx, journal, band, onNewTrade, onShowTra
     const entries = manual.data || [];
     for (const e of entries) {
         const info = balanceInfo(e, e.kind === "funds" && e.scheme ? fundKnown(e.scheme) : null);
-        const dollars = e.currency === "USD";
-        const value = (e.amount || 0) * (dollars ? rate || 0 : 1);
+        // in its own currency, turned into rupees at the day's rates (nothing until its rate is in)
+        const value = toRupees(e.amount || 0, e.currency, page.rates) ?? 0;
         const age = daysSince(e.updatedAt);
         lines.push({
             id: `bal:${e._id}`,
@@ -272,13 +263,12 @@ export default function NetWorth({ ask, fx, journal, band, onNewTrade, onShowTra
             group: BALANCE_GROUP[e.kind] || "other",
             mark: markOf(info),
             name: info.title,
-            // the account's own figure, where the page shows another currency: what the statement says
-            note: [info.line, (dollars ? "USD" : "INR") !== page.code ? (dollars ? usd(e.amount) : inr(e.amount)) : "", age != null && age >= STALE_DAYS ? `updated ${age} days ago` : ""].filter(Boolean).join(" · "),
+            note: [info.line, age != null && age >= STALE_DAYS ? `updated ${age} days ago` : ""].filter(Boolean).join(" · "),
             tone: age != null && age >= STALE_DAYS ? "warn" : "",
             value: e.kind === "loan" ? -value : value,
             state: "ready",
             entry: e,
-            worth: manualWorth([e], rate),
+            worth: manualWorth([e], page.rates),
         });
     }
 
@@ -296,7 +286,7 @@ export default function NetWorth({ ask, fx, journal, band, onNewTrade, onShowTra
             name: "Forex trading",
             note: journal.failed
                 ? "The trades didn’t load"
-                : [`Real account · ${st.closed} closed`, st.open ? `${st.open} open` : "", page.code !== "USD" ? usd(st.net, { sign: true }) : ""].filter(Boolean).join(" · "),
+                : [`Real account · ${st.closed} closed`, st.open ? `${st.open} open` : ""].filter(Boolean).join(" · "),
             value,
             state: journal.loading ? "loading" : value == null ? "off" : "ready",
             action: journal.failed ? "Retry" : "",
@@ -452,7 +442,6 @@ export default function NetWorth({ ask, fx, journal, band, onNewTrade, onShowTra
                 fund={l.entry.kind === "funds" && l.entry.scheme ? fundInfo[l.entry.scheme] || { loading: true } : null}
                 known={l.entry.kind === "funds" && l.entry.scheme ? fundKnown(l.entry.scheme) : null}
                 onRemove={removeBalance}
-                rate={rate}
                 onEdit={() => setBalance(l.entry)}
                 onSaved={(doc) => manual.setData((list = []) => list.map((x) => (x._id === doc._id ? doc : x)))}
             />
@@ -478,7 +467,7 @@ export default function NetWorth({ ask, fx, journal, band, onNewTrade, onShowTra
                 </div>
             ) : (
                 <>
-                    <Hero totals={totals} rate={rate} points={points} band={band}>
+                    <Hero totals={totals} points={points} band={band}>
                         {/* the globe only once the money sits in more than one place */}
                         {lines.filter((l) => l.value > 0).length > 1 && <Globe lines={lines} gross={totals.gross} open={open} onOpen={(id) => openLine(id, { toggle: false })} />}
                     </Hero>
@@ -501,7 +490,6 @@ export default function NetWorth({ ask, fx, journal, band, onNewTrade, onShowTra
             <AddWallet open={Boolean(adding)} initial={adding && adding !== "new" ? adding : null} onClose={() => !savingWallet && setAdding(null)} onSave={saveWallet} saving={savingWallet} />
             <BalanceDialog
                 gross={totals.gross}
-                rate={rate}
                 open={Boolean(balance)}
                 initial={balance?._id ? balance : null}
                 kind={balance?._id ? undefined : balance?.kind}
@@ -559,7 +547,12 @@ function Status({ loading, busy, counted, readAt, rate, lines, onRefresh }) {
                         ) : null}
                     </>
                 )}
-                {m.code !== "INR" ? (
+                {m.waiting ? (
+                    <span className="nw-status-wait">
+                        {" "}
+                        <span className="muted">·</span> in rupees until today’s {m.waiting.code} rate is in
+                    </span>
+                ) : m.code !== "INR" ? (
                     <span className="nw-status-rate">
                         {" "}
                         <span className="muted">·</span> {moneyText(1, m)} = ₹{num(1 / m.k)}
@@ -590,8 +583,7 @@ const RANGES = [
 const RANGE_WORDS = { "1M": "this month", "3M": "in 3 months", "1Y": "this year", all: "since the start" };
 
 /** children: the globe and the kinds (with money in more than one place); band: the trading, under them. */
-function Hero({ totals, rate, points, band, children }) {
-    const m = useContext(Money);
+function Hero({ totals, points, band, children }) {
     const text = useMoneyText();
     const [range, setRange] = useState("3M");
     const days = RANGES.find((r) => r.value === range).days;
@@ -625,14 +617,6 @@ function Hero({ totals, rate, points, band, children }) {
                             <span className="muted"> {spans ? RANGE_WORDS[range] : `since ${shortDay(first.date)}`}</span>
                         </span>
                     )}
-                    {/* the same in the other currency that matters: dollars beside rupees, rupees beside anything else */}
-                    {totals.total ? (
-                        m.code === "INR" ? (
-                            rate ? <span className="hx-fact">{usd(totals.total / rate)}</span> : null
-                        ) : (
-                            <span className="hx-fact">{inr(totals.total, { whole: Math.abs(totals.total) >= 1000 })}</span>
-                        )
-                    ) : null}
                     {totals.day ? (
                         <span className="hx-fact">
                             <b className={sideOf(totals.day)}>{text(totals.day, { sign: true, paise: "never" })}</b> <span className="muted">on stocks today</span>
@@ -1559,20 +1543,21 @@ const retText = (x) => (x == null ? "—" : `${x > 0 ? "+" : x < 0 ? "−" : ""}
 
 /**
  * `fund`: the held fund's NAV and returns; `known`: what's known of it (category, house). The figure
- * is typed in the page's currency and kept in the account's own (rupees or dollars), turned at
- * today's rate; without a rate yet it's typed in the account's own.
+ * is typed in the page's currency and kept in the account's own, whatever that is, turned at the
+ * day's rates; without a rate for either yet it's typed in the account's own.
  */
-function BalancePanel({ entry, fund, known, rate, onEdit, onSaved, onRemove }) {
+function BalancePanel({ entry, fund, known, onEdit, onSaved, onRemove }) {
     const info = balanceInfo(entry, known);
     const page = useContext(Money);
     const [confirm, setConfirm] = useState(false); // asked to remove: the panel asks to be sure
-    const held = currencyOf(entry.currency === "USD" ? "USD" : "INR");
-    const unit = held.code === "USD" ? rate : 1; // the account's unit in rupees
-    const cur = page.code === held.code || !unit || !page.k ? held : page; // what the figure is typed in
-    const per = cur.code === held.code ? 1 : unit * page.k; // of `cur`, to one of the account's
+    const held = currencyOf(entry.currency || "INR");
+    // how much of the page's currency one of the account's is
+    const toPage = held.code === page.code ? 1 : convert(1, held.code, page.code, page.rates);
+    const cur = toPage ? page : held; // what the figure is typed in
+    const per = toPage || 1;
     const loan = entry.kind === "loan";
     const places = cur.whole ? 0 : 2;
-    const was = Math.round((entry.amount || 0) * per * 10 ** places) / 10 ** places; // as it's shown
+    const was = roundIn((entry.amount || 0) * per, cur.code); // as it's shown
     const western = cur.code !== "INR"; // grouped 421,805.5, not 4,21,805.5
     const start = () => grouped(Number.isInteger(was) ? String(was) : was.toFixed(places), western);
     const [text, setText] = useState(start);
@@ -1589,7 +1574,7 @@ function BalancePanel({ entry, fund, known, rate, onEdit, onSaved, onRemove }) {
     const changed = read != null && Math.abs(read.value - was) >= 0.005;
     const diff = changed ? read.value - was : 0;
     // what's kept: the figure as typed, or turned into the account's own currency
-    const keep = changed ? (per === 1 ? read.value : Math.round((read.value / per) * 100) / 100) : entry.amount || 0;
+    const keep = changed ? (per === 1 ? read.value : roundIn(read.value / per, held.code)) : entry.amount || 0;
     const money = (x) => moneyText(x, cur);
     const heldText = (x) => moneyText(x, held);
     const age = daysSince(entry.updatedAt);
@@ -1692,7 +1677,8 @@ function BalancePanel({ entry, fund, known, rate, onEdit, onSaved, onRemove }) {
     );
     // beside it, once it's changed: what a + or − comes to or what was there, and, typed in another
     // currency, what the account keeps (unchanged, its row already says what it holds)
-    const rateText = held.code === "USD" ? `$1 = ${money(per)}` : `${moneyText(1, cur)} = ${heldText(1 / per)}`;
+    // the day's rate, one of the larger unit in the other: $1 = ₹96.73 either way round
+    const rateText = per >= 1 ? `${heldText(1)} = ${money(per)}` : `${money(1)} = ${heldText(1 / per)}`;
     const kept = per === 1 ? null : (
         <span title={`At today’s rate: ${rateText}`}>
             keeps <b>{heldText(keep)}</b>
@@ -1906,6 +1892,10 @@ const failedChains = (error) => {
 
 function WalletPanel({ wallet: w, src, onEdit, onReread, onRemove }) {
     const [confirm, setConfirm] = useState(false);
+    const page = useContext(Money);
+    const text = useMoneyText();
+    // a coin's rupees in the page's currency; dust reads as "<$0.01", not "$0.00"
+    const value = (x) => (x > 0 && x * page.k < 0.01 ? `<${moneyText(0.01, page)}` : text(x, { paise: x * page.k < 100 ? "always" : "never" }));
     // read again (or still being asked again, after a chain didn't answer): no warnings meanwhile
     const reading = src.state === "refreshing" || src.state === "retrying";
     if (src.state === "loading") return <div className="sk sk-rows" aria-busy="true" />;
@@ -2000,10 +1990,10 @@ function WalletPanel({ wallet: w, src, onEdit, onReread, onRemove }) {
             {(w.holdings || []).length ? (
                 <Table
                     label={`${w.name} coins`}
-                    cols="minmax(0, 1.3fr) 8rem 7rem 7.5rem 5rem"
+                    cols="minmax(0, 1.3fr) 8rem 7.5rem 5rem"
                     colsSm="minmax(0, 1fr) 7rem"
-                    hide={[1, 2, 4]}
-                    head={["Coin", "Amount", "Dollars", "Rupees", "24h"]}
+                    hide={[1, 3]}
+                    head={["Coin", "Amount", "Value", "24h"]}
                     rows={w.holdings}
                     rowKey={(h) => `${h.network}:${h.symbol}`}
                     render={(h) => [
@@ -2012,8 +2002,7 @@ function WalletPanel({ wallet: w, src, onEdit, onReread, onRemove }) {
                             <Sym title={h.symbol} sub={h.network} />
                         </span>,
                         <span key="a" className="kt-num">{amount(h.amount)}</span>,
-                        <span key="u" className="kt-num">{h.usd == null ? "—" : h.usd > 0 && h.usd < 0.01 ? "<$0.01" : usd(h.usd)}</span>,
-                        <span key="i" className="kt-num">{h.inr == null ? "—" : rupees(h.inr)}</span>,
+                        <span key="v" className="kt-num">{h.inr == null ? "—" : value(h.inr)}</span>,
                         <span key="c" className={`kt-num ${sideOf(h.change24h)}`}>{/^USD[TC]$/.test(h.symbol) ? "—" : pct(h.change24h)}</span>,
                     ]}
                 />

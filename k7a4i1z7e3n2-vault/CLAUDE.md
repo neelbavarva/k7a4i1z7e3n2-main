@@ -89,9 +89,17 @@ npm run build
     localStorage as `financeCurrency`; Finance keeps the last rates too, `worthFx`, so the page opens in its
     currency before today's arrive). `/worth/fx` gives every
     ECB currency plus the Gulf ones at their dollar pegs. Totals are worked out in rupees, trades in
-    dollars; `k7/Money.js` turns both into the picked currency at today's rate, the accounts' own
-    panels too (Zerodha's amounts; share prices stay in rupees, as quoted). A typed-in balance is typed in
-    the page's currency and kept in its own (rupees or dollars), turned at today's rate.
+    dollars; `k7/Money.js` turns both into the picked currency at today's rate (its context also carries
+    `rates` and `day`). Every figure on the page is in that currency, nothing beside it in another: the
+    ledger, the accounts' own panels (Zerodha's amounts; share prices and NAVs stay as quoted), wallets'
+    coins, the trading. Convert only through `toRupees`, `fromRupees`, `convert` and `roundIn` in
+    `currency.js` (null, never a guess, without a rate). A typed-in balance can be kept in any currency
+    (the API takes any ISO code). Its forms start in the page's currency: the inline figure, and the
+    add and edit dialog, whose currency field (`CurrencyMenu field`) overrides it. A new balance is kept
+    in the currency it's typed in; an edited one stays in its own (a figure typed in another is turned
+    into it), unless a currency is picked in the field, which moves it; changing only its name or
+    note leaves the figure exactly as it was. Until the picked currency's rate is in, the page is in
+    rupees and the status line says so (`waiting`).
   - `places.js`: cities, the bank and broker headquarters behind `placeOf(mark)`, `landPoints()` (unpacked
     from `landDots.js`, a bitmask made once from Natural Earth's 1:110m land), `sunVec()`.
   - `cards.js`: `BANKS` (with regions), card faces/colours, network detection, Luhn.

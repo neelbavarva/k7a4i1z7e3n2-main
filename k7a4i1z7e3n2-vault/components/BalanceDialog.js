@@ -7,16 +7,15 @@ import { toast } from "sonner";
 import { http } from "@/lib/http";
 import { findBank } from "@/lib/cards";
 import Modal from "./k7/Modal";
-import Seg from "./k7/Seg";
 import BankPicker from "./k7/BankPicker";
 import FundPicker from "./k7/FundPicker";
 import { fundOf, houseOf } from "@/lib/funds";
 import { useFundList } from "@/lib/fundList";
 import { BANKS } from "@/lib/cards";
-import { inr } from "@/lib/kite";
+import { convert, currencyOf, moneyText, roundIn, toRupees } from "@/lib/currency";
 import { grouped, regroup } from "@/lib/money";
 import { Mark, bankIn, brandFor } from "./k7/Marks";
-import { Money } from "./k7/Money";
+import { CurrencyMenu, Money } from "./k7/Money";
 
 // A balance typed in by hand (a bank account, a deposit, cash, an investment account like Merrill,
 // mutual funds on Groww, a loan), added the way the vault
@@ -118,13 +117,16 @@ function KindField({ value, onChange }) {
     );
 }
 
-/** `kind` starts a new balance as that kind (from the Brokerage or Mutual funds group's +). */
-/** `gross`: everything owned, in rupees, and `rate` rupees per dollar, for the preview's share. */
-export default function BalanceDialog({ open, initial, kind, gross, rate, onClose, onSaved, onDeleted }) {
+/**
+ * `kind` starts a new balance as that kind (from the Brokerage or Mutual funds group's +). `gross`:
+ * everything owned, in rupees, for the preview's share. The page's currency and rates come from
+ * the Money context.
+ */
+export default function BalanceDialog({ open, initial, kind, gross, onClose, onSaved, onDeleted }) {
     const [busy, setBusy] = useState(false);
     return (
         <Modal open={open} onClose={onClose} busy={busy} title={initial ? "Edit balance" : ADD_TITLE[kind] || "Add a balance"} sub="Typed in by hand. Update it when it changes." className="manage bal">
-            <div className="modal-body">{open && <BalanceForm initial={initial} preset={kind} gross={gross} rate={rate} onBusy={setBusy} onClose={onClose} onSaved={onSaved} onDeleted={onDeleted} />}</div>
+            <div className="modal-body">{open && <BalanceForm initial={initial} preset={kind} gross={gross} onBusy={setBusy} onClose={onClose} onSaved={onSaved} onDeleted={onDeleted} />}</div>
         </Modal>
     );
 }
@@ -132,7 +134,10 @@ export default function BalanceDialog({ open, initial, kind, gross, rate, onClos
 // the ledger group each kind lands in, for the preview's heading
 const GROUP_OF = { bank: "Bank and cash", deposit: "Bank and cash", cash: "Bank and cash", invest: "Brokerage", funds: "Mutual funds", loan: "Owed", other: "Other assets" };
 
-function BalanceForm({ initial, preset, gross, rate, onBusy, onClose, onSaved, onDeleted }) {
+/** A figure as the field writes it: grouped the currency's way, to the cent or whole. */
+const asTyped = (x, code) => grouped(String(roundIn(x, code)), code !== "INR");
+
+function BalanceForm({ initial, preset, gross, onBusy, onClose, onSaved, onDeleted }) {
     const start = initial ? balanceInfo(initial) : null;
     const [kind, setKind] = useState(initial?.kind && LINE[initial.kind] ? initial.kind : LINE[preset] ? preset : "bank");
     // mutual funds are usually on Groww: a new holding starts there
@@ -140,11 +145,19 @@ function BalanceForm({ initial, preset, gross, rate, onBusy, onClose, onSaved, o
     // a mutual fund needs only where it's held, what it's worth and which fund: no kinds to pick from
     const fundsOnly = kind === "funds" && (preset === "funds" || initial?.kind === "funds");
     const held = kind === "invest" || kind === "funds"; // held with a broker or a platform, not only a bank
-    // a new balance starts in the page's currency, when it's one a balance can be kept in
+    // The figure is typed in the page's currency, new or edited, unless another is picked here. An
+    // existing balance shows in it, turned at the day's rates (in its own when there's no rate yet).
+    // Saved, a new one is kept in the currency it was typed in; an edited one stays in its own, unless
+    // a currency was picked here, which moves it into that one. Changing only the name or the note
+    // leaves its figure exactly as it was.
     const page = useContext(Money);
-    const [currency, setCurrency] = useState(initial?.currency || (page.code === "USD" ? "USD" : "INR"));
-    const dollars = currency === "USD";
-    const [amount, setAmount] = useState(() => (initial ? grouped(Number.isInteger(initial.amount) ? String(initial.amount) : initial.amount.toFixed(2), dollars) : ""));
+    const own = initial ? initial.currency || "INR" : null; // the balance's own currency
+    const [currency, setCurrency] = useState(() => (initial && convert(1, own, page.code, page.rates) == null ? own : page.code));
+    const [chosen, setChosen] = useState(false); // a currency picked here, not left at the page's
+    const [touched, setTouched] = useState(false); // the figure typed, not as it opened
+    const cur = currencyOf(currency);
+    const western = currency !== "INR"; // grouped 421,805.5, not 4,21,805.5
+    const [amount, setAmount] = useState(() => (initial ? asTyped(convert(initial.amount || 0, own, currency, page.rates), currency) : ""));
     const [name, setName] = useState(initial?.name || "");
     // a fund picked from AMFI's list: its scheme code, kept for its NAV and returns
     const [scheme, setScheme] = useState(initial?.scheme ?? null);
@@ -166,45 +179,73 @@ function BalanceForm({ initial, preset, gross, rate, onBusy, onClose, onSaved, o
     const value = Number(String(amount).replace(/,/g, ""));
     const okAmount = amount.trim() !== "" && Number.isFinite(value) && value >= 0 && value <= 1e12;
     const draft = { name, kind, bank: bank?.id || bankName, note, amount: okAmount ? value : 0, currency };
+    // what's kept: an edited balance's own figure untouched, else the figure typed, turned into the
+    // balance's own currency unless a currency was picked here
+    const kept = (() => {
+        if (initial && !touched && !chosen) return { amount: initial.amount || 0, currency: own };
+        if (initial && !chosen && currency !== own) {
+            const v = convert(value, currency, own, page.rates);
+            if (v != null) return { amount: roundIn(v, own), currency: own };
+        }
+        return { amount: value, currency };
+    })();
     // the fund's category and house: the one just picked, or the saved one found in AMFI's list
     // (the picker loads it whenever a fund is shown)
     const funds = useFundList(false);
     const info = balanceInfo(draft, picked || (scheme && funds.list?.find((x) => x.code === scheme)) || null);
     const ready = okAmount && (kind === "funds" ? name.trim() : bank || bankName || name.trim() || kind === "cash");
-    const money = (x) => (dollars ? `$${x.toLocaleString("en-US", { minimumFractionDigits: x % 1 ? 2 : 0, maximumFractionDigits: 2 })}` : inr(x));
+    const money = (x) => moneyText(x, cur);
     const platform = PLATFORMS.find((p) => p.name.toLowerCase() === bankName.toLowerCase());
     // its share of everything owned once it's in: this one's rupees over the total with it (an edit
     // takes its old figure out first); a loan has no share
-    const inRupees = (amt, cur) => (amt || 0) * (cur === "USD" ? rate || 0 : 1);
-    const now = okAmount ? inRupees(value, currency) : 0;
-    const without = Math.max(0, (gross || 0) - (initial && initial.kind !== "loan" ? inRupees(initial.amount, initial.currency) : 0));
+    const inRupees = (amt, code) => toRupees(amt || 0, code, page.rates) ?? 0;
+    const now = okAmount ? inRupees(kept.amount, kept.currency) : 0;
+    const without = Math.max(0, (gross || 0) - (initial && initial.kind !== "loan" ? inRupees(initial.amount, own) : 0));
     const share = kind === "loan" || !gross || !(now + without > 0) ? null : (now / (now + without)) * 100;
-    // the figure set the ledger's way, its paise a shade lighter; nothing typed yet shows a quiet zero
-    const shown = okAmount ? money(value) : dollars ? "$0" : "₹0";
+    // the figure set the ledger's way, in the page's currency like the ledger, its paise a shade
+    // lighter; nothing typed yet shows a quiet zero
+    const onPage = convert(kept.amount, kept.currency, page.code, page.rates);
+    const shown = onPage == null ? money(okAmount ? value : 0) : moneyText(okAmount ? onPage : 0, page, { paise: "always" });
+    // under the figure, once there is one: what the balance keeps when it isn't what's typed, or what
+    // the page will show when that's in another currency
+    const keptCur = currencyOf(kept.currency);
+    const figureNote = !okAmount
+        ? null
+        : kept.currency !== currency
+          ? `Kept in its own currency: ${moneyText(kept.amount, keptCur)}, at today’s rate`
+          : initial && chosen && currency !== own
+            ? `Kept in ${currency} from now on, not ${own}`
+            : currency !== page.code && onPage != null
+              ? `${moneyText(onPage, page)} on the page, at today’s rate`
+              : null;
     const cut = shown.indexOf(".");
     const figure = { int: cut < 0 ? shown : shown.slice(0, cut), frac: cut < 0 ? "" : shown.slice(cut) };
 
     const type = (e) => {
-        const next = regroup(e.target.value, e.target.selectionStart ?? e.target.value.length, dollars, { signs: false });
+        const next = regroup(e.target.value, e.target.selectionStart ?? e.target.value.length, western, { signs: false });
         caret.current = next.caret;
         setAmount(next.text);
+        setTouched(true);
     };
     const switchCurrency = (c) => {
         setCurrency(c);
-        // the same figure, grouped the new currency's way
-        setAmount((t) => grouped(t.replace(/,/g, ""), c === "USD"));
+        setChosen(true);
+        // a balance's figure as it opened turns into the new currency; one typed stays as typed, only
+        // grouped the new currency's way
+        const turned = initial && !touched ? convert(initial.amount || 0, own, c, page.rates) : null;
+        setAmount((t) => (turned != null ? asTyped(turned, c) : grouped(t.replace(/,/g, ""), c !== "INR")));
     };
 
     const save = async (e) => {
         e.preventDefault();
         if (!ready || saving) return;
-        const body = { name: info.title, kind, bank: bank?.id || bankName, amount: value, currency, note: note.trim(), scheme: kind === "funds" ? scheme : null };
+        const body = { name: info.title, kind, bank: bank?.id || bankName, amount: kept.amount, currency: kept.currency, note: note.trim(), scheme: kind === "funds" ? scheme : null };
         setSaving(true);
         onBusy(true);
         setError("");
         try {
             const doc = initial ? await http(`/worth/manual/${initial._id}`, { method: "PUT", body }) : await http("/worth/manual", { method: "POST", body });
-            toast.success(initial ? "Balance saved" : "Balance added", { description: `${info.title}: ${money(value)}` });
+            toast.success(initial ? "Balance saved" : "Balance added", { description: `${info.title}: ${moneyText(kept.amount, currencyOf(kept.currency))}` });
             onSaved(doc, Boolean(initial));
             onClose();
         } catch (err) {
@@ -283,8 +324,8 @@ function BalanceForm({ initial, preset, gross, rate, onBusy, onClose, onSaved, o
                     {kind === "loan" ? "Owed today" : held ? "Worth today" : "Balance today"}
                 </label>
                 <div className={`bal-figure${okAmount ? " is-set" : ""}`} onClick={() => field.current?.focus()}>
-                    <span className="bal-figure-cur" aria-hidden="true">
-                        {dollars ? "$" : "₹"}
+                    <span className={`bal-figure-cur${cur.spaced ? " is-code" : ""}`} aria-hidden="true">
+                        {cur.symbol}
                     </span>
                     <input
                         ref={field}
@@ -297,8 +338,12 @@ function BalanceForm({ initial, preset, gross, rate, onBusy, onClose, onSaved, o
                         placeholder="0"
                         autoFocus={!initial}
                     />
-                    <Seg label="Currency" options={["INR", "USD"]} value={currency} onChange={switchCurrency} />
+                    {/* the currency it's typed in: the page's, unless another is picked */}
+                    <span className="bal-figure-pick" onClick={(e) => e.stopPropagation()}>
+                        <CurrencyMenu field value={currency} onPick={switchCurrency} />
+                    </span>
                 </div>
+                {figureNote ? <p className="bal-figure-note">{figureNote}</p> : null}
             </div>
 
             {kind === "funds" ? (
@@ -362,7 +407,6 @@ function BalanceForm({ initial, preset, gross, rate, onBusy, onClose, onSaved, o
                                     Counts as <b>{COUNTS_AS[kind] || "other assets"}</b>
                                 </>
                             )}
-                            {dollars ? <span>in dollars, at the day’s rate</span> : null}
                             {platform || bank ? <span>{platform?.name || bank.short}</span> : null}
                         </span>
                         {initial && (

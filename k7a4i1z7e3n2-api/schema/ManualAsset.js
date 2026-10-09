@@ -8,7 +8,8 @@ const manualAssetSchema = new mongoose.Schema(
         name: { type: String, required: true, trim: true, maxlength: 60 },
         kind: { type: String, enum: ["bank", "cash", "deposit", "invest", "funds", "crypto", "property", "other", "loan"], default: "bank" },
         amount: { type: Number, required: true },
-        currency: { type: String, enum: ["INR", "USD"], default: "INR" },
+        // the currency it's kept in, any ISO code (INR, USD, EUR…), turned into the page's by the vault
+        currency: { type: String, match: /^[A-Z]{3}$/, default: "INR" },
         note: { type: String, trim: true, maxlength: 120, default: "" },
         bank: { type: String, trim: true, maxlength: 40, default: "" }, // a bank id from the vault's list, or a name typed in
         scheme: { type: Number, default: null }, // a mutual fund's AMFI scheme code, when it was picked from the list
