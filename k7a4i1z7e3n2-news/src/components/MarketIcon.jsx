@@ -21,7 +21,7 @@ function Coin({ id }) {
       </defs>
       <circle cx="20" cy="20" r="20" fill={`url(#${g})`} />
       <circle cx="20" cy="20" r="15.5" fill="none" stroke={c.ink} strokeOpacity="0.22" strokeWidth="1.2" />
-      <text x="20" y="25.6" textAnchor="middle" fontSize="15" fontWeight="700" fill={c.ink} fontFamily="Instrument Sans Variable, system-ui, sans-serif">
+      <text x="20" y="25.6" textAnchor="middle" fontSize="15" fontWeight="700" fill={c.ink} fontFamily="IBM Plex Sans Variable, system-ui, sans-serif">
         {c.text}
       </text>
     </svg>
@@ -44,7 +44,7 @@ function Index({ id }) {
     <svg viewBox="0 0 40 40" aria-hidden="true">
       <circle cx="20" cy="20" r="20" fill="#1d3557" />
       <path d="M8.5 27.5l6.5-6 4.5 3.5 9-9.5" fill="none" stroke="#7fb3ff" strokeOpacity="0.55" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      <text x="20" y={label.length > 2 ? 24.6 : 25.4} textAnchor="middle" fontSize={label.length > 2 ? 13 : 15} fontWeight="700" fill="#fff" fontFamily="Instrument Sans Variable, system-ui, sans-serif">
+      <text x="20" y={label.length > 2 ? 24.6 : 25.4} textAnchor="middle" fontSize={label.length > 2 ? 13 : 15} fontWeight="700" fill="#fff" fontFamily="IBM Plex Sans Variable, system-ui, sans-serif">
         {label}
       </text>
     </svg>

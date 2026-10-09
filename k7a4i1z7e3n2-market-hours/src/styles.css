@@ -1,7 +1,7 @@
 /* ==========================================================================
    Forex Market Hours
    The same system as FX Fundamental Bias:
-   Young Serif (headers, big numbers) + Instrument Sans (text, data), off-white, light only.
+   Fraunces (headers) + IBM Plex Sans (text, data, figures), off-white, light only.
    ========================================================================== */
 
 :root {
@@ -31,9 +31,13 @@
   --warn: var(--amber-ink);
   --shadow: 0 1px 2px rgba(22, 26, 22, 0.04), 0 6px 20px rgba(22, 26, 22, 0.05);
   --shadow-pop: 0 24px 64px rgba(22, 26, 22, 0.18);
-  --radius: 12px;
-  --font: 'Instrument Sans Variable', 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --serif: 'Young Serif', 'Iowan Old Style', Georgia, serif;
+  --radius: 6px;
+  --font: 'IBM Plex Sans Variable', 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* headings: Fraunces at 500, its optical size following the type size */
+  --serif: 'Fraunces Variable', 'Fraunces', 'Iowan Old Style', Georgia, serif;
+  /* figures: the text face, IBM Plex Sans, with tabular figures; its own token so the numbers
+     can be set apart from the text */
+  --figs: 'IBM Plex Sans Variable', 'IBM Plex Sans', system-ui, sans-serif;
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 
   /* activity scale */
@@ -81,7 +85,7 @@ body {
   background: var(--page);
   color: var(--ink);
   font-family: var(--font);
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -105,7 +109,7 @@ b {
 :focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
-  border-radius: 6px;
+  border-radius: 3px;
 }
 
 h1,
@@ -117,14 +121,14 @@ h3 {
 
 h2 {
   font-family: var(--serif);
-  font-weight: 400;
-  font-size: 21px;
+  font-weight: 500;
+  font-size: 19.5px;
   line-height: 1.2;
   letter-spacing: -0.01em;
 }
 
 h3 {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.01em;
 }
@@ -139,7 +143,7 @@ h3 {
   color: var(--muted);
 }
 .small {
-  font-size: 12px;
+  font-size: 11.5px;
 }
 
 kbd {
@@ -154,7 +158,7 @@ kbd {
   background: var(--page);
   border: 1px solid var(--line);
   border-bottom-width: 2px;
-  border-radius: 5px;
+  border-radius: 3px;
 }
 
 .fade-in {
@@ -179,19 +183,21 @@ kbd {
 .btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  height: 34px;
-  padding: 0 12px;
+  gap: 7px;
+  height: 32px;
+  padding: 0 10px;
   font: inherit;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--ink);
   background: var(--raised);
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: 4px;
   text-decoration: none;
   cursor: pointer;
-  transition: background-color 0.15s, border-color 0.15s, box-shadow 0.15s;
+  transition: background-color 0.15s, border-color 0.15s, box-shadow 0.15s, color 0.15s, transform 0.15s;
+  justify-content: center;
+  white-space: nowrap;
 }
 .btn:hover {
   border-color: var(--axis);
@@ -209,7 +215,7 @@ kbd {
 .btn-ghost {
   background: transparent;
   border-color: transparent;
-  padding-left: 6px;
+  padding-left: 5px;
   color: var(--ink2);
 }
 .btn-ghost:hover {
@@ -219,8 +225,8 @@ kbd {
   box-shadow: none;
 }
 .btn-small {
-  height: 30px;
-  font-size: 12.5px;
+  height: 28px;
+  font-size: 12px;
   animation: fade-in 0.2s var(--ease) both;
 }
 
@@ -229,19 +235,27 @@ kbd {
   padding: 3px;
   background: var(--page);
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: 4px;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 .seg button {
   font: inherit;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 500;
   color: var(--ink2);
   background: none;
   border: 0;
-  border-radius: 6px;
-  padding: 4px 12px;
+  border-radius: 3px;
+  padding: 4px 10px;
   cursor: pointer;
-  transition: background-color 0.15s, color 0.15s;
+  transition: background-color 0.15s, color 0.15s, box-shadow 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  white-space: nowrap;
 }
 .seg button:hover {
   color: var(--ink);
@@ -266,7 +280,7 @@ kbd {
   color: var(--muted);
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 5px;
   transition: background-color 0.3s, border-color 0.3s;
 }
 .statusbar p {
@@ -314,7 +328,7 @@ kbd {
 }
 .overview-title {
   font-family: var(--serif);
-  font-weight: 400;
+  font-weight: 500;
   font-size: clamp(32px, 4vw, 46px);
   line-height: 1.05;
   letter-spacing: -0.02em;
@@ -341,7 +355,7 @@ kbd {
   text-align: left;
   background: var(--raised);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 6px;
   box-shadow: var(--shadow);
   cursor: pointer;
   transition: border-color 0.15s, box-shadow 0.15s;
@@ -393,18 +407,18 @@ kbd {
 /* ---------- Hero: day meter + brief ---------- */
 
 .hero {
-  padding: 4px 0 24px;
+  padding: 4px 0 20px;
 }
 .meter {
-  margin: 30px 0 0;
+  margin: 25px 0 0;
 }
 .meter-ends {
   position: relative;
   display: flex;
   justify-content: space-between;
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--ink2);
-  margin-bottom: 8px;
+  margin-bottom: 7px;
   font-variant-numeric: tabular-nums;
 }
 .meter-scale {
@@ -438,10 +452,10 @@ kbd {
 }
 .rope-hour:first-child {
   border-left: 0;
-  border-radius: 3px 0 0 3px;
+  border-radius: 2px 0 0 2px;
 }
 .rope-hour:nth-child(24) {
-  border-radius: 0 3px 3px 0;
+  border-radius: 0 2px 2px 0;
 }
 .rope-tick {
   position: absolute;
@@ -456,7 +470,7 @@ kbd {
   top: 2px;
   width: 20px;
   height: 20px;
-  margin-left: -10px;
+  margin-left: -8px;
   border-radius: 50%;
   background: var(--muted);
   border: 3px solid var(--page);
@@ -471,8 +485,8 @@ kbd {
 .rope-key {
   display: flex;
   justify-content: flex-end;
-  gap: 14px;
-  margin-top: 6px;
+  gap: 11px;
+  margin-top: 5px;
   font-size: 11px;
   color: var(--muted);
 }
@@ -531,7 +545,7 @@ kbd {
 .brief {
   display: grid;
   grid-template-columns: 1fr 0.9fr 1fr 1.25fr;
-  margin: 22px 0 0;
+  margin: 18px 0 0;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -539,7 +553,7 @@ kbd {
   overflow: hidden;
 }
 .brief-cell {
-  padding: 16px 20px 18px;
+  padding: 13px 16px 15px;
   min-width: 0;
 }
 .brief-cell + .brief-cell {
@@ -548,19 +562,20 @@ kbd {
 .brief dt {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
+  gap: 5px;
+  font-size: 11.5px;
   color: var(--muted);
 }
 .brief dd {
   margin: 0;
 }
 .brief-num {
-  font-family: var(--serif);
-  font-size: 32px;
+  font-family: var(--figs);
+  font-weight: 600;
+  font-size: 30px;
   line-height: 1.1;
   letter-spacing: -0.02em;
-  margin-top: 6px !important;
+  margin-top: 5px !important;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
@@ -569,17 +584,17 @@ kbd {
 }
 .brief-of {
   margin-left: 2px;
-  font-size: 18px;
+  font-size: 17px;
   color: var(--axis);
 }
 .brief-text {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   line-height: 1.3;
-  margin-top: 8px !important;
+  margin-top: 7px !important;
 }
 .brief-sub {
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--ink2);
   margin-top: 4px !important;
 }
@@ -587,8 +602,8 @@ kbd {
 /* ---------- Right now (the bias-checker card) ---------- */
 
 .biascheck {
-  margin: 0 0 24px;
-  padding: 22px 24px 20px;
+  margin: 0 0 20px;
+  padding: 18px 20px 16px;
   background: var(--raised);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -598,22 +613,23 @@ kbd {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 .bc-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
-  gap: 32px;
-  margin-top: 16px;
+  gap: 26px;
+  margin-top: 13px;
 }
 .bc-call {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   margin: 0;
   font-family: var(--serif);
-  font-size: clamp(22px, 2.6vw, 30px);
+  font-weight: 500;
+  font-size: clamp(20.5px, 2.6vw, 28px);
   line-height: 1.15;
   letter-spacing: -0.015em;
 }
@@ -634,30 +650,30 @@ kbd {
   color: var(--ink);
 }
 .bc-sub {
-  margin: 6px 0 0;
-  font-size: 13.5px;
+  margin: 5px 0 0;
+  font-size: 12.5px;
   color: var(--ink2);
   max-width: 560px;
 }
 .bc-strength {
-  margin-top: 20px;
+  margin-top: 16px;
 }
 .bc-strength-top {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--ink2);
 }
 .bc-strength-top b {
-  font-family: var(--serif);
-  font-weight: 400;
-  font-size: 22px;
+  font-family: var(--figs);
+  font-weight: 600;
+  font-size: 20.5px;
 }
 .bc-meter {
   position: relative;
   height: 10px;
-  margin-top: 8px;
+  margin-top: 7px;
   background: var(--grid);
   border-radius: 99px;
   overflow: hidden;
@@ -696,12 +712,12 @@ kbd {
   font-weight: 600;
 }
 .bc-weights {
-  padding-left: 32px;
+  padding-left: 26px;
   border-left: 1px solid var(--grid);
 }
 .bc-weights h3 {
-  margin: 4px 0 12px;
-  font-size: 12px;
+  margin: 4px 0 10px;
+  font-size: 11.5px;
   font-weight: 500;
   color: var(--muted);
 }
@@ -710,14 +726,14 @@ kbd {
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 11px;
+  gap: 9px;
 }
 .ses-list li {
   display: grid;
   grid-template-columns: 18px 5.6em minmax(0, 1fr) 10.6em;
   align-items: center;
-  gap: 10px;
-  font-size: 13px;
+  gap: 8px;
+  font-size: 12px;
   color: var(--ink2);
 }
 .ses-name {
@@ -741,7 +757,7 @@ kbd {
   transition: width 0.6s var(--ease);
 }
 .ses-when {
-  font-size: 12.5px;
+  font-size: 12px;
   white-space: nowrap;
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -752,19 +768,19 @@ kbd {
 }
 .bc-checks {
   list-style: none;
-  margin: 20px 0 0;
-  padding: 14px 0 0;
+  margin: 16px 0 0;
+  padding: 11px 0 0;
   border-top: 1px solid var(--grid);
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 10px 28px;
+  gap: 8px 23px;
 }
 .bc-checks li {
   display: grid;
   grid-template-columns: 18px auto 1fr;
   align-items: start;
-  gap: 8px;
-  font-size: 13px;
+  gap: 7px;
+  font-size: 12px;
   line-height: 1.45;
   color: var(--ink2);
 }
@@ -777,7 +793,7 @@ kbd {
 .rn-checks li {
   display: block;
   position: relative;
-  padding-left: 26px;
+  padding-left: 21px;
 }
 .rn-checks li > .bc-icon {
   position: absolute;
@@ -785,7 +801,7 @@ kbd {
   top: 0;
 }
 .rn-checks .bc-label {
-  margin-right: 7px;
+  margin-right: 6px;
 }
 .rn-checks li:nth-child(1) {
   justify-self: start;
@@ -806,7 +822,7 @@ kbd {
   place-items: center;
   width: 18px;
   height: 18px;
-  margin-top: 0.5px; /* centres the 18px circle on the 19px first line */
+  margin-top: 0.5px; /* centres the 15px circle on the 16px first line */
   font-size: 10.5px;
   font-weight: 700;
   line-height: 1;
@@ -828,11 +844,11 @@ kbd {
   color: var(--ink2);
   background: var(--grid);
   font-family: var(--serif);
-  font-weight: 400;
+  font-weight: 500;
   font-size: 11px;
 }
 .bc-foot {
-  margin: 14px 0 0;
+  margin: 11px 0 0;
 }
 
 /* ---------- Flags ---------- */
@@ -851,7 +867,7 @@ kbd {
   flex: none;
 }
 .flag-pair .flag + .flag {
-  margin-left: -6px;
+  margin-left: -5px;
   box-shadow: 0 0 0 1.5px var(--surface);
 }
 
@@ -859,18 +875,18 @@ kbd {
 
 .chart-block,
 .table-block {
-  margin-top: 24px;
+  margin-top: 20px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 24px;
+  padding: 20px;
   box-shadow: var(--shadow);
 }
 .chart-head {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 24px;
+  gap: 20px;
   flex-wrap: wrap;
 }
 .chart-head > div {
@@ -885,30 +901,30 @@ kbd {
 /* the same gap under every card head */
 .chart-head + .legend,
 .chart-head + .frame {
-  margin-top: 18px;
+  margin-top: 15px;
 }
 .chart-head + .frame {
-  margin-top: 22px;
+  margin-top: 18px;
 }
 .chart-head p,
 .table-block > p {
-  margin: 6px 0 0;
-  font-size: 13px;
+  margin: 5px 0 0;
+  font-size: 12px;
   color: var(--muted);
   max-width: 860px;
 }
 .legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 20px;
-  margin: 18px 0 6px;
-  font-size: 12px;
+  gap: 5px 16px;
+  margin: 15px 0 5px;
+  font-size: 11.5px;
   color: var(--ink2);
 }
 .legend span {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
 }
 .legend i {
   display: inline-block;
@@ -920,14 +936,14 @@ kbd {
 .legend i.tint {
   width: 14px;
   height: 10px;
-  border-radius: 3px;
+  border-radius: 2px;
   background: color-mix(in srgb, var(--c) 20%, var(--raised));
   border: 1px solid color-mix(in srgb, var(--c) 60%, var(--line));
 }
 .legend i.ov-swatch {
   width: 14px;
   height: 10px;
-  border-radius: 3px;
+  border-radius: 2px;
   background: color-mix(in srgb, var(--ink) 4%, var(--raised));
   border: 1px solid color-mix(in srgb, var(--ink) 18%, var(--line));
 }
@@ -965,19 +981,20 @@ kbd {
   align-items: flex-end;
   justify-content: center;
   gap: 2px;
-  padding: 8px 14px;
-  border-radius: 10px;
+  padding: 7px 11px;
+  border-radius: 5px;
   border: 1px solid var(--line);
   background: var(--raised);
 }
 .nl-rating-label {
   font-family: var(--serif);
-  font-size: 18px;
+  font-weight: 500;
+  font-size: 17px;
   line-height: 1.2;
   white-space: nowrap;
 }
 .nl-rating-sub {
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--muted);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
@@ -1009,7 +1026,7 @@ kbd {
 .frame {
   display: grid;
   grid-template-columns: var(--gutter) minmax(0, 1fr);
-  margin-top: 8px;
+  margin-top: 7px;
 }
 .gutter {
   position: relative;
@@ -1070,13 +1087,13 @@ kbd {
   top: 1px;
   left: 50%;
   transform: translateX(-50%);
-  padding: 2px 7px;
+  padding: 2px 6px;
   font-size: 11px;
   font-weight: 600;
   line-height: 16px;
   color: var(--raised);
   background: var(--ink);
-  border-radius: 6px;
+  border-radius: 3px;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
@@ -1100,9 +1117,9 @@ kbd {
 .tip {
   background: var(--raised);
   border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 12px;
+  border-radius: 5px;
+  padding: 8px 10px;
+  font-size: 11.5px;
   max-width: 320px;
   box-shadow: var(--shadow-pop);
 }
@@ -1111,19 +1128,20 @@ kbd {
   font-variant-numeric: tabular-nums;
 }
 .tip-score {
-  font-family: var(--serif);
-  font-size: 18px;
+  font-family: var(--figs);
+  font-weight: 600;
+  font-size: 17px;
   line-height: 1.2;
 }
 .tip-list {
   list-style: none;
-  margin: 6px 0 0;
+  margin: 5px 0 0;
   padding: 0;
 }
 .tip-list li {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   padding: 2px 0;
 }
 .tip-dot {
@@ -1167,13 +1185,13 @@ kbd {
 .axis {
   position: relative;
   height: 20px;
-  margin-top: 8px;
+  margin-top: 7px;
 }
 .axis-tick {
   position: absolute;
   top: 0;
   transform: translateX(-50%);
-  font-size: 12px;
+  font-size: 11.5px;
   line-height: 1;
   color: var(--muted);
   white-space: nowrap;
@@ -1230,7 +1248,7 @@ kbd {
   right: 22px;
   top: 0;
   transform: translateY(-50%);
-  font-size: 11.5px;
+  font-size: 11px;
   line-height: 1;
   color: var(--muted);
   white-space: nowrap;
@@ -1241,7 +1259,7 @@ kbd {
   z-index: 1;
   width: 18px;
   height: 18px;
-  margin-top: -9px;
+  margin-top: -7px;
   border-radius: 50%;
   background: var(--lvl, var(--ink2));
   border: 3px solid var(--raised);
@@ -1284,9 +1302,9 @@ kbd {
 .ses-label {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   height: 56px;
-  padding-right: 12px;
+  padding-right: 10px;
   border-top: 1px solid var(--grid);
   min-width: 0;
 }
@@ -1294,12 +1312,12 @@ kbd {
   min-width: 0;
 }
 .ses-label-city {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   line-height: 1.25;
 }
 .ses-label-sub {
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--muted);
   line-height: 1.3;
   white-space: nowrap;
@@ -1321,8 +1339,8 @@ kbd {
   vertical-align: 1px;
 }
 .ses-label-ov {
-  height: 44px;
-  font-size: 12px;
+  height: 41px;
+  font-size: 11.5px;
   color: var(--muted);
 }
 
@@ -1350,17 +1368,17 @@ kbd {
   border-top: 1px solid var(--grid);
 }
 .ses-row.ov-row {
-  height: 44px;
+  height: 41px;
 }
 /* a session: a light tint of its colour with a thin border, its hours in a deeper shade of it */
 .bar {
   position: absolute;
   top: 11px;
-  height: 34px;
+  height: 32px;
   display: flex;
   align-items: center;
   overflow: hidden;
-  border-radius: 8px;
+  border-radius: 4px;
   color: color-mix(in srgb, var(--c) 48%, var(--ink));
   background: color-mix(in srgb, var(--c) 13%, var(--raised));
   border: 1px solid color-mix(in srgb, var(--c) 40%, var(--line));
@@ -1401,8 +1419,8 @@ kbd {
 .bar-text {
   position: relative;
   min-width: 0;
-  padding: 0 11px;
-  font-size: 12px;
+  padding: 0 9px;
+  font-size: 11.5px;
   font-weight: 600;
   line-height: 1;
   white-space: nowrap;
@@ -1419,7 +1437,7 @@ kbd {
   display: flex;
   align-items: center;
   overflow: hidden;
-  border-radius: 7px;
+  border-radius: 4px;
   background: color-mix(in srgb, var(--ink) 3.5%, var(--raised));
   border: 1px solid color-mix(in srgb, var(--ink) 14%, var(--line));
   transition: left 0.6s var(--ease), width 0.6s var(--ease), border-color 0.3s, background-color 0.3s;
@@ -1431,7 +1449,7 @@ kbd {
 .ov-dots {
   display: inline-flex;
   flex: none;
-  margin-left: 8px;
+  margin-left: 7px;
 }
 .ov-dots i {
   width: 8px;
@@ -1443,8 +1461,8 @@ kbd {
   margin-left: -2px;
 }
 .ov .bar-text {
-  padding: 0 8px 0 6px;
-  font-size: 11.5px;
+  padding: 0 7px 0 5px;
+  font-size: 11px;
   font-weight: 500;
   color: var(--ink2);
 }
@@ -1477,7 +1495,7 @@ kbd {
   z-index: 6;
   width: 12px;
   height: 12px;
-  margin: -6px 0 0 -6px;
+  margin: -5px 0 0 -5px;
   border-radius: 50%;
   border: 2.5px solid var(--raised);
   box-shadow: 0 0 0 1px var(--axis), 0 2px 6px rgba(16, 24, 32, 0.15);
@@ -1492,8 +1510,8 @@ kbd {
 }
 .nl-days {
   position: relative;
-  height: 44px;
-  margin: 10px 0 0;
+  height: 41px;
+  margin: 8px 0 0;
 }
 
 .nl-day {
@@ -1507,7 +1525,7 @@ kbd {
 .nl-day-bar {
   display: block;
   height: 5px;
-  margin-bottom: 6px;
+  margin-bottom: 5px;
   border-radius: 99px;
   background: var(--lvl, var(--grid));
 }
@@ -1517,7 +1535,7 @@ kbd {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 11.5px;
+  font-size: 11px;
   line-height: 1.35;
 }
 .nl-day-name {
@@ -1537,7 +1555,7 @@ kbd {
     display: none;
   }
   .nl-days {
-    height: 30px;
+    height: 28px;
   }
 }
 @container (max-width: 520px) {
@@ -1550,9 +1568,9 @@ kbd {
 }
 .nl-key {
   display: none;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
-  margin-top: 6px;
+  margin-top: 5px;
   font-size: 11px;
   color: var(--muted);
 }
@@ -1569,8 +1587,8 @@ kbd {
   margin: 0;
 }
 .nl-summary {
-  margin: 12px 0 0;
-  font-size: 13px;
+  margin: 10px 0 0;
+  font-size: 12px;
   color: var(--ink2);
 }
 
@@ -1620,7 +1638,7 @@ kbd {
   z-index: 2;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   transform: translateX(-50%);
   font-size: 11px;
   font-weight: 500;
@@ -1672,7 +1690,7 @@ kbd {
 .amd-scale-label {
   position: absolute;
   right: 10px;
-  font-size: 11.5px;
+  font-size: 11px;
   line-height: 1;
   color: var(--muted);
   white-space: nowrap;
@@ -1690,18 +1708,18 @@ kbd {
 .days {
   list-style: none;
   padding: 0;
-  margin: 20px 0 0;
+  margin: 16px 0 0;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: 10px;
 }
 /* phase cards are plain; the phase you're in takes a flat tint and outline of its colour */
 .day {
   position: relative;
   background: var(--raised);
   border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 14px 16px;
+  border-radius: 5px;
+  padding: 11px 13px;
   overflow: hidden;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
@@ -1725,17 +1743,17 @@ kbd {
 .day-head {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: 7px;
 }
 .day-name {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 12px;
 }
 .day-date {
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--muted);
 }
 .risk-tag {
@@ -1756,23 +1774,24 @@ kbd {
 .day-score-row {
   display: flex;
   align-items: baseline;
-  gap: 10px;
-  margin-top: 6px;
+  gap: 8px;
+  margin-top: 5px;
 }
 .day-score {
   white-space: nowrap;
-  font-family: var(--serif);
-  font-size: 22px;
+  font-family: var(--figs);
+  font-weight: 600;
+  font-size: 20.5px;
   line-height: 1.15;
   letter-spacing: -0.01em;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
 .ph-note {
-  margin: 12px 0 0;
-  padding-top: 10px;
+  margin: 10px 0 0;
+  padding-top: 8px;
   border-top: 1px solid var(--grid);
-  font-size: 12.5px;
+  font-size: 12px;
   line-height: 1.5;
   color: var(--ink2);
 }
@@ -1789,24 +1808,24 @@ kbd {
 }
 .scroll {
   overflow-x: auto;
-  margin-top: 14px;
+  margin-top: 11px;
 }
 table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 12px;
 }
 th {
   text-align: left;
   font-weight: 500;
   color: var(--muted);
-  font-size: 11.5px;
-  padding: 7px 10px;
+  font-size: 11px;
+  padding: 6px 8px;
   border-bottom: 1px solid var(--line);
   white-space: nowrap;
 }
 td {
-  padding: 10px 10px;
+  padding: 8px 8px;
   border-bottom: 1px solid var(--grid);
   vertical-align: middle;
 }
@@ -1841,27 +1860,27 @@ td {
 .sess-cell {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   white-space: nowrap;
 }
 .row-name {
   display: block;
   font-weight: 400;
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--muted);
 }
 .ov-table td.c-sub {
   color: var(--ink2);
-  font-size: 12.5px;
+  font-size: 12px;
   min-width: 260px;
 }
 .impact {
   display: inline-block;
   font-size: 11px;
   font-weight: 500;
-  padding: 0 7px;
+  padding: 0 6px;
   line-height: 18px;
-  border-radius: 9px;
+  border-radius: 4px;
   border: 1px solid;
   white-space: nowrap;
 }
@@ -1881,7 +1900,7 @@ td {
   color: var(--good);
 }
 .empty-note {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--muted);
 }
 
@@ -1894,7 +1913,7 @@ td {
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  padding: 12vh 16px 16px;
+  padding: 12vh 13px 13px;
   background: color-mix(in srgb, #161a16 28%, transparent);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
@@ -1910,7 +1929,7 @@ td {
   max-width: 560px;
   background: var(--raised);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 8px;
   box-shadow: var(--shadow-pop);
   overflow: hidden;
   animation: picker-in 0.22s var(--ease) both;
@@ -1945,7 +1964,7 @@ td {
   outline: none;
   background: transparent;
   font: inherit;
-  font-size: 16px;
+  font-size: 15px;
   color: var(--ink);
   padding: 0 64px 0 46px;
 }
@@ -1963,7 +1982,7 @@ td {
 }
 .picker-group {
   margin: 0;
-  padding: 12px 18px 2px;
+  padding: 10px 15px 2px;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -1973,7 +1992,7 @@ td {
 .picker-list {
   list-style: none;
   margin: 0;
-  padding: 6px;
+  padding: 5px;
   max-height: min(420px, 56vh);
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -1982,11 +2001,11 @@ td {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto 4.6rem;
   align-items: center;
-  gap: 14px;
-  padding: 9px 12px;
-  border-radius: 9px;
+  gap: 11px;
+  padding: 7px 10px;
+  border-radius: 4px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 13px;
 }
 .picker-list li.is-current {
   grid-template-columns: minmax(0, 1fr) auto auto 4.6rem;
@@ -1997,19 +2016,19 @@ td {
 .picker-sym {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: 7px;
   min-width: 0;
   font-weight: 600;
   white-space: nowrap;
 }
 .picker-region {
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 400;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .picker-label {
-  font-size: 12px;
+  font-size: 11.5px;
   font-variant-numeric: tabular-nums;
 }
 .picker-here {
@@ -2021,15 +2040,15 @@ td {
   font-variant-numeric: tabular-nums;
 }
 .picker-empty {
-  padding: 18px 12px;
-  font-size: 13px;
+  padding: 15px 10px;
+  font-size: 12px;
 }
 .picker-foot {
   display: flex;
-  gap: 18px;
-  padding: 10px 16px;
+  gap: 15px;
+  padding: 8px 13px;
   border-top: 1px solid var(--line);
-  font-size: 12px;
+  font-size: 11.5px;
 }
 .picker-foot kbd {
   margin-right: 3px;
@@ -2044,17 +2063,17 @@ td {
   padding: 16px 0 0;
 }
 .doc {
-  padding: 0 0 8px;
+  padding: 0 0 7px;
 }
 .doc-back {
-  margin: 0 0 18px -8px;
+  margin: 0 0 15px -7px;
 }
 .doc-head {
   margin-top: 6px;
 }
 .doc-head h1 {
   font-family: var(--serif);
-  font-weight: 400;
+  font-weight: 500;
   font-size: clamp(32px, 4vw, 46px);
   line-height: 1.05;
   letter-spacing: -0.02em;
@@ -2070,8 +2089,8 @@ td {
 .doc-layout {
   display: grid;
   grid-template-columns: 210px minmax(0, 1fr);
-  gap: 48px;
-  margin-top: 32px;
+  gap: 39px;
+  margin-top: 26px;
 }
 .toc {
   position: sticky;
@@ -2082,8 +2101,8 @@ td {
   padding: 0 4px 4px 0;
 }
 .toc-title {
-  margin: 0 0 10px;
-  padding-left: 11px;
+  margin: 0 0 8px;
+  padding-left: 9px;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -2102,14 +2121,14 @@ td {
 .toc-list a {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  padding: 5px 10px;
-  font-size: 13px;
+  gap: 8px;
+  padding: 5px 8px;
+  font-size: 12px;
   line-height: 1.35;
   color: var(--muted);
   text-decoration: none;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: 4px;
   transition: color 0.15s, background-color 0.15s, border-color 0.15s, box-shadow 0.15s;
 }
 .toc-list a::before {
@@ -2117,7 +2136,7 @@ td {
   flex: none;
   width: 8px;
   height: 2px;
-  margin-top: 8px; /* centred on the first line, so long titles wrap under their text */
+  margin-top: 7px; /* centred on the first line, so long titles wrap under their text */
   border-radius: 2px;
   background: var(--axis);
   transition: width 0.25s var(--ease), background-color 0.2s;
@@ -2154,7 +2173,7 @@ td {
   min-width: 0;
 }
 .doc-body section {
-  padding: 26px 0 30px;
+  padding: 21px 0 25px;
   border-top: 1px solid var(--line);
   scroll-margin-top: 16px;
 }
@@ -2163,21 +2182,21 @@ td {
   padding-top: 0;
 }
 .doc-body h2 {
-  font-size: 24px;
-  margin: 0 0 12px;
+  font-size: 22.5px;
+  margin: 0 0 10px;
 }
 .doc-body h3 {
-  margin: 22px 0 6px;
-  font-size: 14px;
+  margin: 18px 0 5px;
+  font-size: 13px;
 }
 .doc-body p,
 .doc-body li {
-  font-size: 14.5px;
+  font-size: 13.5px;
   line-height: 1.7;
   color: var(--ink2);
 }
 .doc-body p {
-  margin: 8px 0;
+  margin: 7px 0;
   max-width: 860px;
 }
 .doc-body b {
@@ -2186,30 +2205,31 @@ td {
 }
 .doc-body ul,
 .doc-body ol {
-  margin: 8px 0;
-  padding-left: 20px;
+  margin: 7px 0;
+  padding-left: 16px;
   max-width: 860px;
 }
 .doc-body li + li {
-  margin-top: 6px;
+  margin-top: 5px;
 }
 .doc-body ol.steps {
-  padding-left: 22px;
+  padding-left: 18px;
 }
 .doc-body ol.steps li::marker {
   font-family: var(--serif);
+  font-weight: 500;
   color: var(--muted);
 }
 .formula {
-  margin: 14px 0;
-  padding: 12px 18px 14px;
+  margin: 11px 0;
+  padding: 10px 15px 11px;
   font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.85;
   color: var(--ink);
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 5px;
   overflow-x: auto;
 }
 /* a small label instead of a coloured edge */
@@ -2227,19 +2247,19 @@ td {
 }
 
 .doc-scroll {
-  margin: 14px 0;
+  margin: 11px 0;
   overflow-x: auto;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 4px 16px;
+  border-radius: 5px;
+  padding: 4px 13px;
 }
 .doc-table {
-  font-size: 13px;
+  font-size: 12px;
 }
 .doc-table th,
 .doc-table td {
-  padding: 10px 14px 10px 0;
+  padding: 8px 11px 8px 0;
   line-height: 1.55;
   color: var(--ink2);
 }
@@ -2282,7 +2302,7 @@ td {
   font-weight: 500;
   color: var(--ink2);
   text-decoration: none;
-  border-radius: 6px;
+  border-radius: 3px;
   transition: background-color 0.15s, color 0.15s;
 }
 .site-nav a:hover {
@@ -2316,18 +2336,18 @@ td {
 .calc {
   display: grid;
   grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr);
-  margin-top: 24px;
+  margin-top: 20px;
   background: var(--raised);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
 }
 .calc-form {
-  padding: 22px 24px 20px;
+  padding: 18px 20px 16px;
   min-width: 0;
 }
 .calc-out {
-  padding: 22px 24px 20px;
+  padding: 18px 20px 16px;
   min-width: 0;
   background: var(--surface);
   border-left: 1px solid var(--line);
@@ -2337,12 +2357,12 @@ td {
 .calc-fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 20px 16px;
+  gap: 16px 13px;
 }
 .field {
   display: grid;
   align-content: start;
-  gap: 6px;
+  gap: 5px;
   min-width: 0;
 }
 .field-wide {
@@ -2352,11 +2372,11 @@ td {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  min-height: 28px;
+  gap: 8px;
+  min-height: 26px;
 }
 .field-label {
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--muted);
 }
 .field-top .field-label {
@@ -2366,17 +2386,17 @@ td {
   padding: 2px;
 }
 .seg-mini button {
-  padding: 2px 10px;
-  font-size: 11.5px;
+  padding: 2px 8px;
+  font-size: 11px;
 }
 
 .input-wrap {
   display: flex;
   align-items: center;
-  height: 42px;
+  height: 39px;
   background: var(--raised);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 5px;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .input-wrap:hover {
@@ -2390,9 +2410,9 @@ td {
   flex: 1;
   min-width: 0;
   height: 100%;
-  padding: 0 12px;
+  padding: 0 10px;
   font: inherit;
-  font-size: 15px;
+  font-size: 14px;
   font-variant-numeric: tabular-nums;
   color: var(--ink);
   background: transparent;
@@ -2406,11 +2426,11 @@ td {
   min-width: 0;
 }
 .dd-field {
-  gap: 10px;
+  gap: 8px;
   width: 100%;
-  padding: 0 14px 0 12px;
+  padding: 0 11px 0 10px;
   font: inherit;
-  font-size: 15px;
+  font-size: 14px;
   color: var(--ink);
   text-align: left;
   cursor: pointer;
@@ -2435,7 +2455,7 @@ td {
 }
 .dd-field .dd-aside {
   flex: none;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
@@ -2463,7 +2483,7 @@ td {
   flex-direction: column;
   background: var(--raised);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 5px;
   box-shadow: 0 12px 36px rgba(22, 26, 22, 0.16), 0 2px 6px rgba(22, 26, 22, 0.06);
   overflow: hidden;
   animation: dd-in 0.16s var(--ease) both;
@@ -2489,19 +2509,19 @@ td {
 }
 .dd-search {
   flex: none;
-  padding: 8px;
+  padding: 7px;
   border-bottom: 1px solid var(--grid);
 }
 .dd-search input {
   width: 100%;
-  height: 34px;
-  padding: 0 10px;
+  height: 32px;
+  padding: 0 8px;
   font: inherit;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--ink);
   background: var(--raised);
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: 4px;
   outline: none;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
@@ -2520,7 +2540,7 @@ td {
   overscroll-behavior: contain;
 }
 .dd-group {
-  padding: 10px 10px 4px;
+  padding: 8px 8px 4px;
   font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -2528,17 +2548,17 @@ td {
   color: var(--muted);
 }
 .dd-group:first-child {
-  padding-top: 6px;
+  padding-top: 5px;
 }
 .dd-list li[role='option'] {
   --ring: var(--raised);
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 10px;
-  font-size: 13.5px;
+  gap: 10px;
+  padding: 7px 8px;
+  font-size: 12.5px;
   color: var(--ink);
-  border-radius: 6px;
+  border-radius: 3px;
   cursor: pointer;
 }
 .dd-list li[aria-selected='true'] {
@@ -2563,13 +2583,13 @@ td {
 }
 .dd-list .dd-aside {
   flex: none;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 .dd-empty {
-  padding: 12px 10px;
-  font-size: 13px;
+  padding: 10px 8px;
+  font-size: 12px;
   color: var(--muted);
 }
 .field-key {
@@ -2578,25 +2598,25 @@ td {
 .input-pre,
 .input-post {
   flex: none;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--muted);
   white-space: nowrap;
 }
 .input-pre {
-  padding-left: 12px;
-  margin-right: -6px;
+  padding-left: 10px;
+  margin-right: -5px;
 }
 .input-post {
-  padding-right: 12px;
-  margin-left: -6px;
+  padding-right: 10px;
+  margin-left: -5px;
 }
 /* the same amount in the other unit, at the end of the field */
 .input-aside {
   flex: none;
   align-self: center;
-  margin-right: 12px;
-  padding-left: 12px;
-  font-size: 13px;
+  margin-right: 10px;
+  padding-left: 10px;
+  font-size: 12px;
   line-height: 20px;
   font-variant-numeric: tabular-nums;
   color: var(--ink2);
@@ -2606,31 +2626,31 @@ td {
 .input-pair {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .field-foot {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 6px 12px;
-  min-height: 26px;
+  gap: 5px 10px;
+  min-height: 24px;
   padding-top: 2px;
 }
 .field-note {
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 .chips {
   display: inline-flex;
-  gap: 6px;
+  gap: 5px;
 }
 .chip {
   height: 24px;
-  padding: 0 10px;
+  padding: 0 8px;
   font: inherit;
-  font-size: 12px;
+  font-size: 11.5px;
   font-variant-numeric: tabular-nums;
   color: var(--ink2);
   background: var(--raised);
@@ -2651,7 +2671,7 @@ td {
 .link-btn {
   padding: 0;
   font: inherit;
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--bull-ink);
   background: none;
   border: 0;
@@ -2667,8 +2687,8 @@ td {
 
 /* the contract: one strip of four cells under the form, each value typed in place */
 .contract {
-  margin-top: 24px;
-  padding-top: 18px;
+  margin-top: 20px;
+  padding-top: 15px;
   border-top: 1px solid var(--grid);
 }
 .contract-head {
@@ -2676,18 +2696,18 @@ td {
   align-items: baseline;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 4px 16px;
-  margin-bottom: 10px;
+  gap: 4px 13px;
+  margin-bottom: 8px;
 }
 .contract-title {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
 }
 .contract-title .muted {
   font-weight: 400;
 }
 .contract-hint {
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--muted);
 }
 .spec-strip {
@@ -2695,13 +2715,13 @@ td {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 6px;
 }
 .spec {
   display: grid;
   gap: 2px;
   min-width: 0;
-  padding: 10px 14px 11px;
+  padding: 8px 11px 9px;
   cursor: text;
   transition: background-color 0.15s, box-shadow 0.15s;
 }
@@ -2709,10 +2729,10 @@ td {
   border-left: 1px solid var(--line);
 }
 .spec:first-child {
-  border-radius: 11px 0 0 11px;
+  border-radius: 5px 0 0 5px;
 }
 .spec:last-child {
-  border-radius: 0 11px 11px 0;
+  border-radius: 0 5px 5px 0;
 }
 .spec:hover {
   background: var(--raised);
@@ -2722,7 +2742,7 @@ td {
   box-shadow: inset 0 0 0 1.5px var(--focus);
 }
 .spec-label {
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--muted);
   white-space: nowrap;
 }
@@ -2747,7 +2767,7 @@ td {
   min-width: 0;
   padding: 0 1px 0 0;
   font: inherit;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -2766,7 +2786,7 @@ td {
 }
 .spec-unit {
   flex: none;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--muted);
 }
 
@@ -2806,6 +2826,7 @@ td {
 }
 .token text {
   font-family: var(--serif);
+  font-weight: 500;
   font-size: 10px;
   fill: var(--tk-ink);
 }
@@ -2859,22 +2880,22 @@ td {
 }
 .dd.is-tall .dd-field {
   height: 62px;
-  gap: 12px;
-  padding-left: 12px;
+  gap: 10px;
+  padding-left: 10px;
 }
 .dd.is-tall .dd-value {
   display: grid;
   line-height: 1.3;
 }
 .dd.is-tall .dd-value b {
-  font-size: 16px;
+  font-size: 15px;
   letter-spacing: 0.01em;
 }
 .dd.is-tall .dd-dash {
   display: none;
 }
 .dd.is-tall .dd-value .dd-sub {
-  font-size: 12.5px;
+  font-size: 12px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -2884,17 +2905,17 @@ td {
   line-height: 1.3;
 }
 .pair-quote b {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 .pair-quote .rate-tag {
-  font-size: 11.5px;
+  font-size: 11px;
 }
 .rate-tag.is-live {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
 }
 .rate-tag.is-live::before {
   content: '';
@@ -2919,22 +2940,22 @@ td {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  min-height: 28px;
+  gap: 10px;
+  min-height: 26px;
 }
 .calc-kicker {
   margin: 0;
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--muted);
 }
 .out-pair {
   --ring: var(--raised);
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  height: 28px;
-  padding: 0 6px 0 4px;
-  font-size: 12px;
+  gap: 6px;
+  height: 26px;
+  padding: 0 5px 0 4px;
+  font-size: 11.5px;
   font-weight: 600;
   letter-spacing: 0.01em;
   color: var(--ink);
@@ -2943,10 +2964,10 @@ td {
   border-radius: 99px;
 }
 .out-pair:not(:has(.side-tag)) {
-  padding-right: 10px;
+  padding-right: 8px;
 }
 .side-tag {
-  padding: 0 7px;
+  padding: 0 6px;
   font-size: 11px;
   line-height: 18px;
   border-radius: 99px;
@@ -2963,19 +2984,20 @@ td {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 12px;
-  margin-top: 8px;
+  gap: 10px;
+  margin-top: 7px;
 }
 .calc-lots {
   display: flex;
   align-items: baseline;
-  gap: 10px;
+  gap: 8px;
   margin: 0;
   min-width: 0;
-  font-family: var(--serif);
+  font-family: var(--figs);
+  font-weight: 600;
 }
 .calc-lots-num {
-  font-size: clamp(48px, 5.4vw, 68px);
+  font-size: clamp(45px, 5.4vw, 64px);
   line-height: 1.02;
   letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
@@ -2988,7 +3010,7 @@ td {
   }
 }
 .calc-lots-unit {
-  font-size: 21px;
+  font-size: 19.5px;
   color: var(--ink2);
 }
 .calc-lots.is-empty .calc-lots-num,
@@ -3000,17 +3022,17 @@ td {
   flex: none;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 32px;
-  margin-bottom: 8px;
-  padding: 0 12px 0 10px;
+  gap: 5px;
+  height: 30px;
+  margin-bottom: 7px;
+  padding: 0 10px 0 8px;
   font: inherit;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--ink2);
   background: var(--raised);
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: 4px;
   cursor: pointer;
   transition: color 0.15s, border-color 0.15s, background-color 0.15s;
 }
@@ -3035,16 +3057,16 @@ td {
 .unit-pills {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin: 10px 0 0;
+  gap: 5px;
+  margin: 8px 0 0;
 }
 .unit-pills span {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  height: 26px;
-  padding: 0 10px;
-  font-size: 12.5px;
+  height: 24px;
+  padding: 0 8px;
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
   color: var(--ink2);
   background: var(--raised);
@@ -3056,29 +3078,29 @@ td {
   color: var(--ink);
 }
 .calc-problem {
-  margin: 10px 0 0;
-  font-size: 13.5px;
+  margin: 8px 0 0;
+  font-size: 12.5px;
   color: var(--ink2);
 }
 .calc-problem p {
-  margin: 0 0 12px;
+  margin: 0 0 10px;
 }
 
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin: 20px 0 0;
+  gap: 7px;
+  margin: 16px 0 0;
 }
 .stat {
   min-width: 0;
-  padding: 11px 13px 10px;
+  padding: 9px 11px 8px;
   background: var(--raised);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 5px;
 }
 .stat dt {
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
@@ -3090,28 +3112,28 @@ td {
   font-variant-numeric: tabular-nums;
 }
 .stat dd b {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 600;
   line-height: 1.3;
   letter-spacing: -0.005em;
   overflow-wrap: anywhere;
 }
 .stat dd span {
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--muted);
 }
 
 /* the stop and three targets: amounts over a thin bar, names under it. The stop's figures sit at
    its far end (left), each target's at its own end (right), which leaves room for the entry between. */
 .ladder {
-  margin-top: 22px;
+  margin-top: 18px;
 }
 .ladder-head {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 10px;
-  font-size: 12px;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 11.5px;
   color: var(--ink2);
 }
 .ladder-cols {
@@ -3135,7 +3157,7 @@ td {
   text-align: left;
 }
 .lc b {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   line-height: 20px;
   white-space: nowrap;
@@ -3149,7 +3171,7 @@ td {
 .lc-seg {
   justify-self: stretch;
   height: 6px;
-  margin: 7px 0 8px;
+  margin: 6px 0 7px;
   border-radius: 2px;
 }
 .lc:first-child .lc-seg {
@@ -3171,12 +3193,12 @@ td {
   background: color-mix(in srgb, var(--good) 85%, var(--raised));
 }
 .lc-k {
-  font-size: 12px;
+  font-size: 11.5px;
   line-height: 16px;
   color: var(--ink2);
 }
 .lc-at {
-  font-size: 11.5px;
+  font-size: 11px;
   line-height: 16px;
   color: var(--muted);
 }
@@ -3205,9 +3227,9 @@ td {
   color: var(--ink);
 }
 .calc-checks {
-  margin-top: 20px;
-  padding-top: 14px;
-  gap: 8px;
+  margin-top: 16px;
+  padding-top: 11px;
+  gap: 7px;
   grid-template-columns: minmax(0, 1fr);
 }
 
@@ -3216,8 +3238,8 @@ td {
   counter-reset: step;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 10px;
-  margin: 20px 0 0;
+  gap: 8px;
+  margin: 16px 0 0;
   padding: 0;
   list-style: none;
 }
@@ -3227,16 +3249,16 @@ td {
   align-content: start;
   gap: 2px;
   min-width: 0;
-  padding: 14px 16px 15px;
+  padding: 11px 13px 12px;
   background: var(--raised);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 5px;
 }
 .step-k {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
+  gap: 7px;
+  font-size: 11.5px;
   color: var(--ink2);
 }
 .step-k::before {
@@ -3253,10 +3275,10 @@ td {
   border-radius: 50%;
 }
 .step-v {
-  margin-top: 8px;
-  font-family: var(--serif);
-  font-weight: 400;
-  font-size: 25px;
+  margin-top: 7px;
+  font-family: var(--figs);
+  font-weight: 600;
+  font-size: 23.5px;
   line-height: 1.2;
   letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
@@ -3264,7 +3286,7 @@ td {
 }
 .step-f {
   font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--muted);
   overflow-wrap: anywhere;
 }
@@ -3279,11 +3301,11 @@ td {
 }
 .calc-notes {
   display: grid;
-  gap: 8px;
-  margin: 18px 0 0;
-  padding-left: 18px;
+  gap: 7px;
+  margin: 15px 0 0;
+  padding-left: 15px;
   max-width: 900px;
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.6;
   color: var(--ink2);
 }
@@ -3294,11 +3316,11 @@ td {
 /* other risk levels: pick a row to use it */
 .risk-table th:first-child,
 .risk-table td:first-child {
-  padding-left: 12px;
+  padding-left: 10px;
 }
 .risk-table th:last-child,
 .risk-table td:last-child {
-  padding-right: 12px;
+  padding-right: 10px;
 }
 .risk-table tbody tr {
   cursor: pointer;
@@ -3309,7 +3331,7 @@ td {
 .row-pick {
   display: inline-flex;
   align-items: center;
-  gap: 9px;
+  gap: 7px;
   padding: 0;
   font: inherit;
   color: inherit;
@@ -3335,8 +3357,8 @@ td {
   color: var(--bull-ink);
 }
 .yours {
-  margin-left: 8px;
-  padding: 1px 7px;
+  margin-left: 7px;
+  padding: 1px 6px;
   font-size: 11px;
   font-weight: 600;
   color: var(--bull-ink);
@@ -3347,10 +3369,10 @@ td {
 /* ---------- Footer ---------- */
 
 .footer {
-  margin-top: 36px;
-  padding-top: 18px;
+  margin-top: 30px;
+  padding-top: 15px;
   border-top: 1px solid var(--line);
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--ink2);
 }
 .footer p {
@@ -3373,28 +3395,29 @@ td {
 .state-code {
   margin: 0;
   font-family: var(--serif);
-  font-size: 15px;
+  font-weight: 500;
+  font-size: 14px;
   letter-spacing: 0.04em;
   color: var(--muted);
 }
 .state-title {
-  margin: 10px 0 0;
+  margin: 8px 0 0;
   font-family: var(--serif);
-  font-weight: 400;
-  font-size: clamp(30px, 4vw, 42px);
+  font-weight: 500;
+  font-size: clamp(28px, 4vw, 39.5px);
   line-height: 1.1;
   letter-spacing: -0.02em;
 }
 .state-text {
-  margin: 14px 0 0;
-  font-size: 15px;
+  margin: 11px 0 0;
+  font-size: 14px;
   color: var(--ink2);
 }
 /* the way back: the site's pages as one list */
 .nf-links {
   display: flex;
   flex-direction: column;
-  margin-top: 32px;
+  margin-top: 26px;
   background: var(--raised);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -3403,7 +3426,7 @@ td {
 }
 .nf-title {
   margin: 0;
-  padding: 10px 16px;
+  padding: 8px 13px;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -3415,8 +3438,8 @@ td {
 .nf-links a {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 13px 16px;
+  gap: 13px;
+  padding: 11px 13px;
   text-decoration: none;
   transition: background-color 0.15s;
 }
@@ -3432,14 +3455,14 @@ td {
 }
 .nf-links b {
   display: block;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--ink);
 }
 .nf-links small {
   display: block;
   margin-top: 2px;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--muted);
 }
 .nf-links svg {
@@ -3463,10 +3486,10 @@ td {
 @media (max-width: 1000px) {
   .bc-grid {
     grid-template-columns: minmax(0, 1fr);
-    gap: 20px;
+    gap: 16px;
   }
   .bc-weights {
-    padding: 16px 0 0;
+    padding: 13px 0 0;
     border-left: 0;
     border-top: 1px solid var(--grid);
   }
@@ -3482,30 +3505,30 @@ td {
   .doc-layout {
     grid-template-columns: minmax(0, 1fr);
     gap: 0;
-    margin-top: 20px;
+    margin-top: 16px;
   }
   .toc {
     display: none;
   }
   .toc-mobile {
     display: block;
-    margin: 0 0 22px;
+    margin: 0 0 18px;
     background: var(--surface);
     border: 1px solid var(--line);
-    border-radius: 10px;
+    border-radius: 5px;
   }
   .toc-mobile summary {
-    padding: 12px 16px;
-    font-size: 13px;
+    padding: 10px 13px;
+    font-size: 12px;
     font-weight: 600;
     cursor: pointer;
     list-style-position: inside;
   }
   .toc-mobile .toc-list {
     display: block;
-    margin: 0 6px 10px;
+    margin: 0 5px 8px;
     columns: 2;
-    column-gap: 20px;
+    column-gap: 16px;
   }  .toc-mobile .toc-list li {
     break-inside: avoid;
   }
@@ -3518,12 +3541,12 @@ td {
 @media (max-width: 1000px) {
   .days {
     grid-template-columns: 1fr;
-    gap: 10px;
+    gap: 8px;
   }
   .ph-card {
     display: grid;
     grid-template-columns: minmax(0, 18.5em) minmax(0, 1fr);
-    column-gap: 20px;
+    column-gap: 16px;
     align-items: start;
   }
   .ph-card .day-head {
@@ -3537,7 +3560,7 @@ td {
     grid-column: 2;
     grid-row: 1 / span 2;
     margin: 0;
-    padding: 0 0 0 20px;
+    padding: 0 0 0 16px;
     border-top: 0;
     border-left: 1px solid var(--grid);
   }
@@ -3555,13 +3578,13 @@ td {
   }
   .chart-block,
   .table-block {
-    padding: 18px 16px;
+    padding: 15px 13px;
   }
   .biascheck {
-    padding: 18px 16px 14px;
+    padding: 15px 13px 11px;
   }
   .statusbar {
-    font-size: 12px;
+    font-size: 11.5px;
     padding: 5px 5px 5px 12px;
   }
   .sb-extra,
@@ -3596,10 +3619,10 @@ td {
     flex-wrap: wrap;
   }
   .brief-cell {
-    padding: 14px 14px 16px;
+    padding: 11px 11px 13px;
   }
   .brief-num {
-    font-size: 26px;
+    font-size: 24.5px;
   }
   .ses-list li {
     grid-template-columns: 18px 5em minmax(0, 1fr);
@@ -3607,12 +3630,12 @@ td {
   .ses-when {
     grid-column: 2 / -1;
     text-align: left;
-    margin-top: -6px;
+    margin-top: -5px;
   }
   .bc-checks li {
     display: block;
     position: relative;
-    padding-left: 28px;
+    padding-left: 23px;
   }
   .bc-checks .bc-icon {
     position: absolute;
@@ -3621,7 +3644,7 @@ td {
     transform: translateY(1px);
   }
   .bc-label {
-    margin-right: 6px;
+    margin-right: 5px;
   }
   /* phones: Right now's three go one under another, all from the left */
   .rn-checks {
@@ -3632,7 +3655,7 @@ td {
   }
   .chart-head p,
   .table-block > p {
-    font-size: 12.5px;
+    font-size: 12px;
   }
   .nl-rating,
   .chart-head > .nl-rating {
@@ -3642,14 +3665,14 @@ td {
     align-items: baseline;
   }
   .ses-label {
-    gap: 7px;
-    padding-right: 8px;
+    gap: 6px;
+    padding-right: 7px;
   }
   .ses-label-sub {
     display: none;
   }
   .ses-label-city {
-    font-size: 12px;
+    font-size: 11.5px;
   }
   .axis-tick.minor {
     display: none;
@@ -3665,8 +3688,8 @@ td {
     display: block;
   }
   .ph-card .ph-note {
-    margin: 12px 0 0;
-    padding: 10px 0 0;
+    margin: 10px 0 0;
+    padding: 8px 0 0;
     border-left: 0;
     border-top: 1px solid var(--grid);
   }
@@ -3678,7 +3701,7 @@ td {
     display: none;
   }
   .day-score {
-    font-size: 20px;
+    font-size: 19px;
   }
 
   /* tables become one card per row */
@@ -3693,8 +3716,8 @@ td {
   .stack tr {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 2px 12px;
-    padding: 14px 0;
+    gap: 2px 10px;
+    padding: 11px 0;
     border-bottom: 1px solid var(--grid);
   }
   .stack tbody tr:last-child {
@@ -3711,14 +3734,14 @@ td {
   }
   .stack .c-main {
     grid-column: 1 / -1;
-    font-size: 14px;
+    font-size: 13px;
   }
   .stack .c-sub {
     grid-column: 1 / -1;
     min-width: 0 !important;
   }
   .stack td[data-label] {
-    margin-top: 8px;
+    margin-top: 7px;
   }
   .stack td[data-label]::before {
     content: attr(data-label);
@@ -3730,7 +3753,7 @@ td {
   }
   .scroll {
     overflow: visible;
-    margin-top: 6px;
+    margin-top: 5px;
   }
 
   .doc-stack thead {
@@ -3744,7 +3767,7 @@ td {
     width: 100%;
   }
   .doc-stack tr {
-    padding: 12px 0;
+    padding: 10px 0;
     border-bottom: 1px solid var(--grid);
   }
   .doc-stack tr:last-child {
@@ -3759,14 +3782,14 @@ td {
     color: var(--muted);
   }
   .doc-scroll {
-    padding: 4px 12px;
+    padding: 4px 10px;
   }
   .doc-body h2 {
-    font-size: 21px;
+    font-size: 19.5px;
   }
   .formula {
-    padding: 12px 14px;
-    font-size: 12px;
+    padding: 10px 11px;
+    font-size: 11.5px;
   }
   .picker-list li[role='option'],
   .picker-list li.is-current {
@@ -3805,11 +3828,11 @@ td {
   }
   .calc-form,
   .calc-out {
-    padding: 18px 16px 16px;
+    padding: 15px 13px 13px;
   }
   .calc-fields {
     grid-template-columns: minmax(0, 1fr);
-    gap: 16px;
+    gap: 13px;
   }
   .spec-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3821,22 +3844,22 @@ td {
     border-top: 1px solid var(--line);
   }
   .spec:nth-child(1) {
-    border-radius: 11px 0 0 0;
+    border-radius: 5px 0 0 0;
   }
   .spec:nth-child(2) {
-    border-radius: 0 11px 0 0;
+    border-radius: 0 5px 0 0;
   }
   .spec:nth-child(3) {
-    border-radius: 0 0 0 11px;
+    border-radius: 0 0 0 5px;
   }
   .spec:nth-child(4) {
-    border-radius: 0 0 11px 0;
+    border-radius: 0 0 5px 0;
   }
   .calc-lots-num {
-    font-size: 48px;
+    font-size: 45px;
   }
   .lc b {
-    font-size: 12.5px;
+    font-size: 12px;
   }
   .risk-table td.num {
     text-align: left;
@@ -3857,12 +3880,12 @@ td {
 /* The rows line up with the sites beside this one. The status bar matches theirs; 10px under it, the
    timezone bar centres on the Journal's and Vault's tab bars and the Screener's top bar (91px down);
    and the title shares the Journal's and Vault's title baseline, which follows the Screener's title,
-   clamp(38px, 5.4vw, 64px), and 34px at 640px and below. 0.844 is Young Serif's baseline at
+   clamp(38px, 5.4vw, 64px), and 34px at 640px and below. 0.865 is Fraunces' baseline at
    line-height 1.05; 16px was measured against the Journal at 520 to 900px wide. */
 .is-framed .overview-row {
   --title: clamp(32px, 4vw, 46px);
   --screener-title: clamp(38px, 5.4vw, 64px);
-  margin-top: calc(16px + 0.844 * (var(--screener-title) - var(--title)));
+  margin-top: calc(16px + 0.865 * (var(--screener-title) - var(--title)));
 }
 @media (max-width: 640px) {
   .is-framed .overview-row {
@@ -3959,7 +3982,7 @@ td {
   padding: 18px;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 7px;
 }
 .flow-3 {
   grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1.1fr) 28px minmax(0, 0.9fr);
@@ -3984,7 +4007,7 @@ td {
   padding: 10px 12px 10px 28px;
   background: var(--raised);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 5px;
   box-shadow: 0 1px 2px rgba(16, 24, 32, 0.04);
 }
 .fl-node b {
@@ -4004,7 +4027,7 @@ td {
   color: var(--ink2);
   background: color-mix(in srgb, var(--ink) 3%, var(--raised));
   border: 1px solid var(--grid);
-  border-radius: 8px;
+  border-radius: 4px;
 }
 .fl-note code {
   font-size: 11px;
@@ -4055,7 +4078,7 @@ td {
   overflow: hidden;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 7px;
 }
 .hc.is-ok {
   --tone: var(--ok);
@@ -4225,7 +4248,7 @@ td {
   white-space: nowrap;
   background: var(--raised);
   border: 1px solid var(--grid);
-  border-radius: 6px;
+  border-radius: 3px;
 }
 @keyframes hc-spin {
   to {

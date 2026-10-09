@@ -2,7 +2,7 @@
 
 When Sydney, Tokyo, London and New York are trading, in your own time, and a position size calculator for the trade
 you take in them. Built in the same design system as
-[FX Fundamental Bias](../fx-fundamental-bias): Young Serif + Instrument Sans, off-white, the same cards, tables,
+[FX Fundamental Bias](../k7a4i1z7e3n2-news): Fraunces + IBM Plex Sans, off-white, the same cards, tables,
 status bar, command-palette picker and guide layout.
 
 ## What's on the page

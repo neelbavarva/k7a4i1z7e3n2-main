@@ -21,7 +21,7 @@ KAIZEN Screener is a high-performance macro financial analytics application buil
 - **Framework:** Next.js 15.5 (App Router)
 - **UI & Logic:** React 19, TypeScript 5.7, plain CSS (`app/globals.css`, the FX Fundamental Bias design system)
 - **Charting:** Lightweight Charts 5.2, Canvas API
-- **Type & Icons:** Young Serif + Instrument Sans (self-hosted via @fontsource), inline SVG icons, round flags from country-flag-icons (MIT)
+- **Type & Icons:** Fraunces + IBM Plex Sans (self-hosted via @fontsource), inline SVG icons, round flags from country-flag-icons (MIT)
 
 ---
 

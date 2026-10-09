@@ -27,7 +27,7 @@ function Region({ code }: { code: string }) {
         fontSize={label.length > 2 ? 12 : 14}
         fontWeight="700"
         fill="#f2f2ec"
-        fontFamily="Instrument Sans Variable, system-ui, sans-serif"
+        fontFamily="IBM Plex Sans Variable, system-ui, sans-serif"
       >
         {label}
       </text>

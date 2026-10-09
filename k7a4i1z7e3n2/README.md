@@ -1,7 +1,7 @@
 # K7A4I1Z7E3N2 Split View
 
 Frontend-only page that shows other sites side by side in full-height, resizable panes on screens 2500px or wider, and one at a time with a tab bar on anything narrower.
-Uses the same theme (colours, Young Serif + Instrument Sans) as FX Fundamental Bias.
+Uses the same theme (colours, Fraunces + IBM Plex Sans) as the other Kaizen sites.
 
 ```bash
 npm install

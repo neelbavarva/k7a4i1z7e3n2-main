@@ -107,7 +107,7 @@ export class TimelineRenderer {
       ctx.restore();
 
       // 1C: Range label at top of band
-      ctx.font = '500 10px "Instrument Sans Variable", "Instrument Sans", sans-serif';
+      ctx.font = '500 10px "IBM Plex Sans Variable", "IBM Plex Sans", sans-serif';
       const textMetrics = ctx.measureText(range.label);
       const textWidth = textMetrics.width;
       const labelX = Math.max(x1 + 4, Math.min(x2 - textWidth - 4, x1 + (bandWidth - textWidth) / 2));
@@ -174,7 +174,7 @@ export class TimelineRenderer {
       ctx.stroke();
 
       // 2C: Label badge
-      ctx.font = '500 9px "Instrument Sans Variable", "Instrument Sans", sans-serif';
+      ctx.font = '500 9px "IBM Plex Sans Variable", "IBM Plex Sans", sans-serif';
       const textMetrics = ctx.measureText(point.label);
       const textWidth = textMetrics.width;
       const badgePadding = 4;
@@ -265,7 +265,7 @@ export class TimelineRenderer {
     points: TimelineEntity[],
     yearToX: (year: number) => number
   ): number[] {
-    ctx.font = '500 9px "Instrument Sans Variable", "Instrument Sans", sans-serif';
+    ctx.font = '500 9px "IBM Plex Sans Variable", "IBM Plex Sans", sans-serif';
     const placedTiers: Array<Array<{ left: number; right: number }>> = [];
     const resultTiers: number[] = new Array(points.length).fill(0);
 

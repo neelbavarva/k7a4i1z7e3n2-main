@@ -264,9 +264,7 @@ export default function NewTrade({ open, onClose }: { open: boolean; onClose: ()
                 aria-describedby="nt-fund-hint"
                 className="switch fund-switch"
                 onClick={() => setBacked((v) => !v)}
-              >
-                <i aria-hidden="true" />
-              </button>
+              />
             </div>
           </div>
 

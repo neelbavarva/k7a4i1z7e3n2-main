@@ -1,6 +1,6 @@
 # Kaizen Journal (lite)
 
-A frontend for the [Kaizen Journal API](https://k7a4i1z7e3n2-journal.lovable.app/): a focused forex trade journal with a **Trades** tab and a **Calendar** tab, in the same look as the other k7a4i1z7e3n2 sites (Young Serif + Instrument Sans, off-white, light only). It has no database of its own.
+A frontend for the [Kaizen Journal API](https://k7a4i1z7e3n2-journal.lovable.app/): a focused forex trade journal with a **Trades** tab and a **Calendar** tab, in the same look as the other k7a4i1z7e3n2 sites (Fraunces + IBM Plex Sans, off-white, light only). It has no database of its own.
 
 ```bash
 npm install

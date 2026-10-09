@@ -119,8 +119,9 @@ block the IP for a day, so never test `/otp/unlock` with made-up codes. `.env` h
 - Shared Kaizen look: off-white light theme only, tokens on `:root` in `globals.css` (`--page`,
   `--ink`, `--bull`, `--bear`, …). Fraunces at 500 for headings (`--serif`, with optical sizes);
   IBM Plex Sans for everything else: text (`--font`) and every figure (`--figs`, the same face, its
-  own token), sizes and weights varying. The other Kaizen sites still title in Young Serif: the split
-  view rules allow for Fraunces' lower baseline. Bank cards use Montserrat + Share Tech Mono.
+  own token), sizes and weights varying. Every Kaizen site now uses the same faces, scale and radii,
+  taken from here: change a shared part here, then carry it over. Bank cards use Montserrat + Share
+  Tech Mono.
 - No gradients, no one-sided colour stripes: flat tints with a full hairline border.
 - Nothing templated (rows of identical icon/title/number tiles, letter-on-colour placeholders).
   Real logos, sized optically. The bank-card UI (`BankCard`, `BankPicker`, `.bank-card` CSS) is

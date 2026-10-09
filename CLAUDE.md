@@ -16,6 +16,11 @@ own app with its own `package.json`; there is no workspace tooling. Each site de
 
 `.github/workflows/news-update.yml` runs the news pipeline and deploy (workflows must live at the root).
 
-All sites share one design: off-white light theme, the same tokens; Young Serif + Instrument Sans,
-except the vault, which titles in Fraunces with IBM Plex Sans for everything else.
-The vault's `app/globals.css` is the fullest copy. No gradients; flat tints with full hairline borders.
+All sites share one design, and the vault is its source: off-white light theme, the same tokens,
+Fraunces at 500 for headings (`--serif`) and IBM Plex Sans for text and figures (`--font`, `--figs`).
+Compact: body 13px, labels 11–12px, 32px buttons, small radii (`--radius: 6px`, 6px or less on most
+surfaces; pills and circles stay round). Status bars, top bars, page titles, tab bars and the 32px
+page margins keep their sizes on every site, because the split view lines them up (see each site's
+"Split view" CSS). The vault's `app/globals.css` is the fullest copy; when a shared part changes
+there (buttons, segmented controls, the switch, search fields), carry it to the other sites.
+No gradients; flat tints with full hairline borders.

@@ -381,8 +381,6 @@ function Body({
 
 function Switch({ on, onChange, label, disabled }: { on: boolean; onChange: (v: boolean) => void; label: string; disabled?: boolean }) {
   return (
-    <button type="button" role="switch" aria-checked={on} aria-label={label} className="switch" onClick={() => onChange(!on)} disabled={disabled}>
-      <i aria-hidden="true" />
-    </button>
+    <button type="button" role="switch" aria-checked={on} aria-label={label} className="switch" onClick={() => onChange(!on)} disabled={disabled} />
   );
 }

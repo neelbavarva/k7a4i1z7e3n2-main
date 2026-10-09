@@ -978,7 +978,7 @@ export default function HowItWorks({ meta }) {
                   </tr>
                   <tr>
                     <th scope="row">Fonts</th>
-                    <td>Young Serif (headings) and Instrument Sans (text), self-hosted via Fontsource.</td>
+                    <td>Fraunces (headings) and IBM Plex Sans (text and figures), self-hosted via Fontsource.</td>
                   </tr>
                   <tr>
                     <th scope="row">Data files</th>

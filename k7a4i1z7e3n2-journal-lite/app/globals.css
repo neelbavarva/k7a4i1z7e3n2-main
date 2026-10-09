@@ -1,7 +1,7 @@
 /* ==========================================================================
    Kaizen Journal (k7a4i1z7e3n2-journal-lite)
    Design language shared with FX Fundamental Bias and the vault journal.
-   Type: Young Serif (headers, big numbers) + Instrument Sans (text, data)
+   Type: Fraunces (headers) + IBM Plex Sans (text, data, figures)
    Theme: off-white, light only
    ========================================================================== */
 :root {
@@ -37,9 +37,13 @@
   --shadow: 0 1px 2px rgba(22, 26, 22, 0.04), 0 6px 20px rgba(22, 26, 22, 0.05);
   --shadow-lift: 0 2px 4px rgba(22, 26, 22, 0.05), 0 12px 28px rgba(22, 26, 22, 0.08);
   --shadow-pop: 0 24px 64px rgba(22, 26, 22, 0.18);
-  --radius: 12px;
-  --font: 'Instrument Sans Variable', 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --serif: 'Young Serif', 'Iowan Old Style', Georgia, serif;
+  --radius: 6px;
+  --font: 'IBM Plex Sans Variable', 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* headings: Fraunces at 500, its optical size following the type size */
+  --serif: 'Fraunces Variable', 'Fraunces', 'Iowan Old Style', Georgia, serif;
+  /* figures: the text face, IBM Plex Sans, with tabular figures; its own token so the numbers
+     can be set apart from the text */
+  --figs: 'IBM Plex Sans Variable', 'IBM Plex Sans', system-ui, sans-serif;
   --mono: ui-monospace, 'SF Mono', Menlo, monospace;
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
@@ -72,7 +76,7 @@ body {
   background: var(--page);
   color: var(--ink);
   font-family: var(--font);
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -99,7 +103,7 @@ img {
 :focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
-  border-radius: 6px;
+  border-radius: 3px;
 }
 
 h1,
@@ -117,14 +121,14 @@ h3 {
 
 h2 {
   font-family: var(--serif);
-  font-weight: 400;
-  font-size: 21px;
+  font-weight: 500;
+  font-size: 19.5px;
   line-height: 1.2;
   letter-spacing: -0.01em;
 }
 
 h3 {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.01em;
 }
@@ -139,7 +143,7 @@ h3 {
   color: var(--muted);
 }
 .small {
-  font-size: 12px;
+  font-size: 11.5px;
 }
 .up {
   color: var(--bull-ink);
@@ -171,7 +175,7 @@ kbd {
   background: var(--page);
   border: 1px solid var(--line);
   border-bottom-width: 2px;
-  border-radius: 5px;
+  border-radius: 3px;
 }
 
 code {
@@ -269,16 +273,16 @@ code {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  height: 34px;
-  padding: 0 12px;
+  gap: 7px;
+  height: 32px;
+  padding: 0 10px;
   font: inherit;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--ink);
   background: var(--raised);
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: 4px;
   text-decoration: none;
   white-space: nowrap;
   cursor: pointer;
@@ -317,7 +321,7 @@ code {
   box-shadow: none;
 }
 .btn-icon {
-  width: 34px;
+  width: 32px;
   padding: 0;
 }
 .btn-primary {
@@ -350,8 +354,8 @@ code {
 }
 .btn-block {
   width: 100%;
-  height: 40px;
-  font-size: 14px;
+  height: 38px;
+  font-size: 13px;
 }
 
 .seg {
@@ -360,22 +364,23 @@ code {
   padding: 3px;
   background: var(--page);
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: 4px;
   overflow-x: auto;
+  scrollbar-width: none;
 }
 .seg button {
   flex: none;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   font: inherit;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 500;
   color: var(--ink2);
   background: none;
   border: 0;
-  border-radius: 6px;
-  padding: 4px 12px;
+  border-radius: 3px;
+  padding: 4px 10px;
   cursor: pointer;
   white-space: nowrap;
   transition: background-color 0.15s, color 0.15s, box-shadow 0.15s;
@@ -433,6 +438,7 @@ code {
   gap: 10px;
   min-width: 0;
   font-family: var(--serif);
+  font-weight: 500;
   font-size: 18px;
   letter-spacing: -0.01em;
   color: var(--ink);
@@ -476,6 +482,17 @@ a.brand {
   font-size: 13px;
 }
 
+/* the top bar and the page title's actions keep their buttons at 34px while the rest of the journal's
+   are 32: in the split view the bar and title line up with the other sites' (see "Split view") */
+.topbar .btn,
+.overview-actions .btn {
+  height: 34px;
+}
+.topbar .btn-icon,
+.overview-actions .btn-icon {
+  width: 34px;
+}
+
 /* ---------- Overview header ---------- */
 
 .overview {
@@ -483,7 +500,7 @@ a.brand {
 }
 .overview-title {
   font-family: var(--serif);
-  font-weight: 400;
+  font-weight: 500;
   font-size: clamp(32px, 4vw, 46px);
   line-height: 1.05;
   letter-spacing: -0.02em;
@@ -505,7 +522,7 @@ a.brand {
 }
 .rule {
   height: 0;
-  margin: 18px 0 0;
+  margin: 15px 0 0;
   border: 0;
   border-top: 1px solid var(--line);
 }
@@ -521,13 +538,13 @@ a.brand {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 0 0 22px;
-  padding: 7px 14px;
-  font-size: 12.5px;
+  margin: 0 0 18px;
+  padding: 6px 11px;
+  font-size: 12px;
   color: var(--ink2);
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 5px;
 }
 .statusbar p {
   flex: 1;
@@ -566,13 +583,13 @@ a.brand {
 }
 .searchbar input {
   width: 100%;
-  height: 46px;
+  height: 43px;
   font: inherit;
-  font-size: 15px;
+  font-size: 14px;
   color: var(--ink);
   background: var(--raised);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 6px;
   padding: 0 44px 0 42px;
   outline: none;
   box-shadow: var(--shadow);
@@ -613,20 +630,20 @@ a.brand {
   height: 12px;
 }
 .search-hint {
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--muted);
   min-height: 0;
 }
 .search-hint.on {
-  margin-top: 10px;
+  margin-top: 8px;
 }
 
 .toolbar {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 14px;
+  gap: 8px;
+  margin-top: 11px;
 }
 .toolbar .spacer {
   flex: 1;
@@ -635,29 +652,29 @@ a.brand {
 /* ---------- Groups and rows ---------- */
 
 .group {
-  margin-top: 28px;
+  margin-top: 23px;
 }
 .group-head {
   display: flex;
   align-items: baseline;
-  gap: 10px;
+  gap: 8px;
 }
 .group-head:has(.group-icon) {
   align-items: center;
-  gap: 8px;
+  gap: 7px;
 }
 .group-head .count {
   font-family: var(--font);
-  font-size: 13px;
+  font-size: 12px;
   color: var(--muted);
 }
 .group-head .group-note {
   margin-left: auto;
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--muted);
 }
 .rows-card {
-  margin-top: 10px;
+  margin-top: 8px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -674,20 +691,20 @@ a.brand {
 }
 .row-headings {
   display: grid;
-  gap: 18px;
+  gap: 15px;
   align-items: center;
-  padding: 9px 18px;
-  font-size: 11.5px;
+  padding: 7px 15px;
+  font-size: 11px;
   color: var(--muted);
   border-bottom: 1px solid var(--line);
   background: color-mix(in srgb, var(--page) 55%, var(--surface));
 }
 .row-btn {
   display: grid;
-  gap: 18px;
+  gap: 15px;
   align-items: center;
   width: 100%;
-  padding: 11px 18px;
+  padding: 9px 15px;
   font: inherit;
   color: inherit;
   text-align: left;
@@ -717,7 +734,7 @@ a.brand {
 .row-main {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
 }
 .row-text {
@@ -726,7 +743,7 @@ a.brand {
 .row-title {
   display: block;
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13px;
   letter-spacing: 0.01em;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -734,14 +751,14 @@ a.brand {
 }
 .row-sub {
   display: block;
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .row-meta {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--ink2);
   white-space: nowrap;
   overflow: hidden;
@@ -753,23 +770,23 @@ a.brand {
   white-space: nowrap;
 }
 .empty-note {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--muted);
-  margin: 10px 0 0;
+  margin: 8px 0 0;
 }
 .empty-card {
-  margin-top: 28px;
-  padding: 36px 24px;
+  margin-top: 23px;
+  padding: 30px 20px;
   text-align: center;
   background: var(--surface);
   border: 1px dashed var(--axis);
   border-radius: var(--radius);
 }
 .empty-card h2 {
-  font-size: 22px;
+  font-size: 20.5px;
 }
 .empty-card p {
-  margin: 8px auto 18px;
+  margin: 7px auto 15px;
   max-width: 420px;
   color: var(--ink2);
 }
@@ -778,12 +795,12 @@ a.brand {
   flex: none;
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   color: var(--ink2);
   background: var(--page);
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: 4px;
   transition: background-color 0.15s, color 0.15s;
 }
 .tile svg {
@@ -799,7 +816,7 @@ a.brand {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  margin-left: 8px;
+  margin-left: 7px;
   font-size: 11px;
   font-weight: 500;
   color: var(--muted);
@@ -834,7 +851,7 @@ a.brand {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 .brief-cell {
-  padding: 16px 20px 18px;
+  padding: 13px 16px 15px;
   min-width: 0;
 }
 .brief-cell + .brief-cell {
@@ -843,23 +860,24 @@ a.brand {
 .brief dt {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
+  gap: 5px;
+  font-size: 11.5px;
   color: var(--muted);
 }
 .brief dd {
   margin: 0;
 }
 .brief-num {
-  font-family: var(--serif);
-  font-size: 32px;
+  font-family: var(--figs);
+  font-weight: 600;
+  font-size: 30px;
   line-height: 1.1;
   letter-spacing: -0.02em;
-  margin-top: 6px !important;
+  margin-top: 5px !important;
   font-variant-numeric: tabular-nums;
 }
 .brief-num.sm {
-  font-size: 24px;
+  font-size: 22.5px;
 }
 .brief-num small {
   font-size: 0.5em;
@@ -868,13 +886,13 @@ a.brand {
   margin-left: 2px;
 }
 .brief-text {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   line-height: 1.3;
-  margin-top: 8px !important;
+  margin-top: 7px !important;
 }
 .brief-sub {
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--ink2);
   margin-top: 4px !important;
 }
@@ -883,7 +901,7 @@ a.brand {
 .meter {
   position: relative;
   height: 6px;
-  margin-top: 10px;
+  margin-top: 8px;
   background: var(--grid);
   border-radius: 99px;
   overflow: hidden;
@@ -927,7 +945,7 @@ a.brand {
   margin-top: 18px;
 }
 .trade-filters {
-  margin-top: 18px;
+  margin-top: 15px;
 }
 .statusbar + .trade-filters {
   margin-top: 0;
@@ -944,11 +962,11 @@ a.brand {
 .pf {
   display: flex;
   align-items: stretch;
-  height: 38px;
+  height: 36px;
   min-width: 0;
   background: var(--raised);
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: 4px;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .pf:hover {
@@ -965,8 +983,8 @@ a.brand {
   flex: none;
   display: flex;
   align-items: center;
-  padding-left: 12px;
-  font-size: 14px;
+  padding-left: 10px;
+  font-size: 13px;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -978,9 +996,9 @@ a.brand {
 .pf-input {
   flex: 1 1 0;
   min-width: 0;
-  padding: 0 10px 0 6px;
+  padding: 0 8px 0 5px;
   font: inherit;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--ink);
   background: transparent;
@@ -1003,19 +1021,19 @@ a.brand {
   padding: 3px;
   background: var(--page);
   border-left: 1px solid var(--line);
-  border-radius: 0 8px 8px 0;
+  border-radius: 0 4px 4px 0;
 }
 .pf-picks button {
   --pick: var(--ink);
-  min-width: 40px;
-  padding: 0 9px;
+  min-width: 38px;
+  padding: 0 7px;
   font: inherit;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--ink2);
   background: transparent;
   border: 0;
-  border-radius: 6px;
+  border-radius: 3px;
   cursor: pointer;
   font-variant-numeric: tabular-nums;
   transition: background-color 0.15s, color 0.15s, box-shadow 0.15s;
@@ -1035,10 +1053,10 @@ a.brand {
 /* the pair: a select-like field that opens the pair picker */
 .pair-field {
   width: 100%;
-  height: 38px;
-  gap: 9px;
-  padding: 0 11px 0 12px;
-  font-size: 14px;
+  height: 36px;
+  gap: 7px;
+  padding: 0 9px 0 10px;
+  font-size: 13px;
   font-weight: 500;
   justify-content: flex-start;
 }
@@ -1071,7 +1089,7 @@ a.brand {
   color: var(--muted);
 }
 .pair-field-hint {
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 400;
   color: var(--muted);
 }
@@ -1085,8 +1103,8 @@ a.brand {
     display: none;
   }
   .pf-picks button {
-    min-width: 34px;
-    padding: 0 7px;
+    min-width: 32px;
+    padding: 0 6px;
   }
 }
 .pair-field[aria-invalid='true'],
@@ -1131,26 +1149,26 @@ a.brand {
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  font-size: 12.5px;
+  gap: 6px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--ink2);
 }
 
 /* the journal: a month per group, its net on the right */
 .trade-group {
-  margin-top: 22px;
+  margin-top: 18px;
 }
 .group-sum {
   display: inline-flex;
   align-items: baseline;
-  gap: 10px;
+  gap: 8px;
   margin-left: auto;
-  font-size: 13px;
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
 .group-sum .muted {
-  font-size: 12px;
+  font-size: 11.5px;
 }
 .group-sum b {
   font-weight: 600;
@@ -1159,7 +1177,7 @@ a.brand {
   grid-template-columns: minmax(0, 1fr) 3.4rem 2.4rem 5.4rem 5.6rem 3.6rem 6.2rem 16px;
 }
 .jrow .row-main {
-  gap: 12px;
+  gap: 10px;
 }
 .jrow .col-grade {
   display: flex;
@@ -1168,10 +1186,10 @@ a.brand {
 .grade {
   display: inline-grid;
   place-items: center;
-  min-width: 26px;
+  min-width: 24px;
   height: 22px;
-  padding: 0 6px;
-  font-size: 12px;
+  padding: 0 5px;
+  font-size: 11.5px;
   font-weight: 700;
   border-radius: 99px;
   color: var(--muted);
@@ -1198,8 +1216,8 @@ a.brand {
 .ttype {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  font-size: 13px;
+  gap: 6px;
+  font-size: 12px;
   color: var(--ink2);
 }
 .ttype i {
@@ -1223,8 +1241,8 @@ a.brand {
 .tf {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12.5px;
+  gap: 5px;
+  font-size: 12px;
   color: var(--ink2);
 }
 .tf svg {
@@ -1236,16 +1254,16 @@ a.brand {
 /* ---------- Trade detail ---------- */
 
 .section-title {
-  margin: 22px 0 10px;
+  margin: 18px 0 8px;
   display: flex;
   align-items: baseline;
-  gap: 10px;
+  gap: 8px;
 }
 .section-title h3 {
-  font-size: 13px;
+  font-size: 12px;
 }
 .section-title span {
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--muted);
 }
 
@@ -1260,7 +1278,7 @@ a.brand {
 .grade-cell {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 .grade-cell small {
   margin-left: 1px;
@@ -1269,57 +1287,57 @@ a.brand {
 }
 .brief-hint {
   font-family: var(--font);
-  font-size: 13px;
+  font-size: 12px;
   letter-spacing: 0;
 }
 /* ---------- Forms ---------- */
 
 .form {
   display: grid;
-  gap: 14px;
+  gap: 11px;
 }
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: 11px;
 }
 .form-grid .span-2 {
   grid-column: 1 / -1;
 }
 .field {
   display: grid;
-  gap: 6px;
+  gap: 5px;
   min-width: 0;
 }
 .field > label,
 .field-label {
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 500;
   color: var(--ink2);
 }
 .field-hint {
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--muted);
 }
 .input,
 .textarea {
   width: 100%;
   font: inherit;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--ink);
   background: var(--raised);
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: 4px;
   outline: none;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .input {
-  height: 38px;
-  padding: 0 12px;
+  height: 36px;
+  padding: 0 10px;
 }
 .textarea {
   min-height: 92px;
-  padding: 10px 12px;
+  padding: 8px 10px;
   resize: vertical;
   line-height: 1.5;
 }
@@ -1338,7 +1356,7 @@ a.brand {
   display: grid;
   background: var(--raised);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 5px;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .notes:hover {
@@ -1357,9 +1375,9 @@ a.brand {
   width: 100%;
   min-height: 88px;
   max-height: 320px;
-  padding: 12px 14px 6px;
+  padding: 10px 11px 5px;
   font: inherit;
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.6;
   color: var(--ink);
   background: transparent;
@@ -1377,9 +1395,9 @@ a.brand {
 .notes-foot {
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 34px;
-  padding: 4px 8px;
+  gap: 8px;
+  min-height: 32px;
+  padding: 4px 7px;
   border-top: 1px solid var(--grid);
 }
 .notes-prompts {
@@ -1393,14 +1411,14 @@ a.brand {
   align-items: center;
   gap: 4px;
   height: 24px;
-  padding: 0 8px 0 6px;
+  padding: 0 7px 0 5px;
   font: inherit;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 500;
   color: var(--ink2);
   background: transparent;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 3px;
   cursor: pointer;
   transition: background-color 0.15s, border-color 0.15s, color 0.15s;
 }
@@ -1428,7 +1446,7 @@ a.brand {
 .notes-count {
   margin-left: auto;
   padding-right: 4px;
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -1438,7 +1456,7 @@ a.brand {
 }
 .input-row {
   display: flex;
-  gap: 8px;
+  gap: 7px;
 }
 .input-row .input {
   flex: 1;
@@ -1446,19 +1464,19 @@ a.brand {
 }
 .input.mono {
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: 12px;
 }
 .input.mono::placeholder {
   font-family: var(--font);
-  font-size: 14px;
+  font-size: 13px;
 }
 .form-error {
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--bear-ink);
 }
 .form-foot {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   margin-top: 4px;
 }
 .reveal {
@@ -1472,14 +1490,14 @@ a.brand {
 }
 .danger-zone {
   display: grid;
-  gap: 10px;
-  padding: 14px 16px;
+  gap: 8px;
+  padding: 11px 13px;
   background: color-mix(in srgb, var(--bear) 5%, var(--raised));
   border: 1px solid color-mix(in srgb, var(--bear) 30%, transparent);
   border-radius: var(--radius);
 }
 .danger-zone p {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--ink2);
 }
 
@@ -1503,7 +1521,7 @@ a.brand {
   outline: none;
   background: transparent;
   font: inherit;
-  font-size: 16px;
+  font-size: 15px;
   color: var(--ink);
   padding: 0 64px 0 46px;
 }
@@ -1519,7 +1537,7 @@ a.brand {
 .picker-list {
   list-style: none;
   margin: 0;
-  padding: 6px;
+  padding: 5px;
   max-height: min(420px, 56vh);
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -1528,11 +1546,11 @@ a.brand {
   display: grid;
   grid-template-columns: 1fr auto;
   align-items: center;
-  gap: 14px;
-  padding: 9px 12px;
-  border-radius: 9px;
+  gap: 11px;
+  padding: 7px 10px;
+  border-radius: 4px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 13px;
 }
 .picker-list li[data-active='true'] {
   background: var(--page);
@@ -1540,14 +1558,14 @@ a.brand {
 .picker-sym {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   font-weight: 600;
 }
 .picker-right {
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 12px;
+  gap: 8px;
+  font-size: 11.5px;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
@@ -1557,15 +1575,15 @@ a.brand {
   color: var(--ink);
 }
 .picker-empty {
-  padding: 18px 12px;
-  font-size: 13px;
+  padding: 15px 10px;
+  font-size: 12px;
 }
 .picker-foot {
   display: flex;
-  gap: 18px;
-  padding: 10px 16px;
+  gap: 15px;
+  padding: 8px 13px;
   border-top: 1px solid var(--line);
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--muted);
 }
 .picker-foot kbd {
@@ -1574,7 +1592,7 @@ a.brand {
 .all-icon {
   display: inline-grid;
   place-items: center;
-  width: 32px;
+  width: 30px;
   height: 20px;
   color: var(--ink2);
 }
@@ -1641,7 +1659,7 @@ a.brand {
 /* ---------- States: loading, 404, blocked ---------- */
 
 .sk {
-  border-radius: 10px;
+  border-radius: 5px;
   background: linear-gradient(90deg, var(--grid) 0%, var(--surface) 40%, var(--grid) 80%);
   background-size: 250% 100%;
   animation: shimmer 1.6s ease-in-out infinite;
@@ -1660,7 +1678,7 @@ a.brand {
 .sk-line {
   height: 14px;
   width: 60%;
-  border-radius: 7px;
+  border-radius: 4px;
 }
 
 .state {
@@ -1670,33 +1688,34 @@ a.brand {
 .state-code {
   margin: 0;
   font-family: var(--serif);
-  font-size: 15px;
+  font-weight: 500;
+  font-size: 14px;
   color: var(--muted);
   letter-spacing: 0.04em;
 }
 .state-title {
-  margin: 10px 0 0;
+  margin: 8px 0 0;
   font-family: var(--serif);
-  font-weight: 400;
-  font-size: clamp(30px, 4vw, 42px);
+  font-weight: 500;
+  font-size: clamp(28px, 4vw, 39.5px);
   line-height: 1.1;
   letter-spacing: -0.02em;
 }
 .state-text {
-  margin: 14px 0 0;
-  font-size: 15px;
+  margin: 11px 0 0;
+  font-size: 14px;
   color: var(--ink2);
 }
 .state-actions {
   display: flex;
-  gap: 10px;
-  margin-top: 28px;
+  gap: 8px;
+  margin-top: 23px;
 }
 /* a 404's way back: the app's pages as one list (the same on every Kaizen app) */
 .nf-links {
   display: flex;
   flex-direction: column;
-  margin-top: 32px;
+  margin-top: 26px;
   background: var(--raised);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -1705,7 +1724,7 @@ a.brand {
 }
 .nf-title {
   margin: 0;
-  padding: 10px 16px;
+  padding: 8px 13px;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -1717,8 +1736,8 @@ a.brand {
 .nf-links a {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 13px 16px;
+  gap: 13px;
+  padding: 11px 13px;
   color: inherit;
   text-decoration: none;
   transition: background-color 0.15s;
@@ -1735,14 +1754,14 @@ a.brand {
 }
 .nf-links b {
   display: block;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--ink);
 }
 .nf-links small {
   display: block;
   margin-top: 2px;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--muted);
 }
 .nf-links svg {
@@ -1762,7 +1781,7 @@ a.brand {
 }
 .state-img {
   display: block;
-  margin-top: 28px;
+  margin-top: 23px;
   width: 100%;
   max-width: 360px;
   height: auto;
@@ -1777,11 +1796,11 @@ a.brand {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
-  gap: 8px 20px;
-  margin-top: 40px;
-  padding-top: 18px;
+  gap: 7px 16px;
+  margin-top: 33px;
+  padding-top: 15px;
   border-top: 1px solid var(--line);
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--ink2);
 }
 .linkish {
@@ -1801,7 +1820,7 @@ a.brand {
 .keys {
   display: inline-flex;
   flex-wrap: wrap;
-  gap: 14px;
+  gap: 11px;
   color: var(--muted);
 }
 .keys kbd {
@@ -1813,15 +1832,15 @@ a.brand {
 .toast {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+  gap: 8px;
   width: min(360px, calc(100vw - 32px));
-  padding: 12px 14px;
+  padding: 10px 11px;
   font-family: var(--font);
-  font-size: 13px;
+  font-size: 12px;
   color: var(--ink);
   background: var(--raised);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 6px;
   box-shadow: var(--shadow-pop);
 }
 .toast [data-icon] {
@@ -1850,7 +1869,7 @@ a.brand {
 }
 .toast-desc {
   margin-top: 2px;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--ink2);
   white-space: pre-line;
 }
@@ -1871,17 +1890,17 @@ a.brand {
 /* ---------- Buttons: extras ---------- */
 
 .btn-sm {
-  height: 28px;
-  padding: 0 10px;
-  font-size: 12px;
-  gap: 6px;
+  height: 26px;
+  padding: 0 8px;
+  font-size: 11.5px;
+  gap: 5px;
 }
 .btn-sm svg {
   width: 13px;
   height: 13px;
 }
 .btn-icon.btn-sm {
-  width: 28px;
+  width: 26px;
   padding: 0;
 }
 .btn-grow {
@@ -1941,19 +1960,19 @@ fieldset.bare:disabled {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  margin-top: 18px;
-  font-size: 12.5px;
+  gap: 7px;
+  margin-top: 15px;
+  font-size: 12px;
   color: var(--muted);
 }
 
 /* ---------- Inputs: extras ---------- */
 
 .input-sm {
-  height: 30px;
-  padding: 0 9px;
-  font-size: 13px;
-  border-radius: 8px;
+  height: 28px;
+  padding: 0 7px;
+  font-size: 12px;
+  border-radius: 4px;
 }
 .input[aria-invalid='true'],
 .textarea[aria-invalid='true'] {
@@ -1979,8 +1998,8 @@ input[type='datetime-local'].input {
 /* the date and time picker for an earlier trade (components/ui/DateTimePicker.tsx) */
 .dtp {
   display: grid;
-  gap: 8px;
-  padding: 10px 12px 12px;
+  gap: 7px;
+  padding: 8px 10px 10px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -1997,7 +2016,8 @@ input[type='datetime-local'].input {
 .dtp-month {
   margin-right: auto;
   font-family: var(--serif);
-  font-size: 17px;
+  font-weight: 500;
+  font-size: 16px;
   line-height: 1.2;
 }
 .dtp-grid {
@@ -2016,16 +2036,16 @@ input[type='datetime-local'].input {
   position: relative;
   display: grid;
   place-items: center;
-  height: 36px;
+  height: 34px;
   padding: 0;
   font: inherit;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
   background: none;
   border: 0;
-  border-radius: 9px;
+  border-radius: 4px;
   cursor: pointer;
   transition: background-color 0.15s, color 0.15s, box-shadow 0.15s;
 }
@@ -2054,7 +2074,7 @@ input[type='datetime-local'].input {
 }
 .dtp-day:focus-visible {
   outline-offset: 1px;
-  border-radius: 9px;
+  border-radius: 4px;
 }
 /* a day that already has trades */
 .dtp-day i {
@@ -2074,12 +2094,12 @@ input[type='datetime-local'].input {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 12px;
-  padding: 10px 0 0 4px;
+  gap: 7px 10px;
+  padding: 8px 0 0 4px;
   border-top: 1px solid var(--grid);
 }
 .dtp-label {
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 500;
   color: var(--ink2);
 }
@@ -2091,29 +2111,29 @@ input[type='datetime-local'].input {
   color: var(--muted);
 }
 .input.dtp-num {
-  width: 44px;
-  height: 34px;
+  width: 41px;
+  height: 32px;
   padding: 0;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
 .dtp-fx {
   margin-left: auto;
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--muted);
 }
 .notice {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  padding: 10px 14px;
-  font-size: 13px;
+  gap: 8px;
+  padding: 8px 11px;
+  font-size: 12px;
   color: var(--ink2);
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 5px;
 }
 .notice svg {
   flex: none;
@@ -2145,7 +2165,7 @@ dialog.modal {
   color: var(--ink);
   background: var(--raised);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 8px;
   box-shadow: var(--shadow-pop);
   animation: modal-in 0.22s var(--ease) backwards;
   outline: none;
@@ -2174,8 +2194,8 @@ dialog.modal[aria-busy='true'] {
 .modal-head {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  padding: 20px 20px 0 24px;
+  gap: 10px;
+  padding: 16px 16px 0 20px;
 }
 .modal-head.has-icon {
   align-items: center;
@@ -2190,15 +2210,15 @@ dialog.modal[aria-busy='true'] {
 }
 .modal-title {
   font-family: var(--serif);
-  font-weight: 400;
-  font-size: 24px;
+  font-weight: 500;
+  font-size: 22.5px;
   line-height: 1.15;
   letter-spacing: -0.015em;
   overflow-wrap: anywhere;
 }
 .modal-sub {
   margin-top: 4px;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--ink2);
   overflow-wrap: anywhere;
 }
@@ -2207,28 +2227,28 @@ dialog.modal[aria-busy='true'] {
 }
 .modal-body {
   display: grid;
-  gap: 16px;
-  padding: 18px 24px 24px;
+  gap: 13px;
+  padding: 15px 20px 20px;
 }
 .modal-body > section > .section-title:first-child {
-  margin-top: 6px;
+  margin-top: 5px;
 }
 .modal-foot {
   display: flex;
-  gap: 18px;
-  padding: 10px 24px;
+  gap: 15px;
+  padding: 8px 20px;
   border-top: 1px solid var(--line);
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--muted);
 }
 .sub-line {
   display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 4px 12px;
+  gap: 4px 10px;
 }
 .sub-line .ttype {
-  font-size: 13px;
+  font-size: 12px;
 }
 .picker {
   overflow: hidden;
@@ -2258,7 +2278,7 @@ dialog.picker {
 .marks {
   display: inline-flex;
   gap: 4px;
-  margin-left: 8px;
+  margin-left: 7px;
   vertical-align: -2px;
 }
 .marks:empty {
@@ -2288,7 +2308,7 @@ dialog.picker {
   background: color-mix(in srgb, var(--bear) 12%, transparent);
 }
 .group-head + .rows-card {
-  margin-top: 10px;
+  margin-top: 8px;
 }
 
 /* ---------- New trade: an order ticket ---------- */
@@ -2298,7 +2318,7 @@ dialog.modal.new-trade {
 }
 .new-trade .modal-body {
   gap: 0;
-  padding-top: 14px;
+  padding-top: 11px;
   padding-bottom: 0;
 }
 /* each line: a fixed label column, the control beside it, a hairline between lines */
@@ -2309,32 +2329,32 @@ dialog.modal.new-trade {
 .tk-row {
   display: grid;
   grid-template-columns: 112px minmax(0, 1fr);
-  gap: 16px;
+  gap: 13px;
   align-items: start;
-  padding: 14px 0;
+  padding: 11px 0;
 }
 .tk-row + .tk-row {
   border-top: 1px solid var(--grid);
 }
 .tk-label {
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 500;
-  line-height: 36px; /* centred on a 36px control */
+  line-height: 34px; /* centred on a 34px control */
   color: var(--ink2);
 }
 .tk-field {
   display: grid;
-  gap: 7px;
+  gap: 6px;
   min-width: 0;
 }
 .ticket .seg-wide button {
-  height: 28px;
-  font-size: 12.5px;
+  height: 26px;
+  font-size: 12px;
 }
 .ticket .input,
 .ticket .pair-field,
 .ticket .pf {
-  height: 36px;
+  height: 34px;
 }
 .ticket .notice {
   margin-top: 3px;
@@ -2364,8 +2384,8 @@ dialog.modal.new-trade {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  min-height: 36px;
+  gap: 13px;
+  min-height: 34px;
 }
 .tk-switch-text {
   display: grid;
@@ -2373,12 +2393,12 @@ dialog.modal.new-trade {
   line-height: 1.4;
 }
 .tk-switch-text b {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--ink);
 }
 .tk-switch-text span {
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--muted);
 }
 .ticket .fund-switch {
@@ -2392,9 +2412,9 @@ dialog.modal.new-trade {
   z-index: 2;
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin: 0 -24px;
-  padding: 14px 24px 16px;
+  gap: 13px;
+  margin: 0 -20px;
+  padding: 11px 20px 13px;
   background: var(--raised);
   border-top: 1px solid var(--line);
 }
@@ -2402,10 +2422,10 @@ dialog.modal.new-trade {
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
   min-width: 0;
   overflow: hidden;
-  font-size: 12.5px;
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
   color: var(--muted);
   white-space: nowrap;
@@ -2416,31 +2436,31 @@ dialog.modal.new-trade {
 }
 .nt-summary > span::before {
   content: '·';
-  margin-right: 7px;
+  margin-right: 6px;
   color: var(--axis);
 }
 .nt-submit {
   flex: none;
-  height: 38px;
+  height: 36px;
   min-width: 132px;
-  padding: 0 20px;
-  font-size: 13.5px;
+  padding: 0 16px;
+  font-size: 12.5px;
 }
 .form-error + .nt-foot,
 .new-trade .modal-body > .form-error {
-  margin-top: 10px;
+  margin-top: 8px;
 }
 @media (max-width: 560px) {
   .tk-row {
     grid-template-columns: minmax(0, 1fr);
-    gap: 6px;
-    padding: 12px 0;
+    gap: 5px;
+    padding: 10px 0;
   }
   .tk-label {
     line-height: 1.4;
   }
   .nt-foot {
-    margin: 0 -18px;
+    margin: 0 -15px;
     padding: 12px 18px calc(14px + env(safe-area-inset-bottom));
   }
   .nt-summary {
@@ -2470,8 +2490,8 @@ dialog.modal.new-trade {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 0 9px 0 7px;
-  font-size: 12px;
+  padding: 0 7px 0 6px;
+  font-size: 11.5px;
   font-weight: 600;
   line-height: 20px;
   color: var(--pace-ink);
@@ -2536,7 +2556,7 @@ dialog.modal.new-trade {
 
 /* the breakdown under the summary: share, count and result of each pace */
 .pace-card {
-  margin-top: 10px;
+  margin-top: 8px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -2552,7 +2572,7 @@ dialog.modal.new-trade {
   align-content: start;
   gap: 4px;
   min-width: 0;
-  padding: 14px 18px 16px;
+  padding: 11px 15px 13px;
   font: inherit;
   color: inherit;
   text-align: left;
@@ -2598,9 +2618,9 @@ dialog.modal.new-trade {
 .pace-name {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   min-width: 0;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--pace-ink);
 }
@@ -2623,23 +2643,24 @@ dialog.modal.new-trade {
   font-variant-numeric: tabular-nums;
 }
 .pace-num {
-  font-family: var(--serif);
-  font-size: 26px;
+  font-family: var(--figs);
+  font-weight: 600;
+  font-size: 24.5px;
   line-height: 1.15;
   font-variant-numeric: tabular-nums;
 }
 .pace-num small {
-  margin-left: 6px;
+  margin-left: 5px;
   font-family: var(--font);
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--muted);
 }
 .pace-stats {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 2px 8px;
-  font-size: 12.5px;
+  gap: 2px 7px;
+  font-size: 12px;
   color: var(--ink2);
   font-variant-numeric: tabular-nums;
 }
@@ -2649,15 +2670,15 @@ dialog.modal.new-trade {
 .pace-legend {
   display: inline-flex;
   align-items: center;
-  gap: 14px;
+  gap: 11px;
   margin-left: auto;
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--muted);
 }
 .pace-legend > span {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
 }
 
 /* search matches: one small card per pair */
@@ -2667,23 +2688,23 @@ dialog.modal.new-trade {
 .matches {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 8px;
-  margin: 10px 0 0;
+  gap: 7px;
+  margin: 8px 0 0;
   padding: 0;
   list-style: none;
 }
 .match {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
-  padding: 10px 12px;
+  padding: 8px 10px;
   font: inherit;
   text-align: left;
   color: inherit;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 5px;
   cursor: pointer;
   transition: border-color 0.15s, background-color 0.15s, transform 0.15s;
 }
@@ -2704,7 +2725,7 @@ dialog.modal.new-trade {
   white-space: nowrap;
 }
 .match-text span {
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--muted);
 }
 .match .pnl {
@@ -2715,8 +2736,8 @@ dialog.modal.new-trade {
 .filters {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 14px;
+  gap: 8px;
+  margin-top: 11px;
 }
 .filters .seg {
   flex: 1 1 auto;
@@ -2724,7 +2745,7 @@ dialog.modal.new-trade {
 }
 @media (max-width: 560px) {
   .filters {
-    gap: 8px;
+    gap: 7px;
   }
   /* the pace card just below has the counts */
   .filters .pace-seg .seg-count {
@@ -2732,8 +2753,8 @@ dialog.modal.new-trade {
   }
   .filters .pace-seg button {
     gap: 4px;
-    padding-left: 6px;
-    padding-right: 6px;
+    padding-left: 5px;
+    padding-right: 5px;
   }
 }
 .group-note .linkish {
@@ -2743,10 +2764,10 @@ dialog.modal.new-trade {
 /* summary: five facts in a row */
 .brief.five {
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  margin-top: 10px;
+  margin-top: 8px;
 }
 .brief .meter {
-  margin-top: 12px;
+  margin-top: 10px;
 }
 .brief-num.up,
 .brief-num.down {
@@ -2759,7 +2780,7 @@ dialog.modal.new-trade {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  margin-top: 18px;
+  margin-top: 15px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -2770,24 +2791,24 @@ dialog.modal.new-trade {
   margin-top: 18px;
 }
 .day-card + .searchbar {
-  margin-top: 14px;
+  margin-top: 11px;
 }
 .day-main {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
-  padding: 14px 18px;
+  padding: 11px 15px;
 }
 .day-icon {
   flex: none;
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   color: var(--ok);
   background: color-mix(in srgb, var(--ok) 12%, transparent);
-  border-radius: 10px;
+  border-radius: 5px;
 }
 .day-icon svg {
   width: 17px;
@@ -2809,14 +2830,14 @@ dialog.modal.new-trade {
   min-width: 0;
 }
 .day-head {
-  font-size: 14px;
+  font-size: 13px;
 }
 .day-head b {
   font-weight: 600;
 }
 .day-detail {
   margin-top: 1px;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--ink2);
 }
 .day-stats {
@@ -2830,21 +2851,22 @@ dialog.modal.new-trade {
   display: grid;
   align-content: center;
   gap: 2px;
-  padding: 10px 18px;
+  padding: 8px 15px;
   min-width: 0;
 }
 .day-stats > div + div {
   border-left: 1px solid var(--grid);
 }
 .day-stats dt {
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--muted);
   white-space: nowrap;
 }
 .day-stats dd {
   margin: 0;
-  font-family: var(--serif);
-  font-size: 19px;
+  font-family: var(--figs);
+  font-weight: 600;
+  font-size: 18px;
   line-height: 1.15;
   white-space: nowrap;
 }
@@ -2852,12 +2874,12 @@ dialog.modal.new-trade {
 /* ---------- Trade detail ---------- */
 
 .trade-facts .brief-sub {
-  font-size: 12px;
+  font-size: 11.5px;
 }
 .with-edit {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
 }
 .with-edit .btn {
   color: var(--muted);
@@ -2865,8 +2887,8 @@ dialog.modal.new-trade {
 .inline-edit {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-top: 8px;
+  gap: 5px;
+  margin-top: 7px;
 }
 .inline-edit .input {
   width: 84px;
@@ -2874,18 +2896,18 @@ dialog.modal.new-trade {
 .brief-dates {
   display: grid;
   gap: 2px;
-  margin-top: 8px !important;
-  font-size: 12.5px;
+  margin-top: 7px !important;
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
 .outcome {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 .outcome .btn {
-  height: 42px;
-  font-size: 13.5px;
+  height: 39px;
+  font-size: 12.5px;
 }
 .outcome .btn b {
   margin-left: auto;
@@ -2911,24 +2933,24 @@ dialog.modal.new-trade {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 10px 12px 10px 14px;
-  font-size: 13px;
+  gap: 10px;
+  padding: 8px 10px 8px 11px;
+  font-size: 12px;
   color: var(--ink2);
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 5px;
 }
 .review {
   list-style: none;
   margin: 0;
-  padding: 2px 16px;
+  padding: 2px 13px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
 }
 .review > li {
-  padding: 12px 0;
+  padding: 10px 0;
 }
 .review > li + li {
   border-top: 1px solid var(--grid);
@@ -2938,30 +2960,30 @@ dialog.modal.new-trade {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 13px;
 }
 .review-row.is-stack {
   display: grid;
   justify-content: stretch;
-  gap: 10px;
+  gap: 8px;
 }
 .review-row b,
 .review-line b {
   display: block;
-  font-size: 13.5px;
+  font-size: 12.5px;
   font-weight: 600;
 }
 .review-row span,
 .review-line span {
   display: block;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--muted);
 }
 .review-row .seg button span {
   display: inline;
 }
 .review-row .field {
-  gap: 8px;
+  gap: 7px;
 }
 .save-inline {
   justify-self: start;
@@ -2969,16 +2991,17 @@ dialog.modal.new-trade {
 .save-row {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
-  margin-top: 8px;
+  gap: 7px;
+  margin-top: 7px;
 }
-/* the switch: an outline with a small dot when off; filled, with a ticked white knob, when on */
+/* the switch: an outline with a small dot when off; filled, with a ticked white knob, when on. The
+   knob keeps the same 2px inset at both ends, and the tick rides at its centre */
 .switch {
   --on: var(--bull);
-  --tick: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Cpath d='M1.3 4.2 3.2 6 6.7 2.1' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --tick: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Cpath d='M1.4 4.1 3.2 5.9 6.6 2.2' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   position: relative;
   flex: none;
-  width: 36px;
+  width: 34px;
   height: 20px;
   padding: 0;
   background: var(--raised);
@@ -2988,7 +3011,8 @@ dialog.modal.new-trade {
   cursor: pointer;
   transition: background-color 0.2s, box-shadow 0.2s;
 }
-.switch i {
+.switch::after {
+  content: '';
   position: absolute;
   top: 2px;
   left: 2px;
@@ -2996,15 +3020,15 @@ dialog.modal.new-trade {
   height: 16px;
   border-radius: 50%;
   background: color-mix(in srgb, var(--ink) 50%, var(--raised));
-  transform: scale(0.625);
-  transition: transform 0.22s var(--ease), background-color 0.2s, box-shadow 0.2s;
+  transform: scale(0.5);
+  transition: transform 0.25s var(--ease), background-color 0.2s, box-shadow 0.2s;
 }
-.switch::after {
+.switch::before {
   content: '';
   position: absolute;
   z-index: 1;
   top: 6px;
-  left: 22px;
+  left: 20px;
   width: 8px;
   height: 8px;
   background: var(--on);
@@ -3017,7 +3041,7 @@ dialog.modal.new-trade {
 .switch:not([aria-checked='true'], :disabled):hover {
   box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--ink) 42%, var(--raised));
 }
-.switch:not([aria-checked='true'], :disabled):hover i {
+.switch:not([aria-checked='true'], :disabled):hover::after {
   background: color-mix(in srgb, var(--ink) 66%, var(--raised));
 }
 .switch[aria-checked='true'] {
@@ -3025,14 +3049,14 @@ dialog.modal.new-trade {
   box-shadow: none;
 }
 .switch[aria-checked='true']:not(:disabled):hover {
-  background: color-mix(in srgb, var(--on) 88%, var(--ink));
-}
-.switch[aria-checked='true'] i {
-  background: #fff;
-  box-shadow: 0 1px 2px rgba(16, 24, 32, 0.22);
-  transform: translateX(16px);
+  background: color-mix(in srgb, var(--on) 90%, var(--ink));
 }
 .switch[aria-checked='true']::after {
+  background: #fff;
+  box-shadow: 0 1px 1.5px rgba(16, 24, 32, 0.2);
+  transform: translateX(14px);
+}
+.switch[aria-checked='true']::before {
   opacity: 1;
   transform: none;
   transition-delay: 0.08s;
@@ -3045,19 +3069,19 @@ dialog.modal.new-trade {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  margin-top: 6px;
-  padding-top: 16px;
+  gap: 13px;
+  margin-top: 5px;
+  padding-top: 13px;
   border-top: 1px solid var(--line);
 }
 .danger-row b {
   display: block;
-  font-size: 13.5px;
+  font-size: 12.5px;
   font-weight: 600;
 }
 .danger-row span {
   display: block;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--muted);
 }
 
@@ -3065,7 +3089,7 @@ dialog.modal.new-trade {
 .shots {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  gap: 10px;
+  gap: 8px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -3074,7 +3098,7 @@ dialog.modal.new-trade {
   overflow: hidden;
   background: var(--raised);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 5px;
   transition: box-shadow 0.2s, transform 0.2s var(--ease);
 }
 .shot:hover {
@@ -3104,7 +3128,7 @@ dialog.modal.new-trade {
   padding: 4px;
   color: #fff;
   background: rgba(22, 26, 22, 0.55);
-  border-radius: 6px;
+  border-radius: 3px;
   opacity: 0;
   transition: opacity 0.15s;
 }
@@ -3116,8 +3140,8 @@ dialog.modal.new-trade {
   display: flex;
   align-items: center;
   gap: 2px;
-  min-height: 38px;
-  padding: 4px 4px 4px 10px;
+  min-height: 36px;
+  padding: 4px 4px 4px 8px;
   border-top: 1px solid var(--line);
 }
 .shot-cap .input {
@@ -3128,7 +3152,7 @@ dialog.modal.new-trade {
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--ink2);
   text-overflow: ellipsis;
@@ -3139,28 +3163,28 @@ dialog.modal.new-trade {
 }
 .gallery-add {
   display: grid;
-  gap: 10px;
-  margin-top: 10px;
+  gap: 8px;
+  margin-top: 8px;
 }
 .shots:empty + .gallery-add {
   margin-top: 0;
 }
 .dropzone-wrap {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 .dropzone {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   width: 100%;
-  padding: 14px 16px;
+  padding: 11px 13px;
   font: inherit;
   text-align: left;
   color: var(--ink2);
   background: var(--surface);
   border: 1px dashed var(--axis);
-  border-radius: 10px;
+  border-radius: 5px;
   cursor: pointer;
   transition: border-color 0.15s, background-color 0.15s;
 }
@@ -3177,14 +3201,14 @@ dialog.modal.new-trade {
 }
 .dropzone span {
   display: grid;
-  font-size: 13px;
+  font-size: 12px;
 }
 .dropzone b {
   font-weight: 600;
   color: var(--ink);
 }
 .dropzone .muted {
-  font-size: 12px;
+  font-size: 11.5px;
 }
 .dropzone:disabled {
   opacity: 0.55;
@@ -3192,7 +3216,7 @@ dialog.modal.new-trade {
 }
 .pending {
   display: grid;
-  gap: 6px;
+  gap: 5px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -3200,18 +3224,18 @@ dialog.modal.new-trade {
 .pending-item {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   padding: 5px 5px 5px 5px;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 5px;
 }
 .pending-item img {
   flex: none;
   width: 56px;
-  height: 34px;
+  height: 32px;
   object-fit: cover;
-  border-radius: 6px;
+  border-radius: 3px;
   background: #131722;
 }
 .pending-item .input {
@@ -3245,14 +3269,14 @@ dialog.viewer::backdrop {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 10px 12px 10px 20px;
-  font-size: 13px;
+  gap: 10px;
+  padding: 8px 10px 8px 16px;
+  font-size: 12px;
 }
 .viewer-bar b {
   font-family: var(--serif);
-  font-weight: 400;
-  font-size: 16px;
+  font-weight: 500;
+  font-size: 15px;
 }
 .viewer-bar .muted {
   color: #9aa197;
@@ -3269,7 +3293,7 @@ dialog.viewer::backdrop {
   align-self: center;
   max-width: 100%;
   max-height: 100%;
-  padding: 0 16px 16px;
+  padding: 0 13px 13px;
   object-fit: contain;
 }
 .viewer-nav {
@@ -3277,8 +3301,8 @@ dialog.viewer::backdrop {
   top: 50%;
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 42px;
+  width: 39px;
+  height: 39px;
   color: #fff;
   background: rgba(255, 255, 255, 0.1);
   border: 0;
@@ -3306,7 +3330,7 @@ dialog.viewer::backdrop {
   align-items: center;
 }
 .cal {
-  margin-top: 16px;
+  margin-top: 13px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -3327,8 +3351,8 @@ dialog.viewer::backdrop {
   background: color-mix(in srgb, var(--page) 55%, var(--surface));
 }
 .cal-head span {
-  padding: 8px 10px;
-  font-size: 11.5px;
+  padding: 7px 8px;
+  font-size: 11px;
   color: var(--muted);
 }
 .cal-week + .cal-week {
@@ -3341,7 +3365,7 @@ dialog.viewer::backdrop {
   gap: 4px;
   min-width: 0;
   min-height: 108px;
-  padding: 7px 7px 8px;
+  padding: 6px 6px 7px;
   border-right: 1px solid var(--grid);
 }
 .cal-day.is-out {
@@ -3357,7 +3381,7 @@ dialog.viewer::backdrop {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 6px;
+  gap: 5px;
 }
 .cal-num {
   display: inline-grid;
@@ -3365,7 +3389,7 @@ dialog.viewer::backdrop {
   min-width: 22px;
   height: 22px;
   padding: 0 4px;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--ink2);
   border-radius: 99px;
@@ -3376,7 +3400,7 @@ dialog.viewer::backdrop {
   background: var(--bull);
 }
 .cal-r {
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -3386,14 +3410,14 @@ dialog.viewer::backdrop {
 }
 .cal-blown-tag {
   align-self: flex-start;
-  padding: 0 6px;
+  padding: 0 5px;
   font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--bear-ink);
   background: color-mix(in srgb, var(--bear) 10%, var(--raised));
-  border-radius: 4px;
+  border-radius: 2px;
 }
 .cal-trades {
   display: grid;
@@ -3406,17 +3430,17 @@ dialog.viewer::backdrop {
 .cal-trade {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   width: 100%;
   padding: 2px 5px;
   font: inherit;
-  font-size: 11.5px;
+  font-size: 11px;
   line-height: 1.5;
   text-align: left;
   color: var(--ink);
   background: none;
   border: 0;
-  border-radius: 5px;
+  border-radius: 3px;
   cursor: pointer;
   transition: background-color 0.15s, box-shadow 0.15s;
 }
@@ -3500,7 +3524,7 @@ dialog.viewer::backdrop {
   align-self: flex-start;
   padding: 0 4px;
   font: inherit;
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--ink2);
   background: none;
@@ -3517,7 +3541,7 @@ dialog.viewer::backdrop {
 .cal-week-act {
   display: grid;
   place-items: start center;
-  padding-top: 6px;
+  padding-top: 5px;
 }
 .cal-week-act .btn {
   color: var(--axis);
@@ -3536,10 +3560,10 @@ dialog.viewer::backdrop {
 
 /* monthly analysis */
 .month-brief {
-  margin-top: 10px;
+  margin-top: 8px;
 }
 .rank-card {
-  margin-top: 12px;
+  margin-top: 10px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -3550,30 +3574,30 @@ dialog.viewer::backdrop {
   display: grid;
   grid-template-columns: 7rem minmax(0, 1fr) minmax(0, 1fr);
   align-items: center;
-  gap: 16px;
-  padding: 11px 18px;
+  gap: 13px;
+  padding: 9px 15px;
 }
 .rank-row + .rank-row {
   border-top: 1px solid var(--grid);
 }
 .rank-head {
-  padding-top: 9px;
-  padding-bottom: 9px;
-  font-size: 11.5px;
+  padding-top: 7px;
+  padding-bottom: 7px;
+  font-size: 11px;
   color: var(--muted);
   background: color-mix(in srgb, var(--page) 55%, var(--surface));
 }
 .rank-name {
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--muted);
 }
 .rank-cell {
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
-  gap: 2px 10px;
+  gap: 2px 8px;
   min-width: 0;
-  font-size: 13.5px;
+  font-size: 12.5px;
 }
 .rank-label {
   font-weight: 600;
@@ -3583,19 +3607,19 @@ dialog.viewer::backdrop {
   font-variant-numeric: tabular-nums;
 }
 .rank-detail {
-  font-size: 12px;
+  font-size: 11.5px;
 }
 
 /* ---------- Skeletons ---------- */
 
 .sk-brief {
   height: 112px;
-  margin-top: 28px;
+  margin-top: 23px;
   border-radius: var(--radius);
 }
 .sk-rows {
   height: 300px;
-  margin-top: 24px;
+  margin-top: 20px;
   border-radius: var(--radius);
 }
 .sk-facts {
@@ -3604,7 +3628,7 @@ dialog.viewer::backdrop {
 }
 .sk-shots {
   height: 120px;
-  border-radius: 10px;
+  border-radius: 5px;
 }
 
 /* ---------- Toasts ---------- */
@@ -3615,7 +3639,7 @@ dialog.viewer::backdrop {
   bottom: 16px;
   z-index: 80;
   display: grid;
-  gap: 8px;
+  gap: 7px;
   pointer-events: none;
 }
 .toast {
@@ -3698,7 +3722,7 @@ dialog.viewer::backdrop {
 @media (max-width: 760px) {
   /* calendar days turn into compact cells: R and coloured dots */
   .cal-head span {
-    padding: 6px 4px;
+    padding: 5px 4px;
     text-align: center;
   }
   .cal-head,
@@ -3708,7 +3732,7 @@ dialog.viewer::backdrop {
   .cal-day {
     min-height: 64px;
     align-items: center;
-    padding: 5px 2px 6px;
+    padding: 5px 2px 5px;
     gap: 3px;
   }
   .cal-day-top {
@@ -3750,8 +3774,8 @@ dialog.viewer::backdrop {
   }
   .rank-row {
     grid-template-columns: 4.6rem minmax(0, 1fr) minmax(0, 1fr);
-    gap: 10px;
-    padding: 10px 14px;
+    gap: 8px;
+    padding: 8px 11px;
   }
   .rank-cell {
     display: grid;
@@ -3770,7 +3794,7 @@ dialog.viewer::backdrop {
     grid-template-areas:
       'pair pnl'
       'meta meta';
-    gap: 6px 12px;
+    gap: 5px 10px;
   }
   .jrow .row-main {
     grid-area: pair;
@@ -3778,20 +3802,20 @@ dialog.viewer::backdrop {
   .jrow .col-pnl {
     grid-area: pnl;
     align-self: start;
-    font-size: 15px;
+    font-size: 14px;
   }
   .jrow .col-meta {
     grid-area: meta;
     display: flex !important;
     align-items: center;
     flex-wrap: wrap;
-    gap: 6px 14px;
-    padding-left: 54px;
-    font-size: 12.5px;
+    gap: 5px 11px;
+    padding-left: 44px;
+    font-size: 12px;
     color: var(--ink2);
   }
   .jrow .col-meta .ttype {
-    font-size: 12.5px;
+    font-size: 12px;
   }
   .jrow .col-type,
   .jrow .col-date,
@@ -3820,7 +3844,7 @@ dialog.viewer::backdrop {
     display: none;
   }
   .pace-cell {
-    padding: 12px 12px 14px;
+    padding: 10px 10px 11px;
   }
   .pace-name {
     flex-wrap: wrap;
@@ -3831,7 +3855,7 @@ dialog.viewer::backdrop {
     margin-left: 0;
   }
   .pace-num {
-    font-size: 22px;
+    font-size: 20.5px;
   }
   .pace-num small {
     display: none;
@@ -3846,10 +3870,10 @@ dialog.viewer::backdrop {
     min-height: 36px;
   }
   .brief-cell {
-    padding: 14px 14px 16px;
+    padding: 11px 11px 13px;
   }
   .brief-num {
-    font-size: 26px;
+    font-size: 24.5px;
   }
   .brief.five {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3877,22 +3901,22 @@ dialog.viewer::backdrop {
     border-top: 1px solid var(--grid);
   }
   .day-main {
-    padding: 12px 14px;
+    padding: 10px 11px;
   }
   .day-stats > div {
-    padding: 9px 14px;
+    padding: 7px 11px;
   }
   .day-stats dd {
-    font-size: 17px;
+    font-size: 16px;
   }
   .row-btn {
-    padding: 12px 14px;
+    padding: 10px 11px;
   }
   .form-grid {
     grid-template-columns: 1fr;
   }
   .toolbar {
-    gap: 8px;
+    gap: 7px;
   }
   .toolbar .seg {
     flex: 1 1 100%;
@@ -3915,7 +3939,7 @@ dialog.viewer::backdrop {
   }
   .form-foot .btn {
     width: 100%;
-    height: 40px;
+    height: 38px;
   }
   /* dialogs become bottom sheets on phones */
   dialog.modal,
@@ -3924,7 +3948,7 @@ dialog.viewer::backdrop {
     max-width: none;
     max-height: 94dvh;
     margin: auto 0 0;
-    border-radius: 18px 18px 0 0;
+    border-radius: 9px 9px 0 0;
     border-bottom: 0;
     animation: sheet-in 0.28s var(--ease) backwards;
   }
@@ -3934,10 +3958,10 @@ dialog.viewer::backdrop {
     border-radius: 0;
   }
   .modal-head {
-    padding: 18px 14px 0 18px;
+    padding: 15px 11px 0 15px;
   }
   .modal-body {
-    padding: 16px 18px 28px;
+    padding: 13px 15px 23px;
   }
   .modal-foot {
     display: none;
@@ -3963,8 +3987,8 @@ dialog.viewer::backdrop {
 /* Shown inside the Kaizen split view (html.is-framed, set in app/layout.tsx), this page sits beside
    FX Fundamental Bias, the Screener and Market Hours, which open with a 44px status bar. At the pane
    widths there the top bar steps down to meet them: the brand row centres on their status bars, the
-   tabs on the Screener's top bar, and the title shares the Screener title's baseline. 0.844 is Young
-   Serif's baseline at line-height 1.05; the Screener's title is clamp(38px, 5.4vw, 64px), and 34px
+   tabs on the Screener's top bar, and the title shares the Screener title's baseline. 0.865 is
+   Fraunces' baseline at line-height 1.05; the Screener's title is clamp(38px, 5.4vw, 64px), and 34px
    at 640px and below. Wider than 900px the top bar is one row, centred on the status bars, and the
    title lines up with the other sites' titles. Margin, not padding, so the bar is its usual height
    once it sticks. */
@@ -3986,7 +4010,7 @@ dialog.viewer::backdrop {
     --title: clamp(32px, 4vw, 46px);
     --screener-title: clamp(38px, 5.4vw, 64px);
     /* the title row is as tall as the actions (34px buttons + 3px) or the title, if that's taller */
-    padding-top: calc(6.9px - max(0px, 37px - 1.05 * var(--title)) + 0.844 * (var(--screener-title) - var(--title)));
+    padding-top: calc(6.9px - max(0px, 37px - 1.05 * var(--title)) + 0.865 * (var(--screener-title) - var(--title)));
   }
 }
 @media (max-width: 640px) {
@@ -4063,11 +4087,11 @@ dialog.viewer::backdrop {
 .demo-bar-in {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 7px 32px;
-  font-size: 12.5px;
+  padding: 6px 26px;
+  font-size: 12px;
   color: var(--ink2);
 }
 .demo-bar-in > svg {
@@ -4087,11 +4111,11 @@ dialog.viewer::backdrop {
   display: flex;
   justify-content: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 7px;
 }
 @media (max-width: 600px) {
   .demo-bar-in {
-    padding: 6px 16px;
+    padding: 5px 13px;
   }
   .demo-bar-more {
     display: none;

@@ -21,7 +21,7 @@ type SeriesOption = {
 type TooltipRow = { id: string; name: string; color: string; value: number };
 type AxisScale = { min: number; max: number; ticks: number[] };
 
-const FONT = '"Instrument Sans Variable", "Instrument Sans", system-ui, sans-serif';
+const FONT = '"IBM Plex Sans Variable", "IBM Plex Sans", system-ui, sans-serif';
 const chartColor = (series: SeriesOption) => series.lineStyle?.color ?? series.itemStyle?.color ?? '#2563c8';
 // Each category (usually a year, but any label works, e.g. years from a bubble's peak)
 // gets its own evenly spaced time slot; labels are looked up from the slot.
@@ -170,7 +170,7 @@ export function LightweightChart({ option, className = '', resetKey = 0 }: { opt
     let live = true;
     const done = () => live && setFontsReady(true);
     if (typeof document === 'undefined' || !('fonts' in document)) { done(); return; }
-    Promise.all([document.fonts.load('400 12px "Instrument Sans Variable"'), document.fonts.ready]).then(done, done);
+    Promise.all([document.fonts.load('400 12px "IBM Plex Sans Variable"'), document.fonts.ready]).then(done, done);
     const fallback = setTimeout(done, 1500);
     return () => { live = false; clearTimeout(fallback); };
   }, []);

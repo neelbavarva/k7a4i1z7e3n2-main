@@ -30,7 +30,7 @@ function Coin({ id }: { id: string }) {
       </defs>
       <circle cx="20" cy="20" r="20" fill={`url(#${g})`} />
       <circle cx="20" cy="20" r="15.5" fill="none" stroke={c.ink} strokeOpacity="0.22" strokeWidth="1.2" />
-      <text x="20" y="25.6" textAnchor="middle" fontSize="15" fontWeight="700" fill={c.ink} fontFamily="Instrument Sans Variable, system-ui, sans-serif">
+      <text x="20" y="25.6" textAnchor="middle" fontSize="15" fontWeight="700" fill={c.ink} fontFamily="IBM Plex Sans Variable, system-ui, sans-serif">
         {c.text}
       </text>
     </svg>
