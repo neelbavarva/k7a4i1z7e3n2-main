@@ -50,7 +50,7 @@ Both keys are optional. Without them, prices and Apify lookups are skipped and e
 
 ## Deploy (Vercel, updated hourly by GitHub Actions)
 
-The hourly job is `.github/workflows/news-update.yml` at the **root of the monorepo** (GitHub only runs workflows from there). Each run: `npm run pipeline`, commit `data/` back, then `vercel build --prod` and `vercel deploy --prebuilt --prod`, so every deploy carries freshly written `public/data/*.json` (which is never committed). A plain `vercel --prod` from your machine uploads whatever `public/data/` you have locally, usually the sample data, and it goes stale after 3 hours; the hourly job replaces it on its next run.
+The hourly job is `.github/workflows/news-update.yml` at the **root of the monorepo** (GitHub only runs workflows from there). Each run: `npm run pipeline`, commit `data/` back, then `vercel build --prod` and `vercel deploy --prebuilt --prod`, so every deploy carries freshly written `public/data/*.json` (which is never committed). A plain `vercel --prod` from your machine would upload whatever `public/data/` you have locally (the sample data, or a copy days old), so the build refuses it: on Vercel, `vite.config.js` (`freshData`) stops the build when `public/data/meta.json` is more than 3 hours old, and the live site keeps its scores. To deploy, run the workflow instead (`gh workflow run news-update.yml`, Run workflow on GitHub, or the site's Refresh).
 
 1. Link the project once from this folder: `vercel link` (writes `.vercel/project.json` with `orgId` and `projectId`).
 2. **GitHub → Settings → Secrets and variables → Actions → New repository secret:**

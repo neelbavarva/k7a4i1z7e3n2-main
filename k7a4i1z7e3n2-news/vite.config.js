@@ -1,8 +1,9 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { spawn } from 'node:child_process';
-import { copyFileSync, existsSync } from 'node:fs';
+import { copyFileSync, existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { STALE_HOURS } from './src/constants.js';
 
 /**
  * Local development only: the site's Refresh button POSTs to /__refresh, which re-runs
@@ -86,10 +87,39 @@ function notFoundPage() {
   };
 }
 
+/**
+ * A build on Vercel ships whatever public/data/ it was given. The hourly workflow builds right after
+ * the data job, so its scores are fresh; a `vercel deploy` from a laptop uploads that machine's copy,
+ * days old perhaps, over the live ones. So a build on Vercel stops when the scores are older than
+ * STALE_HOURS, and the live site keeps its own: deploy through the workflow instead (the site's
+ * Refresh, or Run workflow on GitHub). Local builds and GitHub Pages aren't checked.
+ */
+function freshData() {
+  let root;
+  return {
+    name: 'fx-fresh-data',
+    apply: 'build',
+    configResolved(config) {
+      root = config.root;
+    },
+    buildStart() {
+      if (!process.env.VERCEL) return;
+      const file = join(root, 'public', 'data', 'meta.json');
+      const at = existsSync(file) ? Date.parse(JSON.parse(readFileSync(file, 'utf8')).generatedAt) : NaN;
+      const hours = (Date.now() - at) / 36e5;
+      if (Number.isFinite(hours) && hours <= STALE_HOURS) return;
+      this.error(
+        `public/data/meta.json is ${Number.isFinite(hours) ? `${Math.round(hours)} hours old` : 'missing'}: deploying it would put old scores on the live site. ` +
+          'Deploy through the "News - update data and deploy" workflow (the site\'s Refresh, or Run workflow on GitHub), which makes them fresh first.',
+      );
+    },
+  };
+}
+
 // BASE_PATH is set by the GitHub Pages workflow ("/<repo-name>/"). Locally it is "/".
 export default defineConfig({
   base: process.env.BASE_PATH || '/',
-  plugins: [react(), refreshData(), calendarApi(), notFoundPage()],
+  plugins: [react(), refreshData(), calendarApi(), notFoundPage(), freshData()],
   server: {
     // the data job rewrites ~40 JSON files; don't let each one trigger a page reload
     watch: { ignored: ['**/public/data/**', '**/data/**'] },

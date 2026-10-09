@@ -15,6 +15,10 @@ own app with its own `package.json`; there is no workspace tooling. Each site de
 | `k7a4i1z7e3n2` | Split view: the other sites side by side (≥2500px) or as tabs | Vite + React |
 
 `.github/workflows/news-update.yml` runs the news pipeline and deploy (workflows must live at the root).
+Deploy News only through it (`gh workflow run news-update.yml`, or the site's Refresh), never with
+`vercel deploy` from the folder: its scores (`public/data/`) are made by the run and never committed, so a
+local deploy would ship this machine's old copy. A Vercel build refuses scores over 3 hours old
+(`freshData` in its `vite.config.js`). The other sites deploy with `vercel deploy --prod` from their folders.
 
 All sites share one design, and the vault is its source: off-white light theme, the same tokens,
 Fraunces at 500 for headings (`--serif`) and IBM Plex Sans for text and figures (`--font`, `--figs`).
