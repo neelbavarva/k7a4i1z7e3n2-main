@@ -16,6 +16,7 @@
   --axis: #c8cdc1;
   --line: #e0e4d9;
   --bull: #2a78d6;
+  --bull-ink: #1c5cab;
   --focus: #2a78d6;
   --shadow: 0 1px 2px rgba(22, 26, 22, 0.04), 0 6px 20px rgba(22, 26, 22, 0.05);
   --radius: 6px;
@@ -62,12 +63,135 @@ body {
 
 /* ---------- Layout ---------- */
 
-.split {
-  position: relative;
+/* the whole screen: the plan's bar, then the sites under it, taking the rest */
+.viewer {
   display: flex;
+  flex-direction: column;
   width: 100vw;
   height: 100vh;
   height: 100dvh;
+}
+/* a slim bar across the full width that only names the plan, centred both ways */
+.plan-bar {
+  flex: none;
+  display: grid;
+  place-items: center;
+  height: 24px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+/* The plan's name as an engraved plate: "THE PLAN B" in IBM Plex Sans capitals, medium and widely
+   spaced, its B in blue; a hairline either side, a dot where it meets the name and a small blue
+   diamond at its far end. Once, on load, the lines draw out from the name and the letters settle
+   into their spacing; the diamonds turn under the pointer. */
+.plan-title {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0;
+  line-height: 1;
+}
+/* the space after the last letter is matched before the first, so the name stays dead centre */
+.plan-word {
+  padding-left: 0.5em;
+  font-family: var(--font);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.5em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--ink);
+  animation: plan-settle 1.1s var(--ease) both;
+}
+.plan-b {
+  display: inline-block;
+  color: var(--bull-ink);
+  animation: plan-rise 0.7s var(--ease) 0.45s both;
+}
+.plan-rule {
+  position: relative;
+  width: 72px;
+  height: 1px;
+  background: var(--axis);
+  transform-origin: right center;
+  animation: plan-draw 0.9s var(--ease) 0.15s both;
+}
+.plan-rule.is-right {
+  transform-origin: left center;
+}
+/* the far end: a small diamond, outlined in blue */
+.plan-rule::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 5px;
+  height: 5px;
+  background: var(--surface);
+  border: 1px solid var(--bull);
+  transform: translate(-50%, -50%) rotate(45deg);
+  transition: transform 0.5s var(--ease);
+}
+.plan-rule.is-right::before {
+  left: auto;
+  right: 0;
+  transform: translate(50%, -50%) rotate(45deg);
+}
+/* the near end, by the name: a dot */
+.plan-rule::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 0;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--ink2);
+  transform: translate(50%, -50%);
+}
+.plan-rule.is-right::after {
+  right: auto;
+  left: 0;
+  transform: translate(-50%, -50%);
+}
+.plan-bar:hover .plan-rule::before {
+  transform: translate(-50%, -50%) rotate(225deg);
+}
+.plan-bar:hover .plan-rule.is-right::before {
+  transform: translate(50%, -50%) rotate(-135deg);
+}
+@keyframes plan-draw {
+  from {
+    transform: scaleX(0);
+    opacity: 0;
+  }
+}
+@keyframes plan-settle {
+  from {
+    letter-spacing: 0.9em;
+    opacity: 0;
+  }
+}
+@keyframes plan-rise {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .plan-word,
+  .plan-b,
+  .plan-rule {
+    animation: none;
+  }
+}
+
+.split {
+  position: relative;
+  display: flex;
+  flex: 1;
+  width: 100%;
+  min-height: 0;
 }
 .split.is-resizing,
 .split.is-moving {
@@ -152,9 +276,9 @@ body {
 .tabs-view {
   display: flex;
   flex-direction: column;
-  width: 100vw;
-  height: 100vh;
-  height: 100dvh;
+  flex: 1;
+  width: 100%;
+  min-height: 0;
 }
 
 .tabbar {

@@ -161,10 +161,24 @@ function Viewer() {
 
   useEffect(() => saveLayout(layout), [layout]);
 
-  return wide ? (
-    <Split layout={layout} setLayout={setLayout} nonces={nonces} reload={reload} />
-  ) : (
-    <Tabs order={layout.order} nonces={nonces} reload={reload} />
+  // a slim bar across the top with the plan's name, then the sites, side by side or as tabs
+  return (
+    <div className="viewer">
+      <header className="plan-bar">
+        <h1 className="plan-title" aria-label="The Plan B">
+          <span className="plan-rule" aria-hidden="true" />
+          <span className="plan-word" aria-hidden="true">
+            The Plan <span className="plan-b">B</span>
+          </span>
+          <span className="plan-rule is-right" aria-hidden="true" />
+        </h1>
+      </header>
+      {wide ? (
+        <Split layout={layout} setLayout={setLayout} nonces={nonces} reload={reload} />
+      ) : (
+        <Tabs order={layout.order} nonces={nonces} reload={reload} />
+      )}
+    </div>
   );
 }
 
