@@ -50,7 +50,7 @@ function Coin({ id }) {
                 fontSize="15"
                 fontWeight="700"
                 fill={c.ink}
-                fontFamily="Instrument Sans Variable, system-ui, sans-serif"
+                fontFamily="IBM Plex Sans Variable, system-ui, sans-serif"
             >
                 {c.text}
             </text>

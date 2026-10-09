@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { Check, Plus, Search } from "lucide-react";
+import { Check, MapPin, Plus, Search } from "lucide-react";
 import { BANK_GROUPS, BANKS, REGIONS, bankColor, findBank, guessRegion, regionsOf, searchBanks } from "@/lib/cards";
 import { BankMark } from "./BankLogo";
 import { Mark } from "./Marks";
 
 const byId = new Map(BANKS.map((b) => [b.id, b]));
 const regionLabel = (id) => REGIONS.find((r) => r.id === id)?.label || "";
+// a region chip says it short ("US", "Asia"); its full name and count are on hover
+const regionShort = (id) => REGIONS.find((r) => r.id === id)?.short || regionLabel(id);
 const groupLabel = (id) => BANK_GROUPS.find((g) => g.id === id)?.label.replace(/ banks$/, "") || "";
 const inRegion = (region) => BANKS.filter((b) => regionsOf(b).includes(region));
 const COUNTS = Object.fromEntries(REGIONS.map((r) => [r.id, inRegion(r.id).length]));
@@ -42,7 +44,7 @@ const whereOf = (b) => (b.region ? regionLabel(b.region) : groupLabel(b.group));
  * typed in as is.
  * value: { id } for a listed bank, { name } for one typed in, or null.
  * mine: ids of the banks the person already has cards with, most used first.
- * platforms: places that aren't banks ({ name, brand }, Groww for mutual funds), as tiles ahead of
+ * platforms: places that aren't banks ({ name, brand, color }, Groww for mutual funds), as tiles ahead of
  * the banks; picking one is the same as typing its name.
  */
 export default function BankPicker({ value, onChange, mine = [], platforms = [] }) {
@@ -173,6 +175,7 @@ export default function BankPicker({ value, onChange, mine = [], platforms = [] 
                         type="button"
                         aria-pressed={p.name.toLowerCase() === custom.toLowerCase()}
                         className="bank-option"
+                        style={p.color ? { "--tint": p.color } : undefined}
                         onClick={() => {
                             onChange({ name: p.name });
                             setOpen(false);
@@ -255,10 +258,11 @@ export default function BankPicker({ value, onChange, mine = [], platforms = [] 
                                     aria-pressed={region === id}
                                     onMouseDown={(e) => e.preventDefault()} // keep typing in the search box
                                     onClick={() => showRegion(id)}
+                                    title={`${id === "all" ? "Every bank" : regionLabel(id)}${id === home ? " (yours)" : ""}: ${id === "all" ? BANKS.length : COUNTS[id]}`}
                                 >
-                                    {id === "all" ? "All" : regionLabel(id)}
-                                    {id === home && <span className="bank-region-you">yours</span>}
-                                    <span className="seg-count">{id === "all" ? BANKS.length : COUNTS[id]}</span>
+                                    {/* yours: a pin, not a word */}
+                                    {id === home && <MapPin className="bank-region-you" aria-label="yours" />}
+                                    {id === "all" ? "All" : regionShort(id)}
                                 </button>
                             ))}
                         </div>

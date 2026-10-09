@@ -15,10 +15,11 @@ export function useCountUp(target, ms = 650) {
             const id = requestAnimationFrame(() => setV(target));
             return () => cancelAnimationFrame(id);
         }
-        const start = performance.now();
         const a = from.current;
         let raf;
+        let start = null; // timed from the first frame, on the frames' own clock
         const tick = (now) => {
+            start ??= now;
             const p = Math.min(1, (now - start) / ms);
             const e = 1 - Math.pow(1 - p, 3);
             setV(a + (target - a) * e);
@@ -56,7 +57,7 @@ export function useNow(ms = 30000) {
     return now;
 }
 
-/** Global single-key shortcuts that stay quiet while typing or when a dialog is open. */
+/** Global single-key shortcuts that stay quiet while typing or when a dialog or menu is open. */
 export function useKey(key, fn, enabled = true) {
     const ref = useRef(fn);
     useLayoutEffect(() => {
@@ -68,7 +69,8 @@ export function useKey(key, fn, enabled = true) {
             if (e.metaKey || e.ctrlKey || e.altKey) return;
             const t = e.target;
             if (t instanceof HTMLElement && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
-            if (document.querySelector('[role="dialog"]')) return;
+            // a dialog or a menu open has the keys to itself (a menu's letters jump to its items)
+            if (document.querySelector('[role="dialog"], [role="menu"]')) return;
             if (e.key.toLowerCase() === key) {
                 e.preventDefault();
                 ref.current(e);

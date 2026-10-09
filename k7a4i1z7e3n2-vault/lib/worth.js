@@ -10,6 +10,8 @@ export const CATS = [
     { key: "crypto", label: "Crypto" },
     { key: "bank", label: "Bank and cash" },
     { key: "other", label: "Other assets" },
+    // what the Real trading account's closed trades have made (or lost): a result, so it can be negative
+    { key: "forex", label: "Forex trading" },
     { key: "loans", label: "Loans" },
 ];
 
@@ -51,7 +53,10 @@ export function cryptoWorth(data) {
     return { parts, total: sum(parts) };
 }
 
-/** Everything together: the total, each category, and today's move where it's known. */
+/**
+ * Everything together: the total, each category, and today's move where it's known. `gross` is
+ * what's owned, for shares: loans aren't in it, and nor is a trading loss.
+ */
 export function combine(worths) {
     const parts = empty();
     let day = 0;
@@ -59,5 +64,5 @@ export function combine(worths) {
         for (const c of CATS) parts[c.key] += w.parts[c.key] || 0;
         day += w.day || 0;
     }
-    return { parts, total: sum(parts), day, gross: sum({ ...parts, loans: 0 }) };
+    return { parts, total: sum(parts), day, gross: sum({ ...parts, loans: 0, forex: Math.max(0, parts.forex) }) };
 }

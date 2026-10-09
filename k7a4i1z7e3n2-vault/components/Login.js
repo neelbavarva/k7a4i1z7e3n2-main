@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { authenticator } from "otplib";
 import { OTPInput } from "input-otp";
 import { Hourglass } from "lucide-react";
 import { toast } from "sonner";
@@ -11,12 +10,16 @@ import AuthTimer from "./AuthTimer";
 import Mark from "./k7/Mark";
 import SessionBar from "./k7/SessionBar";
 
+/** Wrong codes the server allows before it blocks a device for a day (OTP_MAX_FAILED there). */
+const TRIES = 3;
+
 export default function Login({ onSuccess }) {
     const [otp, setOtp] = useState("");
     const [loading, setLoading] = useState(false);
     const [initializing, setInitializing] = useState(true);
     const [blockedInfo, setBlockedInfo] = useState(null);
     const [wrong, setWrong] = useState(0);
+    const [left, setLeft] = useState(null); // tries left before the server blocks this device
     const inputRef = useRef(null);
 
     useEffect(() => {
@@ -37,30 +40,14 @@ export default function Login({ onSuccess }) {
         })();
     }, []);
 
-    const fail = () => {
-        toast.error("Incorrect code", { description: "Check the code and try again." });
+    const fail = (info) => {
+        // the server counts wrong codes per device: say how many tries are left before the block
+        const n = Math.max(0, TRIES - (Number(info?.failedAttempts) || 0));
+        setLeft(n);
+        toast.error("Wrong code", { description: n === 1 ? "One try left before this device is locked out for a day." : "Check it’s the vault’s entry in your authenticator app." });
         setOtp("");
         setWrong((n) => n + 1);
         setTimeout(() => inputRef.current?.focus(), 0);
-    };
-
-    /** The old check, in the browser: only while the server's lock isn't set up. */
-    const legacyCheck = async (value) => {
-        const secret = process.env.NEXT_PUBLIC_SECRET_KEY;
-        const valid = secret ? authenticator.verify({ token: value, secret }) : false;
-        if (valid) {
-            await apiPost("/reset", {}).catch((e) => console.warn("reset failed", e));
-            onSuccess("");
-            return;
-        }
-        try {
-            const r = await apiPost("/failure", {});
-            if (r && r.blocked) setBlockedInfo(r);
-            else fail();
-        } catch (e) {
-            console.error("failure endpoint error", e);
-            fail();
-        }
     };
 
     const verifyAndSubmit = useCallback(
@@ -72,15 +59,17 @@ export default function Login({ onSuccess }) {
                 const r = await http("/otp/unlock", { method: "POST", body: { code: value } });
                 onSuccess(r.session);
             } catch (e) {
-                if (e.status === 503 || e.status === 404) await legacyCheck(value);
-                else if (e.info?.blocked) setBlockedInfo(e.info);
-                else if (e.status === 401) fail();
-                else toast.error("Couldn’t check the code", { description: "The server didn’t answer. Try again in a moment." });
+                // only the server can open the vault: a code it couldn't check doesn't count either way
+                if (e.info?.blocked) setBlockedInfo(e.info);
+                else if (e.status === 401 && e.info?.code === "wrong") fail(e.info);
+                else {
+                    setOtp("");
+                    toast.error("Couldn’t check the code", { description: "The server may be waking up. Wait a few seconds and type a fresh code." });
+                }
             } finally {
                 setLoading(false);
             }
         },
-        // eslint-disable-next-line react-hooks/exhaustive-deps
         [blockedInfo, onSuccess, loading]
     );
 
@@ -146,9 +135,13 @@ export default function Login({ onSuccess }) {
                     />
                 </form>
 
-                <p className="lock-foot" aria-live="polite">
+                <p className={`lock-foot${left != null && left <= 1 ? " is-warn" : ""}`} aria-live="polite">
                     {busy ? (
                         <>{initializing ? "Checking this device…" : "Checking code…"}</>
+                    ) : left != null ? (
+                        <>
+                            Wrong code · {left === 1 ? "1 try" : `${left} tries`} left before a day’s lockout
+                        </>
                     ) : (
                         <>
                             <Hourglass aria-hidden="true" />

@@ -40,7 +40,7 @@ const Word = ({ text, color, italic }) => (
             y="50%"
             dominantBaseline="central"
             textAnchor="middle"
-            fontFamily="Instrument Sans Variable, system-ui, sans-serif"
+            fontFamily="IBM Plex Sans Variable, system-ui, sans-serif"
             fontSize="13"
             fontWeight="800"
             fontStyle={italic ? "italic" : "normal"}

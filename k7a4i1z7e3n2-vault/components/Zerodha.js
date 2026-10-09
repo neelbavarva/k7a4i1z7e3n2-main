@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowUpRight, LogOut, RefreshCw, Search } from "lucide-react";
+import MoreMenu from "./k7/MoreMenu";
 import { toast } from "sonner";
 import { API_BASE, http } from "@/lib/http";
 import {
@@ -306,29 +307,37 @@ function Account({ account, session, busy, onRefresh, onDisconnect }) {
 
     return (
         <div className="kt fade-in">
-            <div className={`statusbar kt-bar${demo ? " is-idle" : ""}`} role="status">
-                <i aria-hidden="true" />
-                <p>
-                    {demo ? (
-                        <>
-                            <b>Sample data</b> <span className="muted">·</span> nothing here is from your account
-                        </>
-                    ) : (
-                        <>
-                            <b>{profile?.user_name || session?.userName || "Zerodha"}</b>
-                            {profile?.user_id ? <span className="muted"> {profile.user_id}</span> : null} <span className="muted">·</span> signed in until 6:00 AM{" "}
-                            <span className="muted">·</span> updated {new Date(account.fetchedAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
-                        </>
-                    )}
-                </p>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={onRefresh} disabled={busy} aria-label="Refresh" title="Refresh">
-                    <RefreshCw className={busy ? "spin" : ""} aria-hidden="true" />
-                    <span className="btn-label">Refresh</span>
-                </button>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={onDisconnect} disabled={busy} title={demo ? "Leave the preview" : "End the Zerodha login everywhere"}>
-                    <LogOut aria-hidden="true" />
-                    <span className="btn-label">{demo ? "Exit preview" : "Disconnect"}</span>
-                </button>
+            {/* who's signed in, and the account's menu at the end of the line, as a wallet has it */}
+            <div className="kt-top">
+                <div className={`statusbar kt-bar${demo ? " is-idle" : ""}`} role="status">
+                    <i aria-hidden="true" />
+                    <p>
+                        {demo ? (
+                            <>
+                                <b>Sample data</b> <span className="muted">·</span> nothing here is from your account
+                            </>
+                        ) : (
+                            <>
+                                <b>{profile?.user_name || session?.userName || "Zerodha"}</b>
+                                {profile?.user_id ? <span className="muted"> {profile.user_id}</span> : null} <span className="muted">·</span> signed in until 6:00 AM{" "}
+                                <span className="muted">·</span>{" "}
+                                {busy ? "reading again…" : `updated ${new Date(account.fetchedAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`}
+                            </>
+                        )}
+                    </p>
+                </div>
+                <MoreMenu
+                    label="Zerodha: more"
+                    items={
+                        demo
+                            ? [{ label: "Exit preview", hint: "Back to your own accounts", icon: LogOut, run: onDisconnect }]
+                            : [
+                                  { label: busy ? "Reading…" : "Read again", hint: "Fresh figures from Kite", icon: RefreshCw, run: onRefresh, disabled: busy },
+                                  "-",
+                                  { label: "Disconnect", hint: "Ends the Kite login everywhere", icon: LogOut, run: onDisconnect, disabled: busy, danger: true },
+                              ]
+                    }
+                />
             </div>
 
             <Funds funds={s.funds} profile={profile} />

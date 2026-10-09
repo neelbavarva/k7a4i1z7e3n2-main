@@ -1,3 +1,5 @@
+IN.svg and AE.svg were drawn for this project in the same 1x1 style; the rest are from country-flag-icons.
+
 Flags from country-flag-icons (https://gitlab.com/catamphetamine/country-flag-icons), MIT License:
 
 (The MIT License)

@@ -16,5 +16,6 @@ own app with its own `package.json`; there is no workspace tooling. Each site de
 
 `.github/workflows/news-update.yml` runs the news pipeline and deploy (workflows must live at the root).
 
-All sites share one design: off-white light theme, Young Serif + Instrument Sans, the same tokens.
+All sites share one design: off-white light theme, the same tokens; Young Serif + Instrument Sans,
+except the vault, which titles in Fraunces with IBM Plex Sans for everything else.
 The vault's `app/globals.css` is the fullest copy. No gradients; flat tints with full hairline borders.

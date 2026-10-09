@@ -19,15 +19,15 @@ export const BANK_GROUPS = [
 /** Where banks are listed when browsing beyond India. A bank can sit in more than one. */
 export const REGIONS = [
     { id: "in", label: "India" },
-    { id: "us", label: "United States" },
-    { id: "gb", label: "United Kingdom" },
+    { id: "us", label: "United States", short: "US" },
+    { id: "gb", label: "United Kingdom", short: "UK" },
     { id: "eu", label: "Europe" },
     { id: "ca", label: "Canada" },
-    { id: "apac", label: "Asia-Pacific" },
+    { id: "apac", label: "Asia-Pacific", short: "Asia" },
     { id: "me", label: "Middle East" },
     { id: "af", label: "Africa" },
     { id: "latam", label: "Latin America" },
-    { id: "digital", label: "Digital banks" },
+    { id: "digital", label: "Digital banks", short: "Digital" },
 ];
 
 /** A bank's regions: India unless it says otherwise, plus any home regions it also belongs to. */

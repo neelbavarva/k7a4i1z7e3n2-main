@@ -32,6 +32,56 @@ describe("http", () => {
     });
 });
 
+describe("http retries", () => {
+    afterEach(() => vi.useRealTimers());
+
+    /** Runs a request while the clock moves on through every pause between tries. */
+    async function settle(promise) {
+        const out = promise.then(
+            (v) => ({ v }),
+            (e) => ({ e })
+        );
+        await vi.runAllTimersAsync();
+        return out;
+    }
+
+    it("asks again three times when the server doesn't answer, then gives up", async () => {
+        vi.useFakeTimers();
+        const fetch = vi.fn(async () => new Response("{}", { status: 502 }));
+        vi.stubGlobal("fetch", fetch);
+        const { e } = await settle(http("/crypto/wallets"));
+        expect(e).toMatchObject({ status: 502 });
+        expect(fetch).toHaveBeenCalledTimes(4);
+    });
+
+    it("takes the answer from a later try, offline at first included", async () => {
+        vi.useFakeTimers();
+        const fetch = vi
+            .fn()
+            .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+            .mockResolvedValueOnce(new Response("{}", { status: 504 }))
+            .mockResolvedValue(new Response('{"ok":true}', { status: 200 }));
+        vi.stubGlobal("fetch", fetch);
+        expect(await settle(http("/kite/status"))).toEqual({ v: { ok: true } });
+        expect(fetch).toHaveBeenCalledTimes(3);
+    });
+
+    it("never repeats a write, or an answer that won't change", async () => {
+        vi.useFakeTimers();
+        const fetch = vi.fn(async () => new Response("{}", { status: 500 }));
+        vi.stubGlobal("fetch", fetch);
+        expect((await settle(http("/worth/manual", { method: "POST", body: {} }))).e).toMatchObject({ status: 500 });
+        expect(fetch).toHaveBeenCalledTimes(1);
+
+        for (const [status, body] of [[503, '{"code":"unset"}'], [404, "{}"], [400, "{}"]]) {
+            fetch.mockClear();
+            fetch.mockImplementation(async () => new Response(body, { status }));
+            expect((await settle(http("/kite/status"))).e).toMatchObject({ status });
+            expect(fetch).toHaveBeenCalledTimes(1);
+        }
+    });
+});
+
 describe("httpStream", () => {
     it("asks for events, passes on progress and resolves with the result", async () => {
         const fetch = vi.fn(async () =>

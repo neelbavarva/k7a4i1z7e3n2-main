@@ -25,8 +25,8 @@ import {
 
 // Adding a crypto wallet, laid out like the vault's add-card form: the wallet's card fills in at
 // the top as you go; under it, the wallet app (four tiles and a search of the rest, like the bank
-// picker), a quick connect where the app allows it, the coins (search one, paste its receive
-// address) and a name. Only public addresses ever: nothing here asks a wallet to sign anything.
+// picker), a quick connect where the app allows it, and the coins (search one, paste its receive
+// address). It's named for its app. Only public addresses ever: nothing here asks a wallet to sign anything.
 
 const isPhone = () => typeof navigator !== "undefined" && /Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -50,7 +50,6 @@ export default function AddWallet({ open, onClose, initial, onSave, saving }) {
 function WalletForm({ initial, onSave, saving }) {
     const [walletId, setWalletId] = useState(initial?.kind || "trust");
     const [extensions, setExtensions] = useState([]);
-    const [name, setName] = useState(initial?.name || "");
     const [addresses, setAddresses] = useState(initial ? initial.addresses.map((a) => ({ address: a.address, chain: a.chain })) : []);
     const [adding, setAdding] = useState(!initial);
     useEffect(() => discoverExtensions((ext) => setExtensions((list) => [...list, ext])), []);
@@ -64,7 +63,8 @@ function WalletForm({ initial, onSave, saving }) {
         setAddresses((cur) => uniqueAddresses([...cur, ...list].map((a) => a.address)).filter((a) => a.chain));
         setAdding(false);
     };
-    const title = name.trim() || wallet.name;
+    // named for its app; one saved under a name of its own keeps it while it stays that app
+    const title = initial && initial.kind === walletId ? initial.name : wallet.name;
     const coins = addresses.flatMap((a) => CHAIN_INFO[a.chain].coins.split(", "));
 
     const submit = (e) => {
@@ -135,19 +135,11 @@ function WalletForm({ initial, onSave, saving }) {
                 )}
             </div>
 
-            <div className="field">
-                <label htmlFor="aw-name" className="field-label">
-                    Name
-                </label>
-                <input id="aw-name" className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder={wallet.name} maxLength={40} />
-            </div>
-
             <hr className="rule form-rule" />
             <button type="submit" className="btn btn-primary btn-block" disabled={saving || !addresses.length}>
                 {saving ? <Loader2 className="spin" aria-hidden="true" /> : null}
                 {initial ? "Save wallet" : addresses.length ? "Add wallet" : "Add a coin to continue"}
             </button>
-            <p className="aw-fine">Public addresses only. Nothing is ever signed.</p>
         </form>
     );
 }

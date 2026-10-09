@@ -83,8 +83,8 @@ export default function AddTrade({ open, onClose, onSaved }) {
                 {!ready ? (
                     <div className="skeleton" aria-busy="true" aria-label="Loading checklist" style={{ display: "grid", gap: 12 }}>
                         <div className="sk" style={{ height: 34 }} />
-                        <div className="sk" style={{ height: 88, borderRadius: 12 }} />
-                        <div className="sk" style={{ height: 220, borderRadius: 12 }} />
+                        <div className="sk" style={{ height: 88, borderRadius: 6 }} />
+                        <div className="sk" style={{ height: 220, borderRadius: 6 }} />
                     </div>
                 ) : failed ? (
                     <div className="empty-card" style={{ marginTop: 0 }}>

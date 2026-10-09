@@ -1,25 +1,28 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import { Check, ChevronDown, ChevronRight, Download, Maximize2, Minus, X } from "lucide-react";
+import { Archive, ArchiveRestore, Check, ChevronRight, ChevronDown, Download, Maximize2, Minus, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { http } from "@/lib/http";
 import { TRADE_TYPES, money, pnlOf, sideOf } from "@/lib/format";
-import { byMonth, dayLabel, isOpen, longDate, newestFirst, rrText, statsOf, tfLabels } from "@/lib/trades";
+import { byMonth, dayLabel, inPnl, isArchived, isOpen, longDate, newestFirst, rrText, statsOf, tfLabels } from "@/lib/trades";
+import { getMarketSession } from "@/lib/session";
 import { TradeSymbolIconMap } from "./TradeSymbols";
-import { Breakdown, Performance } from "./StrategyAnalysis";
+import { Breakdown, TradingDash } from "./StrategyAnalysis";
 import ChartViewer from "./k7/ChartViewer";
 import MarketIcon, { splitPair } from "./k7/MarketIcon";
 import Modal from "./k7/Modal";
 import Notes from "./k7/Notes";
 import PairPicker from "./k7/PairPicker";
-import SessionBar from "./k7/SessionBar";
 import Seg from "./k7/Seg";
 import { GradeChip, TfTag, TypeTag } from "./k7/TradeTags";
-import { useKey } from "./k7/hooks";
-import NetWorth from "./NetWorth";
-import { hasHandoff } from "@/lib/kite";
+import { useKey, useNow } from "./k7/hooks";
+import { useUsd } from "./k7/Money";
+
+// The trades on the Finance page. What the filtered trades add up to sits in the one card on top
+// (TradingStrip, with the account switch); under the accounts, the time frame and pair filters in
+// the heading, the trades' breakdown by grade and pair, and the journal of every one. Results are logged in dollars and shown in the page's currency (k7/Money.js).
 
 const TF_OPTIONS = [
     { value: "all", label: "All time frames" },
@@ -27,47 +30,14 @@ const TF_OPTIONS = [
     { value: "higher", label: "Higher" },
 ];
 
-const VIEWS = [
-    { value: "journal", label: "Journal" },
-    { value: "worth", label: "Net worth" },
-];
-
-/** Journal or net worth: remembered, except that coming back from the Kite login opens net worth. */
-function useTradesView() {
-    const [view, setView] = useState(() => {
-        if (typeof window === "undefined") return "journal";
-        if (hasHandoff()) return "worth";
-        try {
-            const saved = localStorage.getItem("tradesView");
-            return saved === "worth" || saved === "zerodha" ? "worth" : "journal";
-        } catch {
-            return "journal";
-        }
-    });
-    useEffect(() => {
-        try {
-            localStorage.setItem("tradesView", view);
-        } catch {
-            // storage blocked: the choice lasts as long as the page
-        }
-    }, [view]);
-    return [view, setView];
-}
-
 const byTf = (tf) => (t) => (tf === "lower" ? t.isLowerTf : tf === "higher" ? !t.isLowerTf : true);
 
-export default function Trades({ refreshKey = 0, onNew }) {
+/** The journal's trades, loaded here once for the whole page (its tabs need to know if there are any). */
+export function useJournal(refreshKey = 0) {
     const [trades, setTrades] = useState([]);
     const [loading, setLoading] = useState(true);
     const [failed, setFailed] = useState(false);
-    const [tfFilter, setTfFilter] = useState("all");
-    const [typeFilter, setTypeFilter] = useState("all");
-    const [pairFilter, setPairFilter] = useState("all");
-    const [pickerOpen, setPickerOpen] = useState(false);
-    const [selected, setSelected] = useState(null);
-    const [view, setView] = useTradesView();
-
-    const fetchTrades = async () => {
+    const load = useCallback(async () => {
         try {
             const r = await http("/trades/getTrades");
             setTrades(Array.isArray(r) ? r : []);
@@ -78,38 +48,136 @@ export default function Trades({ refreshKey = 0, onNew }) {
         } finally {
             setLoading(false);
         }
-    };
-
+    }, []);
     useEffect(() => {
-        fetchTrades();
-    }, [refreshKey]);
+        load();
+    }, [refreshKey, load]);
+    const retry = () => {
+        setLoading(true);
+        load();
+    };
+    return { trades, loading, failed, reload: load, retry };
+}
 
-    useKey("p", () => setPickerOpen(true), view === "journal");
+/** The forex session, as a quiet note beside the Trading heading. Nothing while the market is shut. */
+function MarketNow() {
+    useNow(30000);
+    const s = getMarketSession();
+    if (!s) return null;
+    return (
+        <span className={`fin-live${s.active ? "" : " is-idle"}`} role="status">
+            <i aria-hidden="true" />
+            <span>
+                <b>{s.name}</b> · {s.detail}
+            </span>
+        </span>
+    );
+}
+
+/** account, onAccount: the account filter, kept by Finance (the net worth's trading line sets it). */
+/**
+ * The trades' filters (account, time frame, pair) and what they pick, kept by Finance: the account
+ * is chosen in the top card, the time frame and pair in the Trades heading, and both follow them.
+ */
+export function useTradeView(trades) {
+    const [account, setAccount] = useState("all");
+    const [tf, setTf] = useState("all");
+    const [pair, setPair] = useState("all");
+
+    // time frame + account: what the pair breakdown compares across
+    const byTfAndType = useMemo(
+        () => trades.filter(byTf(tf)).filter((t) => account === "all" || String(t.tradeType) === account),
+        [trades, tf, account]
+    );
+    // and the pair: what everything else shows
+    const filtered = useMemo(
+        () => newestFirst(byTfAndType.filter((t) => pair === "all" || String(t.tradeSymbol) === pair)),
+        [byTfAndType, pair]
+    );
+    const typeCounts = useMemo(() => {
+        const c = { all: 0 };
+        for (const t of trades.filter(byTf(tf))) {
+            c.all++;
+            c[t.tradeType] = (c[t.tradeType] || 0) + 1;
+        }
+        return c;
+    }, [trades, tf]);
+
+    const filterKey = `${tf}-${account}-${pair}`;
+    // what the figures are of, in words, for the top of the results
+    const scope =
+        [account !== "all" && `${account} account`, pair !== "all" && pair, tf !== "all" && `${tf === "lower" ? "lower" : "higher"} time frames`]
+            .filter(Boolean)
+            .join(" · ") || "every trade";
+    const clear = () => {
+        setTf("all");
+        setAccount("all");
+        setPair("all");
+    };
+    return { account, setAccount, tf, setTf, pair, setPair, byTfAndType, filtered, typeCounts, filterKey, scope, filtering: filterKey !== "all-all-all", clear };
+}
+
+/**
+ * The trading, under the net worth in the same card and laid out like it (TradingDash): the account
+ * switch, with Real (the one counted in the total) marked, takes the globe's place.
+ */
+export function TradingStrip({ journal, view, onNew }) {
+    const { trades, loading, failed } = journal;
+    if (failed) return null; // said in the Trades section, with its retry
+    if (loading || !trades.length)
+        return (
+            <div className="hx-trade is-plain" role="group" aria-labelledby="tx-title">
+                <p className="hx-eyebrow" id="tx-title">
+                    Trading
+                </p>
+                {loading ? (
+                    <div className="sk sk-trade" aria-busy="true" aria-label="Loading trades" />
+                ) : (
+                    <p className="hx-trade-none">
+                        No trades yet.{" "}
+                        <button type="button" className="linkish" onClick={onNew}>
+                            Log the first
+                        </button>
+                        ; a Real-account trade’s result counts in the total.
+                    </p>
+                )}
+            </div>
+        );
+    const head = (
+        <div className="tx-head">
+            <Seg
+                label="Account"
+                value={view.account}
+                onChange={view.setAccount}
+                options={[
+                    { value: "all", label: "All", count: view.typeCounts.all || 0 },
+                    ...TRADE_TYPES.map((t) => ({
+                        value: t,
+                        label: t,
+                        count: view.typeCounts[t] || 0,
+                        icon: t === "Real" ? <i className="hx-in" aria-hidden="true" /> : null,
+                        title: t === "Real" ? "Counted in the net worth" : "Not counted in the net worth",
+                    })),
+                ]}
+            />
+        </div>
+    );
+    return <TradingDash trades={view.filtered} replay={view.filterKey} scope={view.scope} head={head} />;
+}
+
+export default function Trades({ journal, view, onNew }) {
+    const { trades, loading, failed } = journal;
+    const { tf: tfFilter, setTf: setTfFilter, pair: pairFilter, setPair: setPairFilter, byTfAndType, filtered, filterKey, filtering, clear: clearFilters } = view;
+    const [pickerOpen, setPickerOpen] = useState(false);
+    const [selected, setSelected] = useState(null);
+    const any = trades.length > 0;
+
+    useKey("p", () => setPickerOpen(true), any);
 
     const allPairs = useMemo(() => {
         const fromTrades = Array.from(new Set(trades.map((t) => t.tradeSymbol).filter((s) => typeof s === "string" && s))).sort();
         return fromTrades.length ? fromTrades : Object.keys(TradeSymbolIconMap).sort();
     }, [trades]);
-
-    // time frame + account: what the pair breakdown compares across
-    const byTfAndType = useMemo(
-        () => trades.filter(byTf(tfFilter)).filter((t) => typeFilter === "all" || String(t.tradeType) === typeFilter),
-        [trades, tfFilter, typeFilter]
-    );
-    // and the pair: what everything else shows
-    const filtered = useMemo(
-        () => newestFirst(byTfAndType.filter((t) => pairFilter === "all" || String(t.tradeSymbol) === pairFilter)),
-        [byTfAndType, pairFilter]
-    );
-
-    const typeCounts = useMemo(() => {
-        const c = { all: 0 };
-        for (const t of trades.filter(byTf(tfFilter))) {
-            c.all++;
-            c[t.tradeType] = (c[t.tradeType] || 0) + 1;
-        }
-        return c;
-    }, [trades, tfFilter]);
 
     const pairCounts = useMemo(() => {
         const c = { all: byTfAndType.length };
@@ -119,134 +187,98 @@ export default function Trades({ refreshKey = 0, onNew }) {
 
     const open = filtered.filter(isOpen);
     const months = useMemo(() => byMonth(filtered.filter((t) => !isOpen(t))), [filtered]);
-    const filterKey = `${tfFilter}-${typeFilter}-${pairFilter}`;
-    const filtering = filterKey !== "all-all-all";
-    const clearFilters = () => {
-        setTfFilter("all");
-        setTypeFilter("all");
-        setPairFilter("all");
-    };
 
     return (
         <>
-            <section className="overview">
-                <div className="overview-row">
-                    <h1 className="overview-title">{view === "worth" ? "Net worth" : "Trade journal"}</h1>
-                    <div className="overview-actions">
-                        <Seg className="trade-view" label="Trades view" options={VIEWS} value={view} onChange={setView} />
-                        {view === "journal" && (
-                            <a className="btn" href="/Forex.zip" download aria-label="Old trades" title="Download trades from before this journal (zip)">
-                                <Download aria-hidden="true" />
-                                <span className="btn-label">Old trades</span>
-                            </a>
-                        )}
-                    </div>
+            <section className="fin-sec" id="trades" aria-labelledby="fin-trades">
+                <div className="fin-head">
+                    <h2 id="fin-trades">Trades</h2>
+                    {any && <span className="count">{filtered.length}</span>}
+                    <MarketNow />
+                    {any && (
+                        <div className="fin-tools">
+                            <Seg label="Time frame" options={TF_OPTIONS} value={tfFilter} onChange={setTfFilter} />
+                            <button type="button" className="btn pair-btn" onClick={() => setPickerOpen(true)} aria-haspopup="dialog">
+                                {pairFilter === "all" ? null : <MarketIcon symbol={pairFilter} size={18} />}
+                                {pairFilter === "all" ? "All pairs" : pairFilter}
+                                <ChevronDown className="chev" aria-hidden="true" />
+                                <kbd>P</kbd>
+                            </button>
+                            {filtering && (
+                                <button type="button" className="btn btn-ghost fade-in" onClick={clearFilters}>
+                                    <X aria-hidden="true" />
+                                    Clear
+                                </button>
+                            )}
+                        </div>
+                    )}
                 </div>
-                <hr className="rule" />
-            </section>
 
-            {view === "worth" ? (
-                <NetWorth />
-            ) : (
-                <>
-                    <SessionBar />
-
-                    <div className="toolbar trade-filters">
-                        <Seg label="Time frame" options={TF_OPTIONS} value={tfFilter} onChange={setTfFilter} />
-                        <Seg
-                            label="Account"
-                            value={typeFilter}
-                            onChange={setTypeFilter}
-                            options={[
-                                { value: "all", label: "All", count: typeCounts.all || 0 },
-                                ...TRADE_TYPES.map((t) => ({ value: t, label: t, count: typeCounts[t] || 0 })),
-                            ]}
-                        />
-                        <button type="button" className="btn pair-btn" onClick={() => setPickerOpen(true)} aria-haspopup="dialog">
-                            {pairFilter === "all" ? null : <MarketIcon symbol={pairFilter} size={18} />}
-                            {pairFilter === "all" ? "All pairs" : pairFilter}
-                            <ChevronDown className="chev" aria-hidden="true" />
-                            <kbd>P</kbd>
-                        </button>
-                        {filtering && (
-                            <button type="button" className="btn btn-ghost fade-in" onClick={clearFilters}>
-                                <X aria-hidden="true" />
-                                Clear filters
-                            </button>
-                        )}
+                {loading ? (
+                    <div className="skeleton" aria-busy="true" aria-label="Loading trades">
+                        <div className="sk sk-rows" />
                     </div>
+                ) : failed ? (
+                    <div className="lg-card fin-line fade-in">
+                        <p>
+                            <b>Trades didn’t load.</b> The server didn’t answer after three tries.
+                        </p>
+                        <button type="button" className="btn btn-sm" onClick={journal.retry}>
+                            Try again
+                        </button>
+                    </div>
+                ) : !any ? (
+                    <div className="lg-card fade-in">
+                        <button type="button" className="lg-row lg-addrow" onClick={onNew}>
+                            <span className="lg-addmark" aria-hidden="true">
+                                <Plus />
+                            </span>
+                            <span className="lg-name">
+                                <b>Log your first trade</b>
+                                <small>
+                                    <span>Graded against your checklist; the results and the journal appear here</span>
+                                </small>
+                            </span>
+                        </button>
+                    </div>
+                ) : (
+                    <>
+                        <Breakdown trades={filtered} pairTrades={byTfAndType} pair={pairFilter} onPair={setPairFilter} />
 
-                    {loading ? (
-                        <div className="skeleton" aria-busy="true" aria-label="Loading trades">
-                            <div className="sk sk-perf" />
-                            <div className="sk-pair">
-                                <div className="sk sk-break" />
-                                <div className="sk sk-break" />
+                        <div className="lg-card jr" aria-label="Journal">
+                            <div className="jrow jr-colhead" aria-hidden="true">
+                                <span>Trade</span>
+                                <span className="col-date">Date</span>
+                                <span className="col-grade">Grade</span>
+                                <span className="col-type">Account</span>
+                                <span className="col-tf">Time frame</span>
+                                <span className="col-rr">R:R</span>
+                                <span className="col-pnl">P&amp;L</span>
+                                <span />
                             </div>
-                            <div className="sk sk-rows" />
+                            {!filtered.length && (
+                                <p className="jr-none">
+                                    Nothing was logged for this mix of time frame, account and pair.{" "}
+                                    <button type="button" className="linkish" onClick={clearFilters}>
+                                        Clear the filters
+                                    </button>
+                                </p>
+                            )}
+                            {open.length > 0 && <TradeGroup key={`open-${filterKey}`} title="Open" rows={open} note="Close them with the result and charts" withMonth onOpen={setSelected} />}
+                            {months.map((m) => (
+                                <TradeGroup key={`${m.key}-${filterKey}`} title={m.label} rows={m.rows} onOpen={setSelected} />
+                            ))}
+                            <p className="jr-foot">
+                                <span>Trades from before this journal</span>
+                                <a className="linkish" href="/Forex.zip" download>
+                                    <Download aria-hidden="true" />
+                                    Download them (zip)
+                                </a>
+                            </p>
                         </div>
-                    ) : failed ? (
-                        <div className="empty-card fade-in">
-                            <h2>Trades didn’t load</h2>
-                            <p>This is usually a brief network hiccup, or the server is waking up. Try again in a moment.</p>
-                            <button
-                                type="button"
-                                className="btn btn-primary"
-                                onClick={() => {
-                                    setLoading(true);
-                                    fetchTrades();
-                                }}
-                            >
-                                Try again
-                            </button>
-                        </div>
-                    ) : !trades.length ? (
-                        <div className="empty-card fade-in">
-                            <h2>No trades yet</h2>
-                            <p>Log your first trade and grade it against your checklist.</p>
-                            <button type="button" className="btn btn-primary" onClick={onNew}>
-                                New trade
-                            </button>
-                        </div>
-                    ) : (
-                        <>
-                            <section className="group" aria-labelledby="g-perf">
-                                <div className="group-head">
-                                    <h2 id="g-perf">Performance</h2>
-                                    {filtering && <span className="group-note">Following your filters</span>}
-                                </div>
-                                <Performance trades={filtered} replay={filterKey} />
-                                <Breakdown trades={filtered} pairTrades={byTfAndType} pair={pairFilter} onPair={setPairFilter} />
-                            </section>
-
-                            <section className="group" aria-labelledby="g-journal">
-                                <div className="group-head">
-                                    <h2 id="g-journal">Journal</h2>
-                                    <span className="count">{filtered.length}</span>
-                                </div>
-
-                                {!filtered.length && (
-                                    <div className="empty-card fade-in">
-                                        <h2>No trades match</h2>
-                                        <p>Nothing was logged for this mix of time frame, account and pair.</p>
-                                        <button type="button" className="btn" onClick={clearFilters}>
-                                            Clear filters
-                                        </button>
-                                    </div>
-                                )}
-
-                                {open.length > 0 && (
-                                    <TradeGroup key={`open-${filterKey}`} title="Open" rows={open} note="Close them with the result and charts" withMonth onOpen={setSelected} />
-                                )}
-                                {months.map((m) => (
-                                    <TradeGroup key={`${m.key}-${filterKey}`} title={m.label} rows={m.rows} onOpen={setSelected} />
-                                ))}
-                            </section>
-                </>
-            )}
-
-                </>
-            )}
+                    </>
+                )}
+            </section>
 
             <PairPicker
                 open={pickerOpen}
@@ -262,7 +294,7 @@ export default function Trades({ refreshKey = 0, onNew }) {
                 trade={selected}
                 onClose={() => setSelected(null)}
                 onUpdated={async () => {
-                    await fetchTrades();
+                    await journal.reload();
                     setSelected(null);
                 }}
             />
@@ -270,47 +302,54 @@ export default function Trades({ refreshKey = 0, onNew }) {
     );
 }
 
-/** A month (or the open trades): its heading with the count and net, then its rows. */
+/** A month (or the open trades): a band of the journal with its count and net, then its rows. */
 function TradeGroup({ title, rows, note, withMonth, onOpen }) {
     const s = statsOf(rows);
+    // the band's net is P&L, so an archived trade's result isn't in it; its win or loss still is
+    const net = statsOf(rows.filter(inPnl)).net;
+    const usd = useUsd();
     return (
-        <div className="group trade-group">
-            <div className="group-head">
-                <h3 className="group-title">{title}</h3>
-                <span className="count">{rows.length}</span>
+        <div className="lg-group">
+            <div className="jr-head">
+                <span className="lg-group-name">
+                    {title}
+                    <span className="lg-group-count">{rows.length}</span>
+                </span>
                 {note ? (
-                    <span className="group-note">{note}</span>
+                    <span className="jr-note">{note}</span>
                 ) : (
-                    <span className="group-sum">
-                        <span className="muted">
+                    <span className="jr-sum">
+                        <span>
                             {s.wins}W {s.losses}L
                         </span>
-                        <b className={sideOf(s.net)}>{money(s.net)}</b>
+                        <b className={sideOf(net)}>{usd.text(net)}</b>
                     </span>
                 )}
             </div>
-            <div className="rows-card">
-                <ul className="rows stagger">
-                    {rows.map((t, i) => (
-                        <TradeRow key={t._id} t={t} i={i} withMonth={withMonth} onOpen={() => onOpen(t)} />
-                    ))}
-                </ul>
-            </div>
+            <ul className="lg-rows stagger">
+                {rows.map((t, i) => (
+                    <TradeRow key={t._id} t={t} i={i} withMonth={withMonth} onOpen={() => onOpen(t)} />
+                ))}
+            </ul>
         </div>
     );
 }
 
 function TradeRow({ t, i, withMonth, onOpen }) {
     const pnl = pnlOf(t);
+    const usd = useUsd();
     const pending = isOpen(t) && !pnl;
     return (
         <li style={{ "--i": i }}>
-            <button type="button" className="row-btn jrow" onClick={onOpen}>
+            <button type="button" className={`row-btn jrow${isArchived(t) ? " is-archived" : ""}`} onClick={onOpen}>
                 <span className="row-main col-pair">
                     <MarketIcon symbol={t.tradeSymbol} size={26} />
                     <span className="row-text">
                         <span className="row-title">{t.tradeSymbol}</span>
-                        <span className="row-sub">{t.description || "No notes"}</span>
+                        <span className="row-sub">
+                            {isArchived(t) && <span className="arch-tag">Archived</span>}
+                            {t.description || "No notes"}
+                        </span>
                     </span>
                 </span>
                 <span className="row-meta col-date">{dayLabel(t, withMonth)}</span>
@@ -324,7 +363,7 @@ function TradeRow({ t, i, withMonth, onOpen }) {
                     <TfTag lower={t.isLowerTf} />
                 </span>
                 <span className="row-num row-meta col-rr">{rrText(t.riskRewardRatio)}</span>
-                <span className={`row-num pnl col-pnl ${sideOf(pnl)}`}>{pending ? <span className="open-tag">Open</span> : money(pnl)}</span>
+                <span className={`row-num pnl col-pnl ${sideOf(pnl)}`}>{pending ? <span className="open-tag">Open</span> : usd.text(pnl)}</span>
                 <span className="col-meta" aria-hidden="true">
                     <GradeChip pct={t.totalPercentage || 0} />
                     <TypeTag type={t.tradeType} />
@@ -419,7 +458,9 @@ function CheckMark({ state }) {
 function TradeDetail({ trade, onClose, onUpdated }) {
     const [form, setForm] = useState({ totalPnL: "", description: "", lowTf: "", midTf: "", highTf: "" });
     const [submitting, setSubmitting] = useState(false);
+    const [archiving, setArchiving] = useState(false);
     const [viewing, setViewing] = useState(null); // index of the chart open full screen
+    const usd = useUsd();
     // keep the last trade while the dialog animates out
     const shown = useRef(trade);
     if (trade) shown.current = trade;
@@ -476,12 +517,43 @@ function TradeDetail({ trade, onClose, onUpdated }) {
         }
     };
 
+    // archived, a trade's result is out of the total P&L (and the net worth); every stat still counts it
+    const archived = isArchived(t);
+    const toggleArchive = async () => {
+        if (archiving) return;
+        setArchiving(true);
+        try {
+            await http(`/trades/archiveTrade/${t._id}`, { method: "PUT", body: { archived: !archived } });
+            toast.success(archived ? "Trade restored" : "Trade archived", {
+                description: archived ? `${t.tradeSymbol}’s result counts in the total P&L again` : `${t.tradeSymbol}’s result is out of the total P&L`,
+            });
+            await onUpdated();
+        } catch (error) {
+            console.error("Error archiving trade:", error);
+            toast.error(archived ? "Could not restore the trade" : "Could not archive the trade");
+        } finally {
+            setArchiving(false);
+        }
+    };
+    const archiveRow = (
+        <div className={`trade-archive${archived ? " is-on" : ""}`}>
+            <p>
+                <b>{archived ? "Archived" : "Archive this trade"}</b>
+                <span>{archived ? "Its result is out of the total P&L and the net worth. Every stat still counts it." : "Takes its result out of the total P&L and the net worth. Every stat still counts it."}</span>
+            </p>
+            <button type="button" className={`btn btn-sm${archiving ? " is-busy" : ""}`} onClick={toggleArchive} disabled={archiving}>
+                {archived ? <ArchiveRestore aria-hidden="true" /> : <Archive aria-hidden="true" />}
+                {archived ? "Restore" : "Archive"}
+            </button>
+        </div>
+    );
+
     return (
         <Modal
             open={!!trade}
             onClose={onClose}
             wide
-            busy={submitting}
+            busy={submitting || archiving}
             className="trade-dialog"
             icon={<MarketIcon symbol={t.tradeSymbol} size={40} />}
             title={<PairTitle symbol={t.tradeSymbol} />}
@@ -497,15 +569,17 @@ function TradeDetail({ trade, onClose, onUpdated }) {
                                 Open
                             </>
                         ) : null,
+                        archived ? "Archived" : null,
                     ]}
                 />
             }
         >
             <div className="modal-body">
+                {archived && archiveRow}
                 <dl className="brief three trade-facts">
                     <div className="brief-cell">
                         <dt>P&amp;L</dt>
-                        <dd className={`brief-num sm ${live && !pnl ? "" : sideOf(pnl)}`}>{live && !pnl ? <span className="muted">Open</span> : money(pnl)}</dd>
+                        <dd className={`brief-num sm ${live && !pnl ? "" : sideOf(pnl)}`}>{live && !pnl ? <span className="muted">Open</span> : usd.text(pnl)}</dd>
                     </div>
                     <div className="brief-cell">
                         <dt>Risk : reward</dt>
@@ -616,6 +690,8 @@ function TradeDetail({ trade, onClose, onUpdated }) {
                         </button>
                     </form>
                 )}
+
+                {!archived && archiveRow}
             </div>
         </Modal>
     );

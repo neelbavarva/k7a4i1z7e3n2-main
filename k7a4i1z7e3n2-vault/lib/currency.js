@@ -1,0 +1,137 @@
+// The currency the net worth page is shown in. Everything is added up in rupees, then shown in the
+// currency picked (remembered in this browser). Rates are each currency per US dollar, from
+// /worth/fx; an account's own panel keeps its own currency, the way its statement does.
+
+import { useEffect, useState } from "react";
+
+export const CURRENCIES = [
+    { code: "INR", symbol: "₹", name: "Indian Rupee" },
+    { code: "USD", symbol: "$", name: "US Dollar" },
+    { code: "EUR", symbol: "€", name: "Euro" },
+    { code: "GBP", symbol: "£", name: "British Pound" },
+    { code: "AED", symbol: "AED", name: "UAE Dirham", spaced: true },
+    { code: "SGD", symbol: "S$", name: "Singapore Dollar" },
+    { code: "JPY", symbol: "¥", name: "Japanese Yen", whole: true },
+    { code: "AUD", symbol: "A$", name: "Australian Dollar" },
+    { code: "CAD", symbol: "C$", name: "Canadian Dollar" },
+    { code: "CHF", symbol: "CHF", name: "Swiss Franc", spaced: true },
+];
+
+/** The ones the menu shows first, in this order; the rest follow by name. */
+export const POPULAR = ["INR", "USD", "AED", "EUR", "GBP", "SGD"];
+
+// the sign people know a currency by, where the code would otherwise stand in for it
+const SIGNS = {
+    CNY: "¥", NZD: "NZ$", HKD: "HK$", KRW: "₩", ILS: "₪", THB: "฿", TRY: "₺", PHP: "₱", BRL: "R$", MXN: "MX$", ZAR: "R",
+    PLN: "zł", IDR: "Rp", MYR: "RM", CZK: "Kč", HUF: "Ft", SEK: "kr", NOK: "kr", DKK: "kr", ISK: "kr", RON: "lei", BGN: "лв",
+};
+// no cents in everyday use
+const WHOLE = new Set(["JPY", "KRW", "HUF", "ISK", "IDR"]);
+// the flags in public/flags, by currency
+const FLAGS = { INR: "IN", USD: "US", EUR: "EU", GBP: "GB", AED: "AE", JPY: "JP", AUD: "AU", CAD: "CA", CHF: "CH", NZD: "NZ" };
+export const flagOf = (code) => FLAGS[code] || null;
+
+let names = null;
+/** A currency's name in English, as the browser knows it ("Swedish Krona"). */
+function nameOf(code) {
+    try {
+        names ??= new Intl.DisplayNames(["en"], { type: "currency" });
+        const n = names.of(code);
+        return n && n !== code ? n.replace(/^./, (c) => c.toUpperCase()) : code;
+    } catch {
+        return code;
+    }
+}
+
+const made = new Map(CURRENCIES.map((c) => [c.code, c]));
+/** Any currency by its code: its sign (a word-like one, "kr", "AED", is set apart), name and whether it has cents. */
+export function currencyOf(code) {
+    if (!/^[A-Z]{3}$/.test(code || "")) return CURRENCIES[0];
+    if (!made.has(code)) {
+        const symbol = SIGNS[code] || code;
+        made.set(code, { code, symbol, name: nameOf(code), spaced: /^\p{L}{2,}$/u.test(symbol), whole: WHOLE.has(code) });
+    }
+    return made.get(code);
+}
+
+/** Each currency per US dollar: the API's `rates`, or from `rate` alone the dollar and the rupee. */
+export function ratesOf(fx) {
+    if (fx?.rates?.INR > 0) return fx.rates;
+    if (fx?.rate > 0) return { USD: 1, INR: fx.rate };
+    return { INR: 1 };
+}
+
+/** Every currency there's a rate for: the popular ones first, then the rest by name. */
+export function currenciesIn(rates) {
+    const codes = new Set(["INR", ...Object.keys(rates || {})]);
+    const rank = (c) => (POPULAR.includes(c.code) ? POPULAR.indexOf(c.code) : POPULAR.length);
+    return [...codes]
+        .filter((c) => perRupee(c, rates) != null)
+        .map(currencyOf)
+        .sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
+}
+
+/** How much of a currency one rupee is, or null with no rate for it. */
+export function perRupee(code, rates) {
+    if (code === "INR") return 1;
+    const r = rates?.[code];
+    const inr = rates?.INR;
+    return r > 0 && inr > 0 ? r / inr : null;
+}
+
+const fmt = {};
+const grouping = (code, digits) => (fmt[`${code}:${digits}`] ??= new Intl.NumberFormat(code === "INR" ? "en-IN" : "en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits }));
+
+/**
+ * An amount (already in the currency `cur`) as parts to set: { neg, symbol, int, frac, unit }.
+ * `short`: rupees in lakh and crore (6.63 L), the others in thousands, millions and billions
+ * (12.6K, 1.24M). `paise`: "auto" (the cents shown unless .00), "always" or "never".
+ */
+export function moneyParts(x, cur, { short = false, paise = "auto" } = {}) {
+    const n = Number(x) || 0;
+    const a = Math.abs(n);
+    const out = { neg: n < 0, symbol: cur.symbol, spaced: Boolean(cur.spaced), int: "", frac: "", unit: "" };
+    // [from, in units of, unit, decimals]: thousands only from ten thousand ($4,372, then $43.7 K)
+    const units = cur.code === "INR" ? [[1e7, 1e7, "Cr", 2], [1e5, 1e5, "L", 2]] : [[1e9, 1e9, "B", 2], [1e6, 1e6, "M", 2], [1e4, 1e3, "K", 1]];
+    const big = short && units.find(([from]) => a >= from);
+    if (big) {
+        const [, per, unit, digits] = big;
+        [out.int, out.frac] = (a / per).toFixed(digits).split(".");
+        out.frac = out.frac ? `.${out.frac}` : "";
+        out.unit = unit;
+        return out;
+    }
+    // whole units are rounded, not cut: 1.95 without its cents is 2
+    const digits = cur.whole || paise === "never" || short ? 0 : 2;
+    [out.int, out.frac = ""] = grouping(cur.code, digits).format(a).split(".");
+    out.frac = !out.frac || (paise === "auto" && /^0+$/.test(out.frac)) ? "" : `.${out.frac}`;
+    return out;
+}
+
+/** The same as text: "₹1,843.42", "$19.06", "AED 70.03"; `sign` puts a + on gains. */
+export function moneyText(x, cur, { short = false, paise = "auto", sign = false } = {}) {
+    const p = moneyParts(x, cur, { short, paise });
+    const lead = p.neg ? "−" : sign && Number(x) > 0 ? "+" : "";
+    return `${lead}${p.symbol}${p.spaced ? " " : ""}${p.int}${p.frac}${p.unit ? ` ${p.unit}` : ""}`;
+}
+
+const KEY = "worthCurrency";
+
+/** The currency picked for the net worth page, remembered in this browser. */
+export function useCurrencyCode() {
+    const [code, setCode] = useState(() => {
+        try {
+            return (typeof window !== "undefined" && localStorage.getItem(KEY)) || "INR";
+        } catch {
+            return "INR";
+        }
+    });
+    useEffect(() => {
+        try {
+            localStorage.setItem(KEY, code);
+        } catch {
+            // storage blocked: it lasts until the page is closed
+        }
+    }, [code]);
+    return [code, setCode];
+}

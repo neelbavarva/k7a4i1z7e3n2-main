@@ -3,9 +3,12 @@ import {
     byMonth,
     checklistScore,
     checklistState,
+    countsInWorth,
     dayLabel,
     equityOf,
     gradeKey,
+    inPnl,
+    isArchived,
     longDate,
     newestFirst,
     rrText,
@@ -66,6 +69,19 @@ describe("trade dates", () => {
     it("stores a date input's day the way trades always have", () => {
         expect(storedDate("2026-10-04")).toBe("04 October 2026");
         expect(storedDate("")).toBe("");
+    });
+});
+
+describe("what each trade counts towards", () => {
+    it("counts only the Real account's in the net worth, and not once archived", () => {
+        expect(countsInWorth({ tradeType: "Real" })).toBe(true);
+        expect(["Funded", "Demo", "Backtest"].map((tradeType) => countsInWorth({ tradeType }))).toEqual([false, false, false]);
+        expect(countsInWorth({ tradeType: "Real", archived: true })).toBe(false);
+    });
+    it("leaves an archived trade's result out of the P&L, and only that", () => {
+        expect(isArchived({ archived: true })).toBe(true);
+        expect(isArchived({})).toBe(false);
+        expect([{}, { archived: false }, { archived: true }].map(inPnl)).toEqual([true, true, false]);
     });
 });
 

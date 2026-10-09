@@ -3,6 +3,20 @@ import { grade, parseTradeDate, pnlOf } from "./format";
 
 export const isOpen = (t) => t?.tradeStatus === "Open";
 
+/**
+ * An archived trade: still in the journal and in every stat (win rate, profit factor, averages,
+ * the grade and pair analysis), but its result is out of the total P&L, and so of the net worth.
+ */
+export const isArchived = (t) => Boolean(t?.archived);
+/** The trades whose results add up to the total P&L: all but the archived. */
+export const inPnl = (t) => !isArchived(t);
+
+/**
+ * The trades whose results count in the net worth: the Real account's, unless archived. A funded
+ * account's money isn't yours, and demo and backtest are practice.
+ */
+export const countsInWorth = (t) => t?.tradeType === "Real" && !isArchived(t);
+
 /** When a trade happened: its trade date, else when it was logged; NaN if neither reads. */
 export function tradeTime(t) {
     const d = parseTradeDate(t?.dateOfTrade);

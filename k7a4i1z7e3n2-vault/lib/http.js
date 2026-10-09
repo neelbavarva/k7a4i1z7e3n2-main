@@ -17,17 +17,37 @@ export class HttpError extends Error {
 
 export const API_BASE = BASE;
 
+// A read that fails because the server, or something behind it (a chain, a broker), didn't answer
+// is asked again three times, a little later each time, before the failure reaches the page:
+// Render wakes the server slowly, and the chains drop a request now and then. A write is never
+// sent twice on its own, and an answer that won't change (locked, not set up, not found) isn't
+// asked for again.
+export const RETRIES = 3;
+const WAITS = [1000, 2000, 4000];
+
+/** The pause before retry `i` (0, 1, 2). */
+export const waitToRetry = (i) => new Promise((r) => setTimeout(r, WAITS[Math.min(i, WAITS.length - 1)]));
+
+/** No answer at all, a timeout, or the server failing; a 503 that says "not set up" stays as it is. */
+export const retryable = (e) => e?.status === 0 || e?.status === 408 || (e?.status >= 500 && e.code !== "unset");
+
 async function request(path, { method, body, accept, headers: extra }) {
     const headers = { "x-api-key": KEY, ...extra };
     const session = vaultSession();
     if (session) headers["x-vault-session"] = session;
     if (accept) headers.Accept = accept;
     if (body !== undefined) headers["Content-Type"] = "application/json";
-    const res = await fetch(`${BASE}${path}`, {
-        method,
-        headers,
-        body: body === undefined ? undefined : JSON.stringify(body),
-    });
+    let res;
+    try {
+        res = await fetch(`${BASE}${path}`, {
+            method,
+            headers,
+            body: body === undefined ? undefined : JSON.stringify(body),
+        });
+    } catch {
+        // offline, or the server didn't answer at all
+        throw new HttpError(0, "The server didn’t answer");
+    }
     if (!res.ok) {
         const info = await res.json().catch(() => ({}));
         // the server's lock wants a fresh unlock: back to the lock screen
@@ -46,8 +66,16 @@ async function read(res) {
     }
 }
 
-export async function http(path, { method = "GET", body, headers } = {}) {
-    return read(await request(path, { method, body, headers }));
+/** retries: how many more times to ask if it fails for a reason worth retrying; reads only, by default. */
+export async function http(path, { method = "GET", body, headers, retries = method === "GET" ? RETRIES : 0 } = {}) {
+    for (let i = 0; ; i++) {
+        try {
+            return read(await request(path, { method, body, headers }));
+        } catch (e) {
+            if (i >= retries || !retryable(e)) throw e;
+            await waitToRetry(i);
+        }
+    }
 }
 
 /**

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { ChevronRight, Copy, KeyRound, Lock, RefreshCw, ShieldAlert, ShieldCheck, Vault } from "lucide-react";
+import { ChevronRight, Copy, EyeOff, Fingerprint, KeyRound, Lock, RefreshCw, ShieldAlert, ShieldCheck, Vault } from "lucide-react";
 import { httpStream } from "@/lib/http";
 import Modal from "./k7/Modal";
 import Seg from "./k7/Seg";
@@ -20,21 +20,48 @@ const MODES = [
     { value: "any", label: "Any password", icon: <KeyRound aria-hidden="true" /> },
 ];
 
+/** A SHA-1 fingerprint in upper-case hex, worked out in this browser with Web Crypto. */
+async function sha1(text) {
+    const digest = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(text));
+    return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("").toUpperCase();
+}
+
 /**
- * Breach count for one password, checked entirely in this browser: SHA-1 with Web Crypto,
- * then Have I Been Pwned's range API with only the first 5 hex characters (k-anonymity).
+ * One password checked entirely in this browser: Have I Been Pwned's range API is asked only for
+ * the first 5 characters of its fingerprint (k-anonymity) and answers with every leaked fingerprint
+ * that starts that way. `count`: how often this one was seen; `among`: how many it hid among.
  * The password never leaves the page, not even to our own server.
  */
-async function pwnedCount(password) {
-    const digest = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(password));
-    const hash = Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("").toUpperCase();
+async function pwnedCheck(password) {
+    const hash = await sha1(password);
     const res = await fetch(`https://api.pwnedpasswords.com/range/${hash.slice(0, 5)}`, { headers: { "Add-Padding": "true" } });
     if (!res.ok) throw new Error(`HIBP ${res.status}`);
+    let count = 0;
+    let among = 0;
     for (const line of (await res.text()).split("\n")) {
-        const [suffix, count] = line.trim().split(":");
-        if (suffix === hash.slice(5)) return parseInt(count, 10) || 0; // padded rows have count 0
+        const [suffix, n] = line.trim().split(":");
+        const seen = parseInt(n, 10) || 0; // padded rows have count 0
+        if (seen) among++;
+        if (suffix === hash.slice(5)) count = seen;
     }
-    return 0;
+    return { count, among, prefix: hash.slice(0, 5) };
+}
+
+/** How a check works, in three short points: each a bold line and a quiet one under it. */
+function How({ items }) {
+    return (
+        <ul className="bx-how">
+            {items.map(([Icon, title, line]) => (
+                <li key={title}>
+                    <Icon aria-hidden="true" />
+                    <span>
+                        <b>{title}</b>
+                        {line}
+                    </span>
+                </li>
+            ))}
+        </ul>
+    );
 }
 
 /**
@@ -105,9 +132,7 @@ export default function BreachCheck({ open, onClose, total, onOpenPassword }) {
             }
             title="Breach check"
             sub={
-                mode === "any"
-                    ? "Check any password against public data breaches, without saving it."
-                    : "Find saved passwords that have appeared in public data breaches, and ones you’ve used more than once."
+                mode === "any" ? "Any password against every public breach, without saving it." : "Your saved passwords against every public breach, and the ones you’ve used twice."
             }
         >
             <div className="modal-body">
@@ -119,34 +144,35 @@ export default function BreachCheck({ open, onClose, total, onOpenPassword }) {
                 ) : report ? (
                     <Report report={report} onOpenPassword={onOpenPassword} onAgain={() => setReport(null)} />
                 ) : (
-                    <form className="form" onSubmit={run}>
-                        <fieldset className="bare form" disabled={loading}>
-                            <ol className="breach-how">
-                                <li>
-                                    <b>Decrypted on the server</b> with your key, the same way Change key does. Passwords under a different
-                                    key are skipped and never count as a wrong attempt.
-                                </li>
-                                <li>
-                                    <b>Only a fingerprint is shared.</b> Each password is hashed (SHA-1) and just the first 5 of its 40
-                                    characters go to Have I Been Pwned. The match is made on the server.
-                                </li>
-                                <li>
-                                    <b>Nothing is revealed here.</b> You get names and breach counts, never the passwords.
-                                </li>
-                            </ol>
-                            <div className="field">
-                                <label htmlFor="breach-key">Decryption key</label>
-                                <SecretInput id="breach-key" value={key} onChange={(e) => setKey(e.target.value)} placeholder="The key your passwords use" autoFocus />
+                    <form className="form bx" onSubmit={run}>
+                        <fieldset className="bare field" disabled={loading}>
+                            <label className="field-label" htmlFor="breach-key">
+                                Decryption key
+                            </label>
+                            <div className="input-row">
+                                <div className="bx-key">
+                                    <SecretInput id="breach-key" value={key} onChange={(e) => setKey(e.target.value)} placeholder="The key your passwords use" autoFocus />
+                                </div>
+                                {!loading && (
+                                    <button type="submit" className="btn btn-primary" disabled={!key.trim()} aria-label={`Check ${total} password${total === 1 ? "" : "s"}`}>
+                                        <ShieldCheck aria-hidden="true" />
+                                        Check {total}
+                                    </button>
+                                )}
                             </div>
+                            {!loading && <p className="bx-fine">Passwords saved under another key are skipped, not counted as wrong attempts.</p>}
                         </fieldset>
                         {error && <p className="form-error">{error}</p>}
                         {loading ? (
                             <BreachProgress total={total} progress={progress} />
                         ) : (
-                            <button type="submit" className="btn btn-primary btn-block" disabled={!key.trim()}>
-                                <ShieldCheck aria-hidden="true" />
-                                Check {total} password{total === 1 ? "" : "s"}
-                            </button>
+                            <How
+                                items={[
+                                    [Lock, "Decrypted on the server", "with the key you type"],
+                                    [Fingerprint, "5 of 40 characters sent", "of each password’s fingerprint"],
+                                    [EyeOff, "Names and counts back", "never the passwords"],
+                                ]}
+                            />
                         )}
                     </form>
                 )}
@@ -241,17 +267,20 @@ function BreachProgress({ total, progress }) {
     );
 }
 
-/** One password, typed in, checked in the browser. Nothing is stored or sent anywhere but the hash prefix. */
+/**
+ * One password, typed in, checked in the browser: only the first 5 characters of its fingerprint
+ * leave. Nothing is stored or sent but those.
+ */
 function QuickCheck() {
     const [value, setValue] = useState("");
-    const [state, setState] = useState(null); // null | "loading" | { count } | { error }
+    const [state, setState] = useState(null); // null | "loading" | { count, among, prefix } | { error }
 
     const check = async (e) => {
         e.preventDefault();
         if (!value || state === "loading") return;
         setState("loading");
         try {
-            setState({ count: await pwnedCount(value) });
+            setState(await pwnedCheck(value));
         } catch (err) {
             console.error(err);
             setState({ error: true });
@@ -260,11 +289,13 @@ function QuickCheck() {
 
     const result = state && state !== "loading" ? state : null;
     return (
-        <form className="form fade-in" onSubmit={check}>
+        <form className="form bx fade-in" onSubmit={check}>
             <div className="field">
-                <label htmlFor="quick-pw">Password</label>
+                <label htmlFor="quick-pw" className="field-label">
+                    Password
+                </label>
                 <div className="input-row">
-                    <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="bx-key">
                         <SecretInput
                             id="quick-pw"
                             mono
@@ -282,10 +313,6 @@ function QuickCheck() {
                         {state === "loading" ? "Checking…" : "Check"}
                     </button>
                 </div>
-                <span className="field-hint">
-                    Checked right here in your browser. Only the first 5 characters of its SHA-1 fingerprint go to Have I Been Pwned;
-                    the password itself is never sent or saved.
-                </span>
             </div>
             {result && (
                 <div
@@ -301,16 +328,29 @@ function QuickCheck() {
                             </>
                         ) : result.count ? (
                             <>
-                                <b>Found in breaches, seen {times(result.count)}.</b> Don’t use it anywhere; attackers try known breached
-                                passwords first.
+                                <b>Leaked, seen {times(result.count)}.</b> Don’t use it anywhere: attackers try known breached passwords first.
                             </>
                         ) : (
                             <>
-                                <b>Not found in any known breach.</b> That isn’t proof it’s strong, only that it hasn’t leaked publicly.
+                                <b>Not in any known breach.</b> That isn’t proof it’s strong, only that it hasn’t leaked publicly.
                             </>
                         )}
+                        {!result.error && result.among ? (
+                            <span className="quick-among">
+                                It hid among {compact.format(result.among)} leaked fingerprints starting <code>{result.prefix}</code>; the other 35 characters never left this page.
+                            </span>
+                        ) : null}
                     </p>
                 </div>
+            )}
+            {!result && (
+                <How
+                    items={[
+                        [Lock, "Fingerprinted here", "in this browser, never sent"],
+                        [Fingerprint, "5 of 40 characters sent", "to Have I Been Pwned"],
+                        [EyeOff, "Nothing saved", "not even on our server"],
+                    ]}
+                />
             )}
         </form>
     );
