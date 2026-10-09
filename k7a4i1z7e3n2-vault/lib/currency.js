@@ -1,8 +1,9 @@
-// The currency the net worth page is shown in. Everything is added up in rupees, then shown in the
-// currency picked (remembered in this browser). Rates are each currency per US dollar, from
-// /worth/fx; an account's own panel keeps its own currency, the way its statement does.
+// The currency the Finance page is shown in, dollars unless another is picked. Everything is added
+// up in rupees, then shown in the currency picked (remembered in this browser), accounts' own panels
+// too; a typed-in balance is typed in it and kept in the account's own currency. Rates are each
+// currency per US dollar, from /worth/fx.
 
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 export const CURRENCIES = [
     { code: "INR", symbol: "₹", name: "Indian Rupee" },
@@ -115,23 +116,28 @@ export function moneyText(x, cur, { short = false, paise = "auto", sign = false 
     return `${lead}${p.symbol}${p.spaced ? " " : ""}${p.int}${p.frac}${p.unit ? ` ${p.unit}` : ""}`;
 }
 
-const KEY = "worthCurrency";
+// A key of its own: the one before ("worthCurrency") was written on every visit, so the rupees kept
+// there weren't anyone's choice. This one is written only when a currency is picked.
+const KEY = "financeCurrency";
+/** The page's currency until another is picked. */
+export const DEFAULT_CURRENCY = "USD";
 
-/** The currency picked for the net worth page, remembered in this browser. */
+/** The currency picked for the Finance page, remembered in this browser; dollars until one is. */
 export function useCurrencyCode() {
     const [code, setCode] = useState(() => {
         try {
-            return (typeof window !== "undefined" && localStorage.getItem(KEY)) || "INR";
+            return (typeof window !== "undefined" && localStorage.getItem(KEY)) || DEFAULT_CURRENCY;
         } catch {
-            return "INR";
+            return DEFAULT_CURRENCY;
         }
     });
-    useEffect(() => {
+    const pick = useCallback((next) => {
+        setCode(next);
         try {
-            localStorage.setItem(KEY, code);
+            localStorage.setItem(KEY, next);
         } catch {
             // storage blocked: it lasts until the page is closed
         }
-    }, [code]);
-    return [code, setCode];
+    }, []);
+    return [code, pick];
 }

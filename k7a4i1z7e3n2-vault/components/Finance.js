@@ -23,14 +23,33 @@ const SECTIONS = [
 
 const still = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+// the last rates read, kept in this browser: the page opens in its currency (dollars unless another
+// is picked) at those while today's are read, not in rupees until they come
+const FX_KEY = "worthFx";
+
 /** The day's rates: rupees to the dollar (`rate`) and every currency the page can be shown in (`rates`). */
 function useFx() {
-    const [s, setS] = useState({ state: "loading" });
+    const [s, setS] = useState(() => {
+        try {
+            const data = JSON.parse(localStorage.getItem(FX_KEY) || "null");
+            return data?.rate > 0 ? { state: "refreshing", data } : { state: "loading" };
+        } catch {
+            return { state: "loading" };
+        }
+    });
     const [ask, setAsk] = useState(0);
     useEffect(() => {
         let gone = false;
         http("/worth/fx").then(
-            (data) => !gone && setS({ state: "ready", data }),
+            (data) => {
+                if (gone) return;
+                setS({ state: "ready", data });
+                try {
+                    localStorage.setItem(FX_KEY, JSON.stringify(data));
+                } catch {
+                    // storage blocked: today's rates only
+                }
+            },
             () => !gone && setS((p) => ({ ...p, state: "error" }))
         );
         return () => {

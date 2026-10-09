@@ -8552,78 +8552,132 @@ fieldset.bare:disabled {
   font-size: 11px;
   color: var(--muted);
 }
-.nw-bal-fig {
+/* the figure's field, like the vault's inputs: the currency's sign in a quiet cell of its own, then
+   the figure (the whole field is its label, so a click anywhere in it types) */
+.nw-amt-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
-  min-height: 45px;
-  border-bottom: 1px solid var(--grid);
-  transition: border-color 0.15s;
+  gap: 6px 8px;
+  min-width: 0;
 }
-.nw-bal-fig:hover {
-  border-bottom-color: var(--axis);
+.nw-amt {
+  display: inline-flex;
+  align-items: stretch;
+  min-width: 150px;
+  max-width: 100%;
+  height: 36px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  cursor: text;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
-.nw-bal-fig:focus-within {
-  border-bottom-color: var(--focus);
+.nw-amt:hover {
+  border-color: var(--axis);
 }
-.nw-bal-fig.is-changed {
-  border-bottom-color: var(--ink2);
+.nw-amt.is-changed {
+  border-color: var(--ink2);
 }
-.nw-bal-cur {
-  align-self: flex-start;
-  margin-top: 7px;
+.nw-amt.is-bad {
+  border-color: color-mix(in srgb, var(--bear) 55%, var(--line));
+}
+.nw-amt:focus-within {
+  border-color: var(--focus);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--focus) 16%, transparent);
+}
+.nw-amt-cur {
+  display: grid;
+  place-items: center;
+  flex: none;
+  min-width: 32px;
+  padding: 0 8px;
   font-family: var(--figs);
-  font-size: 16px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--ink2);
+  background: var(--surface);
+  border-right: 1px solid var(--grid);
+  border-radius: 3px 0 0 3px;
+}
+/* a sign that's a word (AED, CHF) */
+.nw-amt-cur.is-code {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
 }
 /* the figure as typed: the input's own text is clear, and a copy set the way the total is (paise a
    shade lighter) shows through it, letter for letter in the same place */
 .nw-bal-type {
   display: inline-grid;
+  align-items: center;
   min-width: 0;
+  padding: 0 10px;
 }
 .nw-bal-type > * {
   grid-area: 1 / 1;
 }
-.nw-bal-mirror {
-  height: 43px;
-  padding: 0 2px;
+.nw-bal-mirror,
+.nw-amt input {
+  height: 34px;
+  padding: 0;
   font-family: var(--figs);
-  font-size: 30px;
+  font-size: 15px;
   font-weight: 600;
-  line-height: 43px;
-  letter-spacing: -0.015em;
+  line-height: 34px;
+  letter-spacing: -0.005em;
   font-variant-numeric: tabular-nums lining-nums;
+}
+.nw-bal-mirror {
   white-space: pre;
   color: var(--ink);
   pointer-events: none;
 }
 .nw-bal-mirror .fig-frac {
-  color: var(--ink2);
+  color: var(--muted);
 }
-.nw-bal-fig input {
+.nw-amt input {
   field-sizing: content;
-  min-width: 3ch;
+  min-width: 4ch;
   max-width: 100%;
-  height: 43px;
-  padding: 0 2px;
-  font-family: var(--figs);
-  font-size: 30px;
-  font-weight: 600;
-  letter-spacing: -0.015em;
-  font-variant-numeric: tabular-nums lining-nums;
   color: transparent;
   caret-color: var(--ink);
   background: none;
   border: 0;
   outline: none;
 }
+/* once it's changed: the change, then Save and Cancel */
 .nw-bal-go {
   display: inline-flex;
-  gap: 4px;
-  margin-left: 11px;
+  align-items: center;
+  gap: 6px;
   animation: lg-open 0.15s ease-out both;
+}
+.nw-amt-diff {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  margin-right: 2px;
+  padding: 0 7px;
+  font-family: var(--figs);
+  font-size: 11.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--ink2);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+}
+.nw-amt-diff.up {
+  color: var(--bull-ink);
+  background: color-mix(in srgb, var(--bull) 8%, var(--raised));
+  border-color: color-mix(in srgb, var(--bull) 26%, var(--line));
+}
+.nw-amt-diff.down {
+  color: var(--bear-ink);
+  background: color-mix(in srgb, var(--bear) 7%, var(--raised));
+  border-color: color-mix(in srgb, var(--bear) 26%, var(--line));
 }
 .nw-bal-hint {
   min-height: 18px;
@@ -8679,19 +8733,6 @@ fieldset.bare:disabled {
   align-items: center;
   gap: 7px 18px;
   padding-top: 2px;
-}
-.nw-bal.is-line .nw-bal-fig {
-  min-height: 36px;
-}
-.nw-bal.is-line .nw-bal-cur {
-  margin-top: 5px;
-  font-size: 12px;
-}
-.nw-bal.is-line .nw-bal-fig input,
-.nw-bal.is-line .nw-bal-mirror {
-  height: 34px;
-  font-size: 20.5px;
-  line-height: 34px;
 }
 .nw-bal.is-line .nw-bal-hint {
   flex: 1 1 auto;
@@ -9341,9 +9382,10 @@ fieldset.bare:disabled {
   .nw-bal-main {
     flex: 1 1 100%;
   }
-  .nw-bal-fig input,
+  /* 16px, or iOS zooms in on the field when it's tapped */
+  .nw-amt input,
   .nw-bal-mirror {
-    font-size: 26.5px;
+    font-size: 16px;
   }
   .nw-bal-facts {
     padding-bottom: 0;

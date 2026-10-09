@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useLayoutEffect, useRef, useState } from "react";
+import React, { useContext, useLayoutEffect, useRef, useState } from "react";
 import { Banknote, ChartPie, Check, ChevronDown, Ellipsis, HandCoins, Landmark, PiggyBank, Trash2, TrendingUp } from "lucide-react";
 import { DropdownMenu } from "radix-ui";
 import { toast } from "sonner";
@@ -16,6 +16,7 @@ import { BANKS } from "@/lib/cards";
 import { inr } from "@/lib/kite";
 import { grouped, regroup } from "@/lib/money";
 import { Mark, bankIn, brandFor } from "./k7/Marks";
+import { Money } from "./k7/Money";
 
 // A balance typed in by hand (a bank account, a deposit, cash, an investment account like Merrill,
 // mutual funds on Groww, a loan), added the way the vault
@@ -139,7 +140,9 @@ function BalanceForm({ initial, preset, gross, rate, onBusy, onClose, onSaved, o
     // a mutual fund needs only where it's held, what it's worth and which fund: no kinds to pick from
     const fundsOnly = kind === "funds" && (preset === "funds" || initial?.kind === "funds");
     const held = kind === "invest" || kind === "funds"; // held with a broker or a platform, not only a bank
-    const [currency, setCurrency] = useState(initial?.currency || "INR");
+    // a new balance starts in the page's currency, when it's one a balance can be kept in
+    const page = useContext(Money);
+    const [currency, setCurrency] = useState(initial?.currency || (page.code === "USD" ? "USD" : "INR"));
     const dollars = currency === "USD";
     const [amount, setAmount] = useState(() => (initial ? grouped(Number.isInteger(initial.amount) ? String(initial.amount) : initial.amount.toFixed(2), dollars) : ""));
     const [name, setName] = useState(initial?.name || "");

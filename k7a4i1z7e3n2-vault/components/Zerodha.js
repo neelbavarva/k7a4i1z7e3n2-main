@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowUpRight, LogOut, RefreshCw, Search } from "lucide-react";
 import MoreMenu from "./k7/MoreMenu";
 import { toast } from "sonner";
@@ -12,7 +12,6 @@ import {
     clock,
     connectUrl,
     holdingsSummary,
-    inr,
     instrumentOf,
     kiteGet,
     kitePost,
@@ -27,6 +26,8 @@ import {
     takeHandoff,
 } from "@/lib/kite";
 import { sideOf } from "@/lib/format";
+import { moneyText } from "@/lib/currency";
+import { Money } from "./k7/Money";
 import Seg from "./k7/Seg";
 import { useCountUp, useNow } from "./k7/hooks";
 
@@ -241,9 +242,25 @@ function TodaysLogin() {
     );
 }
 
-export function Rupees({ value, sign }) {
+/**
+ * A rupee amount as text in the page's currency (Finance's, see k7/Money.js), with inr()'s options:
+ * `sign` puts a + on a gain, `whole` drops the paise or cents, though not under a hundred, where
+ * they're most of it (₹48 is $0.50, not $0). Prices stay in rupees, as the exchange quotes them
+ * (num()); amounts follow the page.
+ */
+function useCash() {
+    const m = useContext(Money);
+    return (x, { sign = false, whole = false } = {}) => {
+        const v = (Number(x) || 0) * m.k;
+        return moneyText(v, m, { sign, paise: whole && Math.abs(v) >= 100 ? "never" : "auto" });
+    };
+}
+
+/** A rupee amount in the page's currency, counting up to a new value. */
+export function Amount({ value, sign }) {
     const v = useCountUp(value);
-    return <>{inr(Math.round(v * 100) / 100, { sign })}</>;
+    const cash = useCash();
+    return <>{cash(Math.round(v * 100) / 100, { sign })}</>;
 }
 
 /** A section that Kite didn't send says why, instead of the whole page failing. */
@@ -317,6 +334,7 @@ const list = (items) => (items.length > 1 ? `${items.slice(0, -1).join(", ")} an
 // ---------- Funds ----------
 
 function Funds({ funds, profile }) {
+    const cash = useCash();
     const eq = funds?.data?.equity;
     const co = funds?.data?.commodity;
     const used = eq?.utilised?.debits || 0;
@@ -327,27 +345,27 @@ function Funds({ funds, profile }) {
               <div key="net" className="brief-cell">
                   <dt>Available to trade</dt>
                   <dd className="brief-num sm">
-                      <Rupees value={eq.net} />
+                      <Amount value={eq.net} />
                   </dd>
                   <dd className="brief-sub">
-                      Cash {inr(eq.available?.cash, { whole: true })}
-                      {eq.available?.collateral ? <> · collateral {inr(eq.available.collateral, { whole: true })}</> : null}
+                      Cash {cash(eq.available?.cash, { whole: true })}
+                      {eq.available?.collateral ? <> · collateral {cash(eq.available.collateral, { whole: true })}</> : null}
                   </dd>
               </div>,
               used > 0 && (
                   <div key="used" className="brief-cell">
                       <dt>Margin used</dt>
                       <dd className="brief-num sm">
-                          <Rupees value={used} />
+                          <Amount value={used} />
                       </dd>
                       <dd className="meter" aria-hidden="true">
                           <span className="meter-fill" style={{ width: `${Math.min(100, (used / ((eq.net || 0) + used || 1)) * 100)}%` }} />
                       </dd>
                       <dd className="brief-sub">
                           {[
-                              eq.utilised?.span ? `SPAN ${inr(eq.utilised.span, { whole: true })}` : "",
-                              eq.utilised?.exposure ? `exposure ${inr(eq.utilised.exposure, { whole: true })}` : "",
-                              eq.utilised?.option_premium ? `premium ${inr(eq.utilised.option_premium, { whole: true })}` : "",
+                              eq.utilised?.span ? `SPAN ${cash(eq.utilised.span, { whole: true })}` : "",
+                              eq.utilised?.exposure ? `exposure ${cash(eq.utilised.exposure, { whole: true })}` : "",
+                              eq.utilised?.option_premium ? `premium ${cash(eq.utilised.option_premium, { whole: true })}` : "",
                           ]
                               .filter(Boolean)
                               .join(" · ")}
@@ -357,7 +375,7 @@ function Funds({ funds, profile }) {
               <div key="open" className="brief-cell">
                   <dt>Opening balance</dt>
                   <dd className="brief-num sm">
-                      <Rupees value={opening} />
+                      <Amount value={opening} />
                   </dd>
                   <dd className="brief-sub">{Math.abs(opening - eq.net) < 0.005 ? "Untouched today" : "Equity, at the start of today"}</dd>
               </div>,
@@ -365,9 +383,9 @@ function Funds({ funds, profile }) {
                   <div key="co" className="brief-cell">
                       <dt>Commodity</dt>
                       <dd className="brief-num sm">
-                          <Rupees value={co?.net || 0} />
+                          <Amount value={co?.net || 0} />
                       </dd>
-                      <dd className="brief-sub">Used {inr(co?.utilised?.debits || 0, { whole: true })}</dd>
+                      <dd className="brief-sub">Used {cash(co?.utilised?.debits || 0, { whole: true })}</dd>
                   </div>
               ),
           ].filter(Boolean)
@@ -391,6 +409,7 @@ function Funds({ funds, profile }) {
 // ---------- Today ----------
 
 function Today({ positions, orders, trades, charges }) {
+    const cash = useCash();
     const net = positions?.data?.net || [];
     const p = positionsSummary(net);
     const list = orders?.data || [];
@@ -409,15 +428,15 @@ function Today({ positions, orders, trades, charges }) {
                 <div className="perf-main">
                     <span className="perf-label">Positions P&amp;L</span>
                     <span className={`perf-net ${sideOf(p.pnl)}`}>
-                        <Rupees value={p.pnl} sign />
+                        <Amount value={p.pnl} sign />
                     </span>
                     <span className="perf-sub">
-                        <span className={sideOf(p.realised)}>{inr(p.realised, { sign: true })}</span> booked <span className="muted">·</span>{" "}
-                        <span className={sideOf(p.unrealised)}>{inr(p.unrealised, { sign: true })}</span> open
+                        <span className={sideOf(p.realised)}>{cash(p.realised, { sign: true })}</span> booked <span className="muted">·</span>{" "}
+                        <span className={sideOf(p.unrealised)}>{cash(p.unrealised, { sign: true })}</span> open
                     </span>
                     {fees.total > 0 && (
                         <span className="perf-sub">
-                            After charges <b className={sideOf(p.pnl - fees.total)}>{inr(p.pnl - fees.total, { sign: true })}</b>
+                            After charges <b className={sideOf(p.pnl - fees.total)}>{cash(p.pnl - fees.total, { sign: true })}</b>
                         </span>
                     )}
                 </div>
@@ -436,8 +455,8 @@ function Today({ positions, orders, trades, charges }) {
                     </div>
                     <div className="perf-stat">
                         <dt>Charges</dt>
-                        <dd className="perf-num">{inr(fees.total)}</dd>
-                        <dd className="perf-note">{fees.total ? `Brokerage ${inr(fees.brokerage)} · taxes ${inr(fees.taxes)}` : "Nothing filled yet"}</dd>
+                        <dd className="perf-num">{cash(fees.total)}</dd>
+                        <dd className="perf-note">{fees.total ? `Brokerage ${cash(fees.brokerage)} · taxes ${cash(fees.taxes)}` : "Nothing filled yet"}</dd>
                     </div>
                     <div className="perf-stat">
                         <dt>Trades</dt>
@@ -463,7 +482,7 @@ function Today({ positions, orders, trades, charges }) {
                         <span key="q" className={`kt-num${r.quantity ? "" : " muted"}`}>{num(r.quantity, 0)}</span>,
                         <span key="a" className="kt-num">{r.quantity ? num(r.average_price) : "—"}</span>,
                         <span key="l" className="kt-num">{num(r.last_price)}</span>,
-                        <span key="p" className={`kt-num pnl ${sideOf(r.pnl)}`}>{inr(r.pnl, { sign: true })}</span>,
+                        <span key="p" className={`kt-num pnl ${sideOf(r.pnl)}`}>{cash(r.pnl, { sign: true })}</span>,
                     ]}
                 />
             )}
@@ -527,7 +546,7 @@ function Today({ positions, orders, trades, charges }) {
                                 <SideTag key="d" side={r.transaction_type} />,
                                 <span key="q" className="kt-num">{num(r.quantity, 0)}</span>,
                                 <span key="p" className="kt-num">{num(r.average_price)}</span>,
-                                <span key="v" className="kt-num">{inr(r.quantity * r.average_price, { whole: true })}</span>,
+                                <span key="v" className="kt-num">{cash(r.quantity * r.average_price, { whole: true })}</span>,
                             ]}
                         />
                     ) : (
@@ -542,6 +561,7 @@ function Today({ positions, orders, trades, charges }) {
 // ---------- Holdings ----------
 
 function Holdings({ holdings }) {
+    const cash = useCash();
     const list = useMemo(
         () => [...(holdings?.data || [])].sort((a, b) => b.last_price * b.quantity - a.last_price * a.quantity),
         [holdings]
@@ -560,12 +580,12 @@ function Holdings({ holdings }) {
                         <div className="perf-main">
                             <span className="perf-label">Current value</span>
                             <span className="perf-net">
-                                <Rupees value={h.current} />
+                                <Amount value={h.current} />
                             </span>
                             <span className="perf-sub">
-                                {inr(h.invested, { whole: true })} invested <span className="muted">·</span>{" "}
+                                {cash(h.invested, { whole: true })} invested <span className="muted">·</span>{" "}
                                 <span className={sideOf(h.pnl)}>
-                                    {inr(h.pnl, { sign: true, whole: true })} ({pct(h.pnlPct)})
+                                    {cash(h.pnl, { sign: true, whole: true })} ({pct(h.pnlPct)})
                                 </span>
                             </span>
                             <Allocation list={list} total={h.current} />
@@ -574,12 +594,12 @@ function Holdings({ holdings }) {
                             <div className="perf-stat">
                                 <dt>Total P&amp;L</dt>
                                 <dd className={`perf-num ${sideOf(h.pnl)}`}>{pct(h.pnlPct)}</dd>
-                                <dd className="perf-note">{inr(h.pnl, { sign: true })}</dd>
+                                <dd className="perf-note">{cash(h.pnl, { sign: true })}</dd>
                             </div>
                             <div className="perf-stat">
                                 <dt>Today</dt>
                                 <dd className={`perf-num ${sideOf(h.day)}`}>{pct(h.dayPct)}</dd>
-                                <dd className="perf-note">{inr(h.day, { sign: true })}</dd>
+                                <dd className="perf-note">{cash(h.day, { sign: true })}</dd>
                             </div>
                             <div className="perf-stat">
                                 <dt>In profit</dt>
@@ -611,9 +631,9 @@ function Holdings({ holdings }) {
                                 <Sym key="s" title={r.tradingsymbol} sub={`${r.exchange} · ${num(qty, 0)} shares${r.t1_quantity ? ` · ${r.t1_quantity} T1` : ""}`} />,
                                 <span key="a" className="kt-num">{num(r.average_price)}</span>,
                                 <span key="l" className="kt-num">{num(r.last_price)}</span>,
-                                <span key="v" className="kt-num">{inr(qty * r.last_price, { whole: true })}</span>,
+                                <span key="v" className="kt-num">{cash(qty * r.last_price, { whole: true })}</span>,
                                 <span key="p" className={`kt-num pnl ${sideOf(pnl)}`}>
-                                    {inr(pnl, { sign: true, whole: true })}
+                                    {cash(pnl, { sign: true, whole: true })}
                                     <small>{pct(r.average_price ? ((r.last_price - r.average_price) / r.average_price) * 100 : null)}</small>
                                 </span>,
                                 <span key="d" className={`kt-num ${sideOf(r.day_change_percentage)}`}>{pct(r.day_change_percentage)}</span>,
@@ -655,6 +675,7 @@ function Allocation({ list, total }) {
 // ---------- Mutual funds ----------
 
 function Funds2({ mf, sips }) {
+    const cash = useCash();
     const list = mf?.data || [];
     const sipList = sips?.data || [];
     const invested = list.reduce((a, x) => a + x.quantity * x.average_price, 0);
@@ -668,9 +689,9 @@ function Funds2({ mf, sips }) {
                 <span className="count">{list.length}</span>
                 {list.length > 0 && (
                     <span className="group-sum">
-                        <span className="muted">{inr(current, { whole: true })}</span>
+                        <span className="muted">{cash(current, { whole: true })}</span>
                         <b className={sideOf(current - invested)}>
-                            {inr(current - invested, { sign: true, whole: true })} ({pct(invested ? ((current - invested) / invested) * 100 : null)})
+                            {cash(current - invested, { sign: true, whole: true })} ({pct(invested ? ((current - invested) / invested) * 100 : null)})
                         </b>
                     </span>
                 )}
@@ -691,9 +712,9 @@ function Funds2({ mf, sips }) {
                             <Sym key="s" title={fundName(r.fund)} sub={`Folio ${r.folio} · avg NAV ${num(r.average_price)}`} />,
                             <span key="u" className="kt-num">{num(r.quantity, 3)}</span>,
                             <span key="n" className="kt-num">{num(r.last_price)}</span>,
-                            <span key="v" className="kt-num">{inr(r.quantity * r.last_price, { whole: true })}</span>,
+                            <span key="v" className="kt-num">{cash(r.quantity * r.last_price, { whole: true })}</span>,
                             <span key="p" className={`kt-num pnl ${sideOf(pnl)}`}>
-                                {inr(pnl, { sign: true, whole: true })}
+                                {cash(pnl, { sign: true, whole: true })}
                                 <small>{pct(r.average_price ? ((r.last_price - r.average_price) / r.average_price) * 100 : null)}</small>
                             </span>,
                         ];
@@ -704,7 +725,7 @@ function Funds2({ mf, sips }) {
                 <>
                     <div className="kt-sub-head">
                         <h3 className="group-title">SIPs</h3>
-                        {monthly > 0 && <span className="group-note">{inr(monthly)} a month</span>}
+                        {monthly > 0 && <span className="group-note">{cash(monthly)} a month</span>}
                     </div>
                     <Table
                         label="SIPs"
@@ -716,7 +737,7 @@ function Funds2({ mf, sips }) {
                         rowKey={(r) => r.sip_id}
                         render={(r) => [
                             <Sym key="s" title={fundName(r.fund)} sub={capital(r.frequency)} />,
-                            <span key="a" className="kt-num">{inr(r.instalment_amount)}</span>,
+                            <span key="a" className="kt-num">{cash(r.instalment_amount)}</span>,
                             <span key="n" className="kt-num">{r.next_instalment ? shortDay(r.next_instalment) : "—"}</span>,
                             <span key="c" className="kt-num">{r.completed_instalments ?? "—"}</span>,
                             <Chip key="st" tone={r.status === "ACTIVE" ? "done" : r.status === "PAUSED" ? "open" : "failed"}>

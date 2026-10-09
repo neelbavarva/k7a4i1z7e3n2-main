@@ -56,7 +56,7 @@ npm run build
     than one place a draggable canvas `Globe` beside them (the Earth: land dots, today's day and night, each account pinned at its bank's or broker's city, threads from home, crypto wallets on orbits) with the kinds boxed under it; then one
     `Ledger` card where each account opens in place under its row, with an add row per group), `Zerodha` (Kite
     account, only the sections that have something, plus `TodaysLogin` for the 6 AM login window;
-    also exports `Table`, `Sym`, `SideTag`, `Rupees`, `Chip`), `AddWallet`, `BalanceDialog`.
+    also exports `Table`, `Sym`, `SideTag`, `Amount`, `Chip`), `AddWallet`, `BalanceDialog`.
     Sources: Zerodha, crypto wallets, typed-in balances (kinds include `invest`, a brokerage account
     like Merrill, and `funds`, mutual funds on Groww). MetaTrader (MT5) and the Groww API were removed;
     the API server still has its `/mt5` and `/groww` routes, unused by the vault.
@@ -85,10 +85,13 @@ npm run build
     `/worth/funds/:code`.
   - `currency.js`: the currency the Finance page is shown in (`currencyOf` for any code, names from
     `Intl.DisplayNames`; `currenciesIn(rates)`, the common few first; `flagOf`, flags in `public/flags`;
-    `perRupee`, `moneyParts`, `moneyText`, `useCurrencyCode`, kept in localStorage). `/worth/fx` gives every
+    `perRupee`, `moneyParts`, `moneyText`, `useCurrencyCode`: dollars until one is picked, the pick kept in
+    localStorage as `financeCurrency`; Finance keeps the last rates too, `worthFx`, so the page opens in its
+    currency before today's arrive). `/worth/fx` gives every
     ECB currency plus the Gulf ones at their dollar pegs. Totals are worked out in rupees, trades in
-    dollars; `k7/Money.js` turns both into the picked currency at today's rate. An account's own
-    panel stays in its currency.
+    dollars; `k7/Money.js` turns both into the picked currency at today's rate, the accounts' own
+    panels too (Zerodha's amounts; share prices stay in rupees, as quoted). A typed-in balance is typed in
+    the page's currency and kept in its own (rupees or dollars), turned at today's rate.
   - `places.js`: cities, the bank and broker headquarters behind `placeOf(mark)`, `landPoints()` (unpacked
     from `landDots.js`, a bitmask made once from Natural Earth's 1:110m land), `sunVec()`.
   - `cards.js`: `BANKS` (with regions), card faces/colours, network detection, Luhn.

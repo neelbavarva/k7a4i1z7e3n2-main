@@ -15,6 +15,8 @@ const TRADES = [
 
 let trades = [];
 let wallets = () => ({ wallets: [] });
+let manual = [];
+let kite = null; // a Zerodha account to answer /kite/account with, signed in for the day
 
 const wallet = (error) => ({
     _id: "w1",
@@ -30,13 +32,21 @@ const wallet = (error) => ({
 beforeEach(() => {
     trades = [];
     wallets = () => ({ wallets: [] });
+    manual = [];
+    kite = null;
     localStorage.setItem("worthListOpen", "1"); // the accounts list open, unless a test shuts it
+    // the figures are checked in rupees, at 96.7, unless a test says otherwise; the page itself starts
+    // in dollars (see "The page's currency"), and no rates are kept from a test before
+    localStorage.setItem("financeCurrency", "INR");
+    localStorage.removeItem("worthFx");
+    localStorage.removeItem("kiteSession");
     http.mockReset();
     http.mockImplementation(async (path) => {
         if (path === "/trades/getTrades") return trades;
         if (path === "/kite/status") return { configured: false };
+        if (path === "/kite/account") return kite;
         if (path === "/worth/fx") return { rate: 96.7, rates: { USD: 1, INR: 96.7 }, date: "2026-10-09" };
-        if (path === "/worth/manual") return [];
+        if (path === "/worth/manual") return manual;
         if (path.startsWith("/crypto/wallets")) return wallets(path);
         if (path.startsWith("/worth/history")) return [];
         return {};
@@ -175,12 +185,92 @@ describe("Trading in the net worth", () => {
     });
 
     it("shows the whole page in the currency picked, trades included", async () => {
-        localStorage.setItem("worthCurrency", "USD");
+        localStorage.setItem("financeCurrency", "USD");
         trades = TRADES;
         await renderFinance();
         await counted();
         expect(document.querySelector(".tx-big .fig").getAttribute("aria-label")).toBe("plus $80.00");
         expect(document.querySelector(".hx-big .fig").getAttribute("aria-label")).toBe("minus $40.00");
+    });
+});
+
+describe("The page's currency", () => {
+    const savings = { _id: "m2", name: "Savings account", kind: "bank", bank: "sbi", amount: 787, currency: "INR", note: "", updatedAt: "2026-10-05T10:00:00Z", history: [] };
+    const open = (name) => fireEvent.click([...document.querySelectorAll("#lg-list .lg-row")].find((r) => r.textContent.includes(name)));
+
+    it("is dollars until another is picked, whatever the page kept before", async () => {
+        localStorage.removeItem("financeCurrency");
+        localStorage.setItem("worthCurrency", "INR"); // written on every visit before, so not a choice
+        trades = TRADES;
+        await renderFinance();
+        await counted();
+        expect(document.querySelector(".hx-big .fig").getAttribute("aria-label")).toBe("minus $40.00");
+        // the trading's line doesn't repeat its dollars, the row already shows them
+        const line = [...document.querySelectorAll(".lg-row")].find((r) => r.textContent.includes("Forex trading"));
+        expect(line.textContent).toContain("Real account · 1 closed · 1 open");
+        expect(line.textContent).not.toContain("−$40.00");
+    });
+
+    it("types a balance in the page's currency and keeps it in the account's own", async () => {
+        localStorage.removeItem("financeCurrency");
+        manual = [savings];
+        // the usual answers, and a save answers with the saved entry
+        const answer = http.getMockImplementation();
+        http.mockImplementation(async (path, o) => (o?.method === "PUT" ? { ...savings, ...o.body, updatedAt: "2026-10-09T10:00:00Z" } : answer(path, o)));
+        await renderFinance();
+        // the row says what the account holds, in rupees, beside its dollars
+        const row = [...document.querySelectorAll("#lg-list .lg-row")].find((r) => r.textContent.includes("Savings account"));
+        expect(row.textContent).toContain("Savings account · ₹787");
+        open("Savings account");
+        const field = screen.getByLabelText("Balance today");
+        expect(field.value).toBe("8.14"); // ₹787 at 96.7
+        expect(document.querySelector(".nw-amt-cur").textContent).toBe("$");
+        fireEvent.change(field, { target: { value: "10" } });
+        expect(document.querySelector(".nw-amt-diff").textContent).toBe("+$1.86");
+        expect(document.querySelector(".nw-bal.is-line .nw-bal-hint").textContent).toBe("was $8.14 · keeps ₹967");
+        await act(async () => {
+            fireEvent.click(screen.getByRole("button", { name: "Save" }));
+        });
+        expect(http).toHaveBeenCalledWith("/worth/manual/m2", expect.objectContaining({ method: "PUT", body: expect.objectContaining({ amount: 967, currency: "INR" }) }));
+    });
+
+    it("types it in the account's own currency when the page is in it", async () => {
+        manual = [savings];
+        await renderFinance();
+        open("Savings account");
+        expect(screen.getByLabelText("Balance today").value).toBe("787");
+        expect(document.querySelector(".nw-amt-cur").textContent).toBe("₹");
+        // the row doesn't repeat what the account holds: it's the figure already
+        const row = [...document.querySelectorAll("#lg-list .lg-row")].find((r) => r.textContent.includes("Savings account"));
+        expect(row.textContent).not.toContain("· ₹787");
+    });
+
+    it("shows Zerodha's money in it, prices left as the exchange quotes them", async () => {
+        localStorage.removeItem("financeCurrency");
+        localStorage.setItem("kiteSession", JSON.stringify({ session: "s", expiresAt: "2999-01-01T00:00:00Z", userName: "Test Trader" }));
+        kite = {
+            fetchedAt: "2026-10-09T10:00:00Z",
+            sections: {
+                profile: { data: { user_id: "QX4821", user_name: "Test Trader", exchanges: ["NSE"] } },
+                funds: { data: { equity: { enabled: true, net: 48, available: { cash: 48, opening_balance: 48 }, utilised: { debits: 0 } }, commodity: { enabled: false } } },
+                holdings: { data: [] },
+                positions: { data: { net: [] } },
+                orders: { data: [] },
+                trades: { data: [] },
+                charges: { data: [] },
+                gtt: { data: [] },
+                alerts: { data: [] },
+                mfHoldings: { data: [] },
+                sips: { data: [] },
+            },
+        };
+        await renderFinance();
+        // ₹48 at 96.7 is 50 cents, not $0
+        const row = [...document.querySelectorAll("#lg-list .lg-row")].find((r) => r.textContent.includes("Zerodha"));
+        expect(row.textContent).toContain("No holdings · cash $0.50");
+        open("Zerodha");
+        await counted();
+        expect(document.querySelector(".kt .brief-sub").textContent).toBe("Cash $0.50");
     });
 });
 

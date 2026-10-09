@@ -20,5 +20,7 @@ window.ResizeObserver ||= class {
     disconnect() {}
 };
 Element.prototype.scrollIntoView ||= function () {};
+// jsdom has window.scrollTo, but only to say it isn't implemented
+window.scrollTo = () => {};
 Element.prototype.hasPointerCapture ||= () => false;
 Element.prototype.releasePointerCapture ||= () => {};
