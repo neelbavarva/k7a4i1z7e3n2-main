@@ -11,6 +11,18 @@ the 6-digit code from your authenticator app; the code is checked here, against 
 24 hours. While `VAULT_TOTP_SECRET` isn't set, `/otp/unlock` answers 503 and the vault falls back to
 its old in-browser check.
 
+## Trades (`/trades`)
+
+The trade journal, graded against the checklist (strategy points).
+
+| Route | What it does |
+|---|---|
+| `GET /trades/getTrades`, `GET /trades/getTrades/:id` | Every trade, newest first; one trade's checklist answers. |
+| `POST /trades/newTrade` | Logs a trade. |
+| `PUT /trades/updateTrade/:id` | Closes a trade: its result, notes and chart links. |
+| `PUT /trades/archiveTrade/:id` | `{ archived: true \| false }`. An archived trade stays in the journal but out of every total in the vault (stats, P&L, the net worth); only `archived` and `archivedAt` change. |
+| `GET /trades/getStrategyPoints`, `GET /trades/getStrategySecondaryPoints` | The checklist. |
+
 ## Zerodha (`/kite`)
 
 Read-only access to one Zerodha account through Kite Connect, shown on the vault's Trades page under **Zerodha**.
@@ -49,8 +61,10 @@ The vault's **Trades → Net worth** page adds these up with Zerodha. All need t
 
 | Route | What it does |
 |---|---|
-| `GET /worth/fx` | US dollar in rupees (ECB rate via Frankfurter, cached an hour). |
-| `GET, POST /worth/manual`, `PUT, DELETE /worth/manual/:id` | Entries typed in by hand: bank balances, deposits, cash, loans. |
+| `GET /worth/fx` | US dollar in rupees (`rate`), and `rates`: each currency the net worth page can be shown in, per dollar (INR, EUR, GBP, SGD, JPY, AUD, CAD, CHF from the ECB via Frankfurter, the pegged AED; cached an hour). |
+| `GET, POST /worth/manual`, `PUT, DELETE /worth/manual/:id` | Entries typed in by hand: bank balances, deposits, cash, investment accounts, mutual funds (with their AMFI `scheme` code), loans. A new figure keeps the one it replaces in `history` (the last 60, with when each was typed), for the vault's trail. |
+| `GET /worth/funds` | Every open-ended mutual fund's Direct Growth plan, and the ETFs, from AMFI's daily `NAVAll.txt` (free, no key; cached six hours): code, clean name, fund house, kind, Groww-style category, NAV. |
+| `GET /worth/funds/:code` | One fund's latest NAV and its 1, 3 and 5 year returns (3 and 5 a year on average), from its NAV history on mfapi.in (cached six hours). |
 | `GET /groww/status`, `GET /groww/account` | Groww holdings (valued with delayed Yahoo Finance prices; Groww's free API has none), positions and funds. |
 | `GET /mt5/accounts`, `PUT /mt5/accounts/:id`, `POST /mt5/push` | Every MT5 account's balance, equity, margin and open positions; its name here and whether it counts; the add-on's reports. |
 

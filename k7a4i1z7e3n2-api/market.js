@@ -21,20 +21,36 @@ async function cached(key, ms, fn) {
     return pending;
 }
 
-const getJson = async (url) => {
-    const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (kaizen)" }, signal: AbortSignal.timeout(10000) });
+const get = async (url, ms = 10000) => {
+    const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (kaizen)" }, signal: AbortSignal.timeout(ms) });
     if (!res.ok) throw new Error(`${new URL(url).host} answered ${res.status}`);
-    return res.json();
+    return res;
 };
+const getJson = async (url, ms) => (await get(url, ms)).json();
+const getText = async (url, ms) => (await get(url, ms)).text();
 
-/** Rupees per US dollar, refreshed hourly (the ECB publishes once a working day). */
-function usdInr() {
-    return cached("fx:USDINR", 60 * 60 * 1000, async () => {
-        const j = await getJson("https://api.frankfurter.dev/v1/latest?base=USD&symbols=INR");
-        const rate = Number(j?.rates?.INR);
-        if (!(rate > 0)) throw new Error("No USD/INR rate");
-        return { rate, date: j.date, source: "ECB via Frankfurter" };
+// The Gulf currencies aren't in the ECB's set, but each is pegged to the dollar at a fixed rate
+// (the Kuwaiti dinar follows a basket, so it isn't here)
+const PEGGED = { AED: 3.6725, SAR: 3.75, QAR: 3.64, OMR: 0.3845, BHD: 0.376 };
+
+/**
+ * Every currency the ECB publishes (about 30) per US dollar, refreshed hourly (it publishes once a
+ * working day), plus the pegged Gulf ones: { base: "USD", date, source, rates: { USD: 1, INR: 96.7, ... } }.
+ */
+function fxRates() {
+    return cached("fx:rates", 60 * 60 * 1000, async () => {
+        const j = await getJson("https://api.frankfurter.dev/v1/latest?base=USD");
+        const rates = { USD: 1, ...PEGGED };
+        for (const [c, r] of Object.entries(j?.rates || {})) if (/^[A-Z]{3}$/.test(c) && Number(r) > 0) rates[c] = Number(r);
+        if (!rates.INR) throw new Error("No USD/INR rate");
+        return { base: "USD", date: j.date, source: "ECB via Frankfurter", rates };
     });
+}
+
+/** Rupees per US dollar (from the same hourly rates). */
+async function usdInr() {
+    const fx = await fxRates();
+    return { rate: fx.rates.INR, date: fx.date, source: fx.source };
 }
 
 /** One stock's last price and previous close, NSE first and BSE if NSE doesn't know it. */
@@ -97,4 +113,4 @@ function unseal(box, pass) {
 
 const clearCache = () => cache.clear();
 
-module.exports = { usdInr, prices, nextIndiaReset, seal, unseal, clearCache };
+module.exports = { usdInr, fxRates, prices, nextIndiaReset, seal, unseal, clearCache, cached, getJson, getText };

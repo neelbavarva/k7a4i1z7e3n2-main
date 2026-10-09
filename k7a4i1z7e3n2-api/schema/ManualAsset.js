@@ -11,6 +11,9 @@ const manualAssetSchema = new mongoose.Schema(
         currency: { type: String, enum: ["INR", "USD"], default: "INR" },
         note: { type: String, trim: true, maxlength: 120, default: "" },
         bank: { type: String, trim: true, maxlength: 40, default: "" }, // a bank id from the vault's list, or a name typed in
+        scheme: { type: Number, default: null }, // a mutual fund's AMFI scheme code, when it was picked from the list
+        // the figures it had before, oldest first (the last 60), each with when it was typed: its trail
+        history: { type: [{ at: Date, amount: Number, currency: String, _id: false }], default: [] },
     },
     { timestamps: true, versionKey: false }
 );

@@ -160,4 +160,27 @@ router.put("/updateTrade/:id", apiKeyMiddleware, async (req, res) => {
     }
 });
 
+// Archives a trade, or brings it back: { archived: true | false }. An archived trade stays in the
+// journal but out of every total. Only this flag changes, so a closed trade's result is untouched.
+router.put("/archiveTrade/:id", apiKeyMiddleware, async (req, res) => {
+    try {
+        const { archived } = req.body || {};
+        if (typeof archived !== "boolean") {
+            return res.status(400).json({ error: "archived must be true or false" });
+        }
+        const updatedTrade = await Trade.findByIdAndUpdate(
+            req.params.id,
+            { $set: { archived, archivedAt: archived ? new Date() : null } },
+            { new: true }
+        );
+        if (!updatedTrade) {
+            return res.status(404).json({ error: "Trade not found" });
+        }
+        res.json({ message: archived ? "Trade archived" : "Trade restored", updatedTrade });
+    } catch (error) {
+        console.error("Error archiving trade:", error);
+        res.status(500).json({ error: "Failed to archive trade" });
+    }
+});
+
 module.exports = router;

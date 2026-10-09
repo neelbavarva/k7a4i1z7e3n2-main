@@ -48,15 +48,18 @@ const oid = () => String(nextId++).padStart(24, "0");
 fake("../schema/ManualAsset", {
     find: () => ({ sort: () => ({ lean: async () => copy(manual) }) }),
     create: async (f) => {
-        const doc = { _id: oid(), ...f };
+        const doc = { _id: oid(), ...f, history: [], updatedAt: "2026-10-01T10:00:00.000Z" };
         manual.push(doc);
         return doc;
     },
+    findById: (id) => ({ lean: async () => copy(manual.find((m) => m._id === id)) || null }),
     findByIdAndUpdate: (id, u) => ({
         lean: async () => {
             const doc = manual.find((m) => m._id === id);
-            if (doc) Object.assign(doc, u.$set);
-            return copy(doc) || null;
+            if (!doc) return null;
+            Object.assign(doc, u.$set, { updatedAt: new Date().toISOString() });
+            if (u.$push?.history) doc.history = [...(doc.history || []), ...u.$push.history.$each].slice(u.$push.history.$slice);
+            return copy(doc);
         },
     }),
     findByIdAndDelete: (id) => ({
@@ -100,7 +103,7 @@ const realFetch = globalThis.fetch;
 const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 function outside(url, init = {}) {
     const u = new URL(url);
-    if (u.host === "api.frankfurter.dev") return json(200, { base: "USD", date: "2026-10-07", rates: { INR: 96.5 } });
+    if (u.host === "api.frankfurter.dev") return json(200, { base: "USD", date: "2026-10-07", rates: { INR: 96.5, EUR: 0.89, GBP: 0.76, JPY: 158.3 } });
     if (u.host === "query1.finance.yahoo.com") {
         const sym = decodeURIComponent(u.pathname.split("/").pop());
         if (sym === "RELIANCE.NS") return json(200, { chart: { result: [{ meta: { regularMarketPrice: 1400, chartPreviousClose: 1390, regularMarketTime: 1791366301 } }] } });
@@ -183,9 +186,41 @@ after(() => {
 const req = (path, { method = "GET", body, key = KEY } = {}) =>
     realFetch(`${base}${path}`, { method, headers: { "Content-Type": "application/json", "x-api-key": key }, body: body ? JSON.stringify(body) : undefined });
 
-test("gives the dollar rate", async () => {
+test("gives the dollar rate, and each currency the page can be shown in", async () => {
     const r = await (await req("/worth/fx")).json();
     assert.equal(r.rate, 96.5);
+    // every currency the ECB sent, and the Gulf ones at their dollar pegs
+    assert.deepEqual(r.rates, { USD: 1, AED: 3.6725, SAR: 3.75, QAR: 3.64, OMR: 0.3845, BHD: 0.376, INR: 96.5, EUR: 0.89, GBP: 0.76, JPY: 158.3 });
+});
+
+test("keeps a balance's trail: each figure it replaces, with when it was typed", async () => {
+    const { _id } = await (await req("/worth/manual", { method: "POST", body: { name: "HDFC", kind: "bank", amount: 1200, currency: "INR" } })).json();
+    const put = (amount, note = "") => req(`/worth/manual/${_id}`, { method: "PUT", body: { name: "HDFC", kind: "bank", amount, currency: "INR", note } });
+    await put(1052.64);
+    let doc = await (await put(1052.64, "only the note")).json(); // same figure: nothing joins the trail
+    assert.deepEqual(
+        doc.history.map((h) => [h.amount, h.at]),
+        [[1200, "2026-10-01T10:00:00.000Z"]]
+    );
+    doc = await (await put(900)).json();
+    assert.deepEqual(
+        doc.history.map((h) => h.amount),
+        [1200, 1052.64]
+    );
+    assert.equal(doc.amount, 900);
+    await req(`/worth/manual/${_id}`, { method: "DELETE" });
+});
+
+test("keeps a mutual fund's scheme code, and checks it's a number", async () => {
+    const add = await req("/worth/manual", { method: "POST", body: { name: "Nippon India Small Cap Fund", kind: "funds", bank: "Groww", amount: 31650, currency: "INR", scheme: 118778 } });
+    assert.equal(add.status, 201);
+    const doc = await add.json();
+    assert.equal(doc.scheme, 118778);
+    assert.equal((await req("/worth/manual", { method: "POST", body: { name: "x", kind: "funds", amount: 1, currency: "INR", scheme: "abc" } })).status, 400);
+    const plain = await (await req("/worth/manual", { method: "POST", body: { name: "Cash", kind: "cash", amount: 5, currency: "INR" } })).json();
+    assert.equal(plain.scheme, null);
+    await req(`/worth/manual/${doc._id}`, { method: "DELETE" });
+    await req(`/worth/manual/${plain._id}`, { method: "DELETE" });
 });
 
 test("keeps hand-typed entries: add, change, list, remove, and checks what's sent", async () => {
