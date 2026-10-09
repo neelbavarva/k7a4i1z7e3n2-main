@@ -20,7 +20,7 @@ The trade journal, graded against the checklist (strategy points).
 | `GET /trades/getTrades`, `GET /trades/getTrades/:id` | Every trade, newest first; one trade's checklist answers. |
 | `POST /trades/newTrade` | Logs a trade. |
 | `PUT /trades/updateTrade/:id` | Closes a trade: its result, notes and chart links. |
-| `PUT /trades/archiveTrade/:id` | `{ archived: true \| false }`. An archived trade stays in the journal but out of every total in the vault (stats, P&L, the net worth); only `archived` and `archivedAt` change. |
+| `PUT /trades/archiveTrade/:id` | `{ archived: true \| false }`. An archived trade's result leaves the vault's total P&L (and so the net worth); its stats and the journal still count it. Only `archived` and `archivedAt` change. |
 | `GET /trades/getStrategyPoints`, `GET /trades/getStrategySecondaryPoints` | The checklist. |
 
 ## Zerodha (`/kite`)

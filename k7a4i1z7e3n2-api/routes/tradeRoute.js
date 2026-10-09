@@ -160,8 +160,8 @@ router.put("/updateTrade/:id", apiKeyMiddleware, async (req, res) => {
     }
 });
 
-// Archives a trade, or brings it back: { archived: true | false }. An archived trade stays in the
-// journal but out of every total. Only this flag changes, so a closed trade's result is untouched.
+// Archives a trade, or brings it back: { archived: true | false }. An archived trade's result is
+// out of the vault's total P&L; its stats still count. Only this flag changes, so the result is kept.
 router.put("/archiveTrade/:id", apiKeyMiddleware, async (req, res) => {
     try {
         const { archived } = req.body || {};

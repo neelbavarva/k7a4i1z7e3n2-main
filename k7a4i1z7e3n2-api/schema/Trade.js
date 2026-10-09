@@ -29,7 +29,7 @@ const tradeSchema = new mongoose.Schema({
     lowTf: { type: String, required: false },
     midTf: { type: String, required: false },
     highTf: { type: String, required: false },
-    // archived: kept in the journal, but out of every total (stats, P&L, the net worth)
+    // archived: its result is out of the vault's total P&L (and the net worth); every stat still counts it
     archived: { type: Boolean, default: false },
     archivedAt: { type: Date, default: null },
 });
