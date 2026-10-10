@@ -3070,9 +3070,46 @@ code.block {
   }
 }
 
+/* narrower screens (a pane of the split view, a small tablet): still a table, one line a market, with
+   its column heads; the day's change gives up its column, and the bias and lean narrow */
 @media (max-width: 900px) {
+  :root {
+    --row-cols: 8.5rem minmax(56px, 0.7fr) 2.75rem 4.25rem 6.5rem minmax(0, 1fr);
+  }
+  .row-headings,
+  .row {
+    column-gap: 12px;
+  }
+  .row-headings span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .row-headings span:nth-child(6),
+  .row-change {
+    display: none;
+  }
+}
+/* narrower still: the lean, which says the score in words, gives up its column to the next release */
+@media (max-width: 760px) {
+  :root {
+    --row-cols: 8.5rem minmax(56px, 0.7fr) 2.75rem 4.25rem minmax(0, 1fr);
+  }
+  .row-headings span:nth-child(5),
+  .row-label {
+    display: none;
+  }
+}
+
+/* phones: each market a small card of three lines (name, bias and score; lean, in 7 days and the
+   day's change; the next release) */
+@media (max-width: 640px) {
   .row-headings {
     display: none;
+  }
+  .row-change,
+  .row-label {
+    display: block;
   }
   .row {
     grid-template-columns: 9.5rem 1fr auto;
