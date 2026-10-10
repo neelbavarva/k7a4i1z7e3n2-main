@@ -120,9 +120,17 @@ export function Mark({ mark, size = 32 }) {
             </span>
         );
     }
+    // where it's held, when that isn't the mark itself (a fund on Groww): a small round badge on its
+    // corner, only where the mark is big enough to carry one
+    const badge = mark?.badge && size >= 28 ? Math.round(size * 0.56) : 0;
     return (
-        <span className="mk" style={{ "--ms": `${size}px` }} aria-hidden="true">
+        <span className={`mk${badge ? " has-badge" : ""}`} style={{ "--ms": `${size}px` }} aria-hidden="true">
             <Logo mark={mark} />
+            {badge ? (
+                <span className="mk-badge" style={{ "--ms": `${badge}px` }}>
+                    <Logo mark={mark.badge} />
+                </span>
+            ) : null}
         </span>
     );
 }

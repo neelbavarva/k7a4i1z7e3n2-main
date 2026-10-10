@@ -27,7 +27,7 @@ import {
 } from "@/lib/kite";
 import { sideOf } from "@/lib/format";
 import { moneyText } from "@/lib/currency";
-import { Money } from "./k7/Money";
+import { Money, masked } from "./k7/Money";
 import Seg from "./k7/Seg";
 import { useCountUp, useNow } from "./k7/hooks";
 
@@ -251,6 +251,7 @@ function TodaysLogin() {
 function useCash() {
     const m = useContext(Money);
     return (x, { sign = false, whole = false } = {}) => {
+        if (m.masked) return masked(m);
         const v = (Number(x) || 0) * m.k;
         return moneyText(v, m, { sign, paise: whole && Math.abs(v) >= 100 ? "never" : "auto" });
     };

@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { CandlestickChart, ChartPie, HandCoins, Landmark, Plus, TrendingUp, WalletMinimal } from "lucide-react";
+import { CandlestickChart, ChartPie, Eye, EyeOff, HandCoins, Landmark, Plus, TrendingUp, WalletMinimal } from "lucide-react";
 import { DropdownMenu } from "radix-ui";
 import { http } from "@/lib/http";
 import { currenciesIn, currencyOf, perRupee, ratesOf, useCurrencyCode } from "@/lib/currency";
 import { CurrencyMenu, Money } from "./k7/Money";
+import { useKey } from "./k7/hooks";
 import NetWorth from "./NetWorth";
 import Trades, { TradingStrip, useJournal, useTradeView } from "./Trades";
 
@@ -26,6 +27,30 @@ const still = () => window.matchMedia("(prefers-reduced-motion: reduce)").matche
 // the last rates read, kept in this browser: the page opens in its currency (dollars unless another
 // is picked) at those while today's are read, not in rupees until they come
 const FX_KEY = "worthFx";
+
+// the page's amounts hidden or shown, remembered in this browser (shown until hidden)
+const HIDE_KEY = "financeHidden";
+
+/** Whether the page's amounts are hidden, and the switch; kept in this browser. */
+function useHidden() {
+    const [hidden, setHidden] = useState(() => {
+        try {
+            return localStorage.getItem(HIDE_KEY) === "1";
+        } catch {
+            return false;
+        }
+    });
+    const toggle = () =>
+        setHidden((h) => {
+            try {
+                localStorage.setItem(HIDE_KEY, h ? "0" : "1");
+            } catch {
+                // storage blocked: it lasts until the page is closed
+            }
+            return !h;
+        });
+    return [hidden, toggle];
+}
 
 /** The day's rates: rupees to the dollar (`rate`) and every currency the page can be shown in (`rates`). */
 function useFx() {
@@ -76,7 +101,10 @@ export default function Finance({ refreshKey, ask, onNewTrade }) {
     const code = perRupee(currency, rates) != null ? currency : "INR";
     const k = perRupee(code, rates);
     const usd = fx.data?.rate || null;
-    const money = { ...currencyOf(code), k, usd, rates, day: fx.data?.date || null, waiting: code !== currency ? currencyOf(currency) : null };
+    // every amount on the page hidden behind its sign and dots, from the eye beside the currency (or H)
+    const [hidden, toggleHidden] = useHidden();
+    useKey("h", toggleHidden);
+    const money = { ...currencyOf(code), k, usd, rates, day: fx.data?.date || null, waiting: code !== currency ? currencyOf(currency) : null, masked: hidden };
     const offered = currenciesIn(rates);
 
     /** The trades of one account (Real, Funded, Demo or Backtest), in the section below. */
@@ -90,11 +118,19 @@ export default function Finance({ refreshKey, ask, onNewTrade }) {
             <section className="overview">
                 <div className="overview-row">
                     <h1 className="overview-title">Finance</h1>
-                    {offered.length > 1 && (
-                        <div className="overview-actions">
-                            <CurrencyMenu offered={offered} rates={rates} day={fx.data?.date} onPick={setCurrency} />
-                        </div>
-                    )}
+                    <div className="overview-actions">
+                        <button
+                            type="button"
+                            className={`btn btn-icon nw-eye${hidden ? " is-on" : ""}`}
+                            aria-pressed={hidden}
+                            aria-label={hidden ? "Show the amounts" : "Hide the amounts"}
+                            title={hidden ? "Show the amounts (H)" : "Hide the amounts (H)"}
+                            onClick={toggleHidden}
+                        >
+                            {hidden ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
+                        </button>
+                        {offered.length > 1 && <CurrencyMenu offered={offered} rates={rates} day={fx.data?.date} onPick={setCurrency} />}
+                    </div>
                 </div>
             </section>
             <SectionNav sections={SECTIONS} />

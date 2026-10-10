@@ -18,12 +18,20 @@ import { useCountUp } from "./hooks";
  * (toRupees, convert in lib/currency.js); `day`, the day they're for. Every figure is worked out in
  * rupees first.
  */
-export const Money = createContext({ ...currencyOf("INR"), k: 1, usd: null, rates: { INR: 1 }, day: null });
+export const Money = createContext({ ...currencyOf("INR"), k: 1, usd: null, rates: { INR: 1 }, day: null, masked: false });
+
+/**
+ * With the page's amounts hidden (the eye beside its currency, `masked`), every amount reads as its
+ * currency's sign and dots: what you own and what the trades made. Shares, returns, rates and prices
+ * aren't amounts of yours and still show.
+ */
+export const MASK = "••••";
+export const masked = (cur) => `${cur.symbol}${cur.spaced ? " " : ""}${MASK}`;
 
 /** A rupee amount as text in the page's currency (for the figures inside sentences and tooltips). */
 export function useMoneyText() {
     const m = useContext(Money);
-    return (inrValue, o) => moneyText((Number(inrValue) || 0) * m.k, m, o);
+    return (inrValue, o) => (m.masked ? masked(m) : moneyText((Number(inrValue) || 0) * m.k, m, o));
 }
 
 /**
@@ -37,7 +45,7 @@ export function useUsd() {
     return {
         rate: m.usd,
         inr: (x) => (m.usd ? (Number(x) || 0) * m.usd : null),
-        text: (x, o = {}) => (m.usd ? text((Number(x) || 0) * m.usd, { sign: true, paise: m.code === "USD" ? "auto" : "never", ...o }) : usdText(x, o)),
+        text: (x, o = {}) => (m.masked ? masked(m) : m.usd ? text((Number(x) || 0) * m.usd, { sign: true, paise: m.code === "USD" ? "auto" : "never", ...o }) : usdText(x, o)),
     };
 }
 
@@ -49,6 +57,15 @@ export function useUsd() {
  */
 export function Fig({ value, short, paise = "auto", sign = false, className = "" }) {
     const m = useContext(Money);
+    if (m.masked)
+        return (
+            <span className={`fig is-masked ${className}`} aria-label="Amount hidden">
+                <span aria-hidden="true">
+                    <span className={`fig-cur${m.spaced ? " is-code" : ""}`}>{m.symbol}</span>
+                    <span className="fig-int">{MASK}</span>
+                </span>
+            </span>
+        );
     const n = (Number(value) || 0) * m.k;
     const p = moneyParts(n, m, { short, paise });
     const plus = sign && n > 0;

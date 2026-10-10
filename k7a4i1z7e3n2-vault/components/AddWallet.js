@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Check, ChevronRight, Loader2, Plus, Puzzle, Search, Smartphone, X } from "lucide-react";
 import Modal from "./k7/Modal";
+import { useMoneyText } from "./k7/Money";
 import { CoinIcon, NetworkIcon, NetworkStack, WalletIcon } from "./k7/CryptoIcons";
 import {
     CHAIN_INFO,
@@ -48,6 +49,7 @@ export default function AddWallet({ open, onClose, initial, onSave, saving }) {
 }
 
 function WalletForm({ initial, onSave, saving }) {
+    const text = useMoneyText();
     const [walletId, setWalletId] = useState(initial?.kind || "trust");
     const [extensions, setExtensions] = useState([]);
     const [addresses, setAddresses] = useState(initial ? initial.addresses.map((a) => ({ address: a.address, chain: a.chain })) : []);
@@ -74,19 +76,25 @@ function WalletForm({ initial, onSave, saving }) {
 
     return (
         <form className="form" onSubmit={submit}>
+            {/* how it will sit in the ledger, like a balance's: its group's heading, then its row: the
+                wallet's logo, its name over its coins, the chains' marks, and (once read) its value */}
             <div className="bal-preview" aria-hidden="true">
-                <WalletIcon id={wallet.id} icon={ext?.icon} size={44} />
-                <span className="bal-preview-text">
-                    <b>{title}</b>
-                    <small>{coins.length ? [...new Set(coins)].slice(0, 6).join(" · ") : "Add its coins below"}</small>
-                </span>
-                {addresses.length > 0 && (
-                    <span className="acc-coins">
-                        {addresses.slice(0, 4).map((a) => (
-                            <CoinIcon key={a.address} token={CHAIN_INFO[a.chain].token} size={24} />
-                        ))}
+                <div className="bal-preview-head">Crypto</div>
+                <div className="bal-preview-row">
+                    <WalletIcon id={wallet.id} icon={ext?.icon} size={32} />
+                    <span className="bal-preview-text">
+                        <b>{title}</b>
+                        <small>{coins.length ? [...new Set(coins)].slice(0, 6).join(" · ") : "Add its coins below"}</small>
                     </span>
-                )}
+                    {addresses.length > 0 && (
+                        <span className="acc-coins">
+                            {addresses.slice(0, 4).map((a) => (
+                                <CoinIcon key={a.address} token={CHAIN_INFO[a.chain].token} size={20} />
+                            ))}
+                        </span>
+                    )}
+                    {initial?.inr != null && <span className="bal-preview-amt">{text(initial.inr, { paise: "always" })}</span>}
+                </div>
             </div>
 
             <div className="field">

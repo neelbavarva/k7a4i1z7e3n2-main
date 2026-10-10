@@ -68,8 +68,19 @@ export function balanceInfo(e, known) {
     };
 }
 
-/** A balance's mark: its bank's logo, a platform's (Groww), or a plain bank glyph. */
-export const markOf = (info) => (info.fund?.house ? info.fund.house.mark : info.bank ? { bank: info.bank } : info.brand ? { brand: info.brand } : { glyph: "bank" });
+/**
+ * A balance's mark: its bank's logo, a platform's (Groww), or a plain bank glyph. A mutual fund's is
+ * its house's, with where it's held (Groww, a bank) as a badge on it, unless that's the house itself.
+ */
+export function markOf(info) {
+    const held = info.bank ? { bank: info.bank } : info.brand ? { brand: info.brand } : null;
+    if (info.fund?.house) {
+        const house = info.fund.house.mark;
+        const same = held && ((held.bank && house.bank?.id === held.bank.id) || (held.brand && house.brand === held.brand));
+        return held && !same ? { ...house, badge: held } : house;
+    }
+    return held || { glyph: "bank" };
+}
 
 // where mutual funds and investments are held that aren't banks (Zerodha's funds are read on their own)
 const PLATFORMS = [{ name: "Groww", brand: "groww", color: "#00a57c" }];

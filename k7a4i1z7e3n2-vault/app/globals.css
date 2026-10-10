@@ -6864,6 +6864,22 @@ fieldset.bare:disabled {
   width: var(--ms);
   height: var(--ms);
 }
+.mk.has-badge {
+  position: relative;
+}
+/* where it's held, on the mark's corner: a white disc with a hairline ring, its logo inside */
+.mk-badge {
+  position: absolute;
+  right: calc(var(--ms) * -0.18);
+  bottom: calc(var(--ms) * -0.18);
+  display: grid;
+  place-items: center;
+  width: var(--ms);
+  height: var(--ms);
+  background: var(--raised);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--line), 0 1px 2px rgb(22 26 22 / 0.08);
+}
 .mk-logo {
   display: grid;
   place-items: center;
@@ -6901,6 +6917,18 @@ fieldset.bare:disabled {
   align-items: center;
   gap: calc(var(--ms) * 0.12);
   flex: none;
+}
+
+/* an amount hidden (the page's eye): its sign, then dots, set a little apart and a shade quieter */
+.fig.is-masked .fig-int {
+  letter-spacing: 0.08em;
+  color: var(--ink2);
+}
+/* the eye beside the page's currency, pressed while the amounts are hidden */
+.nw-eye.is-on {
+  color: var(--ink);
+  background: var(--surface);
+  border-color: var(--axis);
 }
 
 /* Money: IBM Plex Sans's lining, tabular figures and its own rupee sign, a shade lighter, as are the
@@ -7743,18 +7771,22 @@ fieldset.bare:disabled {
   cursor: pointer;
   transition: opacity 0.15s;
 }
+/* the legend: two even columns, each kind's swatch and name at the left, what it comes to aligned at
+   the right of its column */
 .orb-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px 18px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px 22px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 .orb-legend button {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 7px;
+  width: 100%;
+  min-width: 0;
   padding: 2px 0;
   font: inherit;
   color: inherit;
@@ -7778,18 +7810,17 @@ fieldset.bare:disabled {
   transition: opacity 0.15s;
 }
 .orb-kind-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 12px;
-  font-weight: 500;
-  color: var(--ink);
+  color: var(--ink2);
+  text-align: left;
   white-space: nowrap;
 }
-.orb-kind-pct {
-  font-size: 11.5px;
-  font-variant-numeric: tabular-nums;
-  color: var(--muted);
-}
 .orb-kind-val {
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--ink);
 }
@@ -8548,16 +8579,6 @@ fieldset.bare:disabled {
   align-items: flex-end;
   gap: 15px 33px;
 }
-.nw-bal-main {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-.nw-bal-label,
-.nw-bal-facts dt {
-  font-size: 11px;
-  color: var(--muted);
-}
 /* the figure's field, like the vault's inputs: the currency's sign in a quiet cell of its own, then
    the figure (the whole field is its label, so a click anywhere in it types) */
 .nw-amt-row {
@@ -8587,6 +8608,25 @@ fieldset.bare:disabled {
 }
 .nw-amt.is-bad {
   border-color: color-mix(in srgb, var(--bear) 55%, var(--line));
+}
+/* hidden: the field shows its sign and dots, and isn't for typing in */
+.nw-amt.is-masked {
+  align-items: center;
+  cursor: default;
+}
+.nw-amt.is-masked:hover {
+  border-color: var(--line);
+}
+.nw-amt.is-masked .nw-amt-cur {
+  align-self: stretch;
+}
+.nw-amt-mask {
+  padding: 0 10px;
+  font-family: var(--figs);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--ink2);
 }
 .nw-amt:focus-within {
   border-color: var(--focus);
@@ -8710,29 +8750,6 @@ fieldset.bare:disabled {
   height: 18px;
   font-size: 11px;
 }
-.nw-bal-facts {
-  display: flex;
-  flex: 1 1 auto;
-  flex-wrap: wrap;
-  gap: 8px 30px;
-  margin: 0;
-  padding-bottom: 21px;
-}
-.nw-bal-facts dd {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 5px 0 0;
-  font-size: 12.5px;
-  font-weight: 500;
-  color: var(--ink);
-}
-.nw-bal-facts dd.is-stale {
-  color: var(--warn);
-}
-.nw-bal-facts dd span {
-  font-weight: 400;
-}
 /* a balance opened: one line under its row (which already says what and where): the figure to
    change, what a change comes to, its trail when it has one, when it was last typed, its menu */
 .nw-bal.is-line {
@@ -8750,10 +8767,6 @@ fieldset.bare:disabled {
   align-items: center;
   gap: 11px;
   margin-left: auto;
-}
-.nw-bal.is-fund .nw-bal-end {
-  align-self: flex-end;
-  padding-bottom: 18px;
 }
 .nw-bal-when {
   font-size: 11.5px;
@@ -8825,14 +8838,34 @@ fieldset.bare:disabled {
 .nw-trail-read b.down {
   color: var(--bear-ink);
 }
-.nw-bal-facts dd.nw-bal-quiet {
-  font-weight: 400;
+/* a fund's line, after its figure: its returns and its NAV, small, quiet labels before each */
+.nw-fund {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 16px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.nw-fund-quiet {
   color: var(--muted);
 }
-/* a fund's returns: 1Y, 3Y, 5Y, each its figure in its side's colour */
-.nw-bal-facts dd.nw-rets {
-  gap: 13px;
-  font-variant-numeric: tabular-nums;
+.nw-nav {
+  color: var(--ink2);
+  white-space: nowrap;
+}
+.nw-nav i {
+  margin-right: 4px;
+  font-size: 10.5px;
+  font-style: normal;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+/* 1Y, 3Y, 5Y, each its figure in its side's colour */
+.nw-rets {
+  display: inline-flex;
+  gap: 11px;
 }
 .nw-rets span {
   display: inline-flex;
@@ -8840,7 +8873,7 @@ fieldset.bare:disabled {
   gap: 5px;
 }
 .nw-rets i {
-  font-size: 11px;
+  font-size: 10.5px;
   font-style: normal;
   font-weight: 500;
   color: var(--muted);
@@ -8960,6 +8993,10 @@ fieldset.bare:disabled {
 }
 .acc-coins .coin + .coin {
   margin-left: -5px;
+}
+/* in a dialog's preview the row is white: the coins' rings follow it */
+.bal-preview .acc-coins .coin {
+  box-shadow: 0 0 0 2px var(--raised);
 }
 /* the balance dialog: what it is as soft chips that wrap, where it's held, what it's worth as a
    figure set large with its currency inside the field, and a foot that says what it counts as */
@@ -9430,19 +9467,10 @@ fieldset.bare:disabled {
   .nw-status-rate {
     display: none;
   }
-  .nw-bal-main {
-    flex: 1 1 100%;
-  }
   /* 16px, or iOS zooms in on the field when it's tapped */
   .nw-amt input,
   .nw-bal-mirror {
     font-size: 16px;
-  }
-  .nw-bal-facts {
-    padding-bottom: 0;
-  }
-  .nw-bal.is-fund .nw-bal-end {
-    padding-bottom: 0;
   }
 }
 

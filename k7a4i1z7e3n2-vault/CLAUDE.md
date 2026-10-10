@@ -26,7 +26,9 @@ npm run build
     `ManageVault` (add login / add card / change key), `BreachCheck` (streams over SSE).
   - Finance tab: `Finance`, one page: the title with the page's one currency switch beside it
     (`CurrencyMenu`; every figure follows it, trades too, through the `Money` context in
-    `k7/Money.js`: `Fig`, `BigFig`, `useMoneyText`, `useUsd` for dollar results), a row of section
+    `k7/Money.js`: `Fig`, `BigFig`, `useMoneyText`, `useUsd` for dollar results; an eye beside it, or H,
+    hides every amount as its sign and dots, `masked` in that context, remembered as `financeHidden`;
+    shares, returns, rates and prices still show), a row of section
     tabs (Overview, Accounts, Trades) that sticks under the top bar and lights the section you're in,
     then `NetWorth` and `Trades`. The overview is one card (`Hero`): the net worth over its history,
     the globe with the kinds boxed under it, then the trading laid out the same way in the card's own columns (`TradingStrip` in
@@ -62,8 +64,9 @@ npm run build
     the API server still has its `/mt5` and `/groww` routes, unused by the vault.
   - `k7/`: shared pieces: `Modal`, `Seg` (segmented switch), `SectionTabs` (Vault / Finance),
     `Money` (the page currency: `Fig`, `BigFig`, `CurrencyMenu`, `useUsd`), `MoreMenu`, `PairPicker`,
-    `DatePicker`, `BankPicker`, `FundPicker`, `BankLogo`, `Marks` (brand/bank/wallet marks, and the
-    trading's own candle disc), `CryptoIcons`, `NetworkMark`, `MarketIcon`, `TradeTags`, `Notes`,
+    `DatePicker`, `BankPicker`, `FundPicker`, `BankLogo`, `Marks` (brand/bank/wallet marks, a `badge`
+    on a mark's corner for where it's held, a fund's house with Groww's, say, and the trading's own
+    candle disc), `CryptoIcons`, `NetworkMark`, `MarketIcon`, `TradeTags`, `Notes`,
     `ChartViewer`, `SecretInput`, `SessionBar`, `ServiceIcon`, `Mark` (the site's mark), `hooks`
     (`useKey`, `useScrolled`, `useCountUp`, `useNow`).
   - Plain CSS only: every class lives in `app/globals.css`; there's no Tailwind or component kit.

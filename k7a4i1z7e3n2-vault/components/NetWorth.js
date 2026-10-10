@@ -16,7 +16,7 @@ import Zerodha, { Sym, Table, useZerodha } from "./Zerodha";
 import AddWallet from "./AddWallet";
 import BalanceDialog, { balanceInfo, markOf } from "./BalanceDialog";
 import Seg from "./k7/Seg";
-import { BigFig, Fig, Money, useMoneyText, useUsd } from "./k7/Money";
+import { BigFig, Fig, MASK, Money, masked as hiddenIn, useMoneyText, useUsd } from "./k7/Money";
 import { grouped, regroup } from "@/lib/money";
 import { useFundList } from "@/lib/fundList";
 import { CITIES, landPoints, placeOf, sunVec, toVec } from "@/lib/places";
@@ -1246,10 +1246,11 @@ function Globe({ lines, gross, open, onOpen }) {
                                     onFocus={() => setFocus({ group: g.key })}
                                     onBlur={() => setFocus(null)}
                                     onClick={() => onOpen(g.lines[0].id)}
+                                    title={`${g.label}: ${pctOf(sum(g.lines))} of it`}
                                 >
+                                    {/* the bar above shows each one's share; the legend names them and says what each comes to */}
                                     <span className="orb-swatch" style={{ "--shade": KIND_SHADES[Math.min(i, KIND_SHADES.length - 1)] }} aria-hidden="true" />
                                     <span className="orb-kind-name">{g.label}</span>
-                                    <span className="orb-kind-pct">{pctOf(sum(g.lines))}</span>
                                     <Fig value={Math.round(sum(g.lines))} className="orb-kind-val" />
                                 </button>
                             </li>
@@ -1539,7 +1540,7 @@ function readBalance(text, was) {
 }
 
 /** A fund's return, signed, as Groww shows them. */
-const retText = (x) => (x == null ? "—" : `${x > 0 ? "+" : x < 0 ? "−" : ""}${Math.abs(x).toFixed(2)}%`);
+const retText = (x) => (x == null ? "—" : `${x > 0 ? "+" : x < 0 ? "−" : ""}${Math.abs(x).toFixed(1)}%`);
 
 /**
  * `fund`: the held fund's NAV and returns; `known`: what's known of it (category, house). The figure
@@ -1575,8 +1576,8 @@ function BalancePanel({ entry, fund, known, onEdit, onSaved, onRemove }) {
     const diff = changed ? read.value - was : 0;
     // what's kept: the figure as typed, or turned into the account's own currency
     const keep = changed ? (per === 1 ? read.value : roundIn(read.value / per, held.code)) : entry.amount || 0;
-    const money = (x) => moneyText(x, cur);
-    const heldText = (x) => moneyText(x, held);
+    const money = (x) => (page.masked ? hiddenIn(cur) : moneyText(x, cur));
+    const heldText = (x) => (page.masked ? hiddenIn(held) : moneyText(x, held));
     const age = daysSince(entry.updatedAt);
     const stale = age != null && age >= STALE_DAYS;
     const reset = () => setText(start());
@@ -1627,8 +1628,18 @@ function BalancePanel({ entry, fund, known, onEdit, onSaved, onRemove }) {
     const dot = text.indexOf(".");
 
     // the figure, edited in a field of its own, its sign set apart; once it's changed, the change
-    // beside it, then Save and Cancel
-    const figure = (
+    // beside it, then Save and Cancel. With the page's amounts hidden, the field shows only its sign
+    // and dots, still, until they're shown again.
+    const figure = page.masked ? (
+        <div className="nw-amt-row">
+            <span className="nw-amt is-masked" title="Amounts are hidden: the eye beside the page's currency shows them">
+                <span className="nw-amt-cur" aria-hidden="true">
+                    {cur.symbol}
+                </span>
+                <span className="nw-amt-mask">{MASK}</span>
+            </span>
+        </div>
+    ) : (
         <div className="nw-amt-row">
             <label className={`nw-amt${changed ? " is-changed" : ""}${bad ? " is-bad" : ""}`} htmlFor={figureId}>
                 <span className={`nw-amt-cur${cur.spaced ? " is-code" : ""}`} aria-hidden="true">
@@ -1737,54 +1748,40 @@ function BalancePanel({ entry, fund, known, onEdit, onSaved, onRemove }) {
             </form>
         );
 
-    // a mutual fund: the figure, then what the fund is and how it has done
+    // a mutual fund: the same one line, with how it has done and its NAV beside the figure (its
+    // category and where it's held are in the row above)
     return (
-        <form className="nw-bal is-fund" onSubmit={save}>
-            <div className="nw-bal-main">
-                <label className="nw-bal-label" htmlFor={figureId}>
-                    {label}
-                </label>
-                {figure}
-                {hint}
-            </div>
-            <dl className="nw-bal-facts">
-                {info.fund?.category ? (
-                    <div>
-                        <dt>Category</dt>
-                        <dd>{info.fund.category}</dd>
-                    </div>
-                ) : null}
-                <div>
-                    <dt>Returns</dt>
-                    {!entry.scheme ? (
-                        <dd className="nw-bal-quiet">Pick it from the list to see them</dd>
-                    ) : fund?.returns ? (
-                        <dd className="nw-rets" title="3 and 5 years: a year on average">
-                            {["1Y", "3Y", "5Y"].map((k) => (
-                                <span key={k}>
-                                    <i>{k}</i>
-                                    <b className={fund.returns[k] == null ? "" : sideOf(fund.returns[k])}>{retText(fund.returns[k])}</b>
-                                </span>
-                            ))}
-                        </dd>
-                    ) : (
-                        <dd className="nw-bal-quiet">{fund?.loading ? "Reading…" : "Didn’t load"}</dd>
-                    )}
-                </div>
+        <form className="nw-bal is-line is-fund" onSubmit={save}>
+            <label className="visually-hidden" htmlFor={figureId}>
+                {label}
+            </label>
+            {figure}
+            {hint}
+            <span className="nw-fund">
+                {!entry.scheme ? (
+                    <span className="nw-fund-quiet">Pick it from the list for its returns</span>
+                ) : fund?.returns ? (
+                    <span className="nw-rets" title="Returns; 3 and 5 years a year on average">
+                        {["1Y", "3Y", "5Y"].map((k) => (
+                            <span key={k}>
+                                <i>{k}</i>
+                                <b className={fund.returns[k] == null ? "" : sideOf(fund.returns[k])}>{retText(fund.returns[k])}</b>
+                            </span>
+                        ))}
+                    </span>
+                ) : (
+                    <span className="nw-fund-quiet">{fund?.loading ? "Reading its returns…" : "Its returns didn’t load"}</span>
+                )}
                 {fund?.nav ? (
-                    <div>
-                        <dt>NAV</dt>
-                        <dd>
-                            ₹{fund.nav.toLocaleString("en-IN", { maximumFractionDigits: 4 })} <span className="muted">on {new Date(`${fund.date}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short" })}</span>
-                        </dd>
-                    </div>
+                    <span className="nw-nav" title={`NAV on ${new Date(`${fund.date}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short" })}`}>
+                        <i>NAV</i> ₹{fund.nav.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                    </span>
                 ) : null}
-                <div>
-                    <dt>Last updated</dt>
-                    <dd className={stale ? "is-stale" : ""}>{entry.updatedAt ? fmtAgo(entry.updatedAt) : "—"}</dd>
-                </div>
-            </dl>
-            <span className="nw-bal-end">{menu}</span>
+            </span>
+            <span className="nw-bal-end">
+                {updated}
+                {menu}
+            </span>
         </form>
     );
 }
@@ -1895,7 +1892,7 @@ function WalletPanel({ wallet: w, src, onEdit, onReread, onRemove }) {
     const page = useContext(Money);
     const text = useMoneyText();
     // a coin's rupees in the page's currency; dust reads as "<$0.01", not "$0.00"
-    const value = (x) => (x > 0 && x * page.k < 0.01 ? `<${moneyText(0.01, page)}` : text(x, { paise: x * page.k < 100 ? "always" : "never" }));
+    const value = (x) => (!page.masked && x > 0 && x * page.k < 0.01 ? `<${moneyText(0.01, page)}` : text(x, { paise: x * page.k < 100 ? "always" : "never" }));
     // read again (or still being asked again, after a chain didn't answer): no warnings meanwhile
     const reading = src.state === "refreshing" || src.state === "retrying";
     if (src.state === "loading") return <div className="sk sk-rows" aria-busy="true" />;
@@ -2001,7 +1998,7 @@ function WalletPanel({ wallet: w, src, onEdit, onReread, onRemove }) {
                             <CoinIcon token={h.symbol} network={NETWORK_KEY[h.network]} size={30} />
                             <Sym title={h.symbol} sub={h.network} />
                         </span>,
-                        <span key="a" className="kt-num">{amount(h.amount)}</span>,
+                        <span key="a" className="kt-num">{page.masked ? MASK : amount(h.amount)}</span>,
                         <span key="v" className="kt-num">{h.inr == null ? "—" : value(h.inr)}</span>,
                         <span key="c" className={`kt-num ${sideOf(h.change24h)}`}>{/^USD[TC]$/.test(h.symbol) ? "—" : pct(h.change24h)}</span>,
                     ]}

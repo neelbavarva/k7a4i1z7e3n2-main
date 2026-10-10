@@ -411,6 +411,95 @@ describe("Every figure and form in the page's currency", () => {
     });
 });
 
+describe("Hiding the amounts, funds and wallets", () => {
+    const savings = { _id: "m2", name: "Savings account", kind: "bank", bank: "sbi", amount: 787, currency: "INR", note: "", updatedAt: "2026-10-05T10:00:00Z", history: [] };
+    const gold = { _id: "f1", name: "SBI Gold Fund", kind: "funds", bank: "Groww", amount: 1000, currency: "INR", note: "", scheme: 119788, updatedAt: "2026-10-09T10:00:00Z", history: [] };
+    const also = (extra) => {
+        const base = http.getMockImplementation();
+        http.mockImplementation(async (path, o) => (await extra(path, o)) ?? base(path, o));
+    };
+    const row = (name) => [...document.querySelectorAll("#lg-list .lg-row")].find((r) => r.textContent.includes(name));
+
+    it("hides every amount behind the eye, and remembers it", async () => {
+        trades = TRADES;
+        manual = [savings];
+        await renderFinance();
+        await counted();
+        expect(document.querySelector(".hx-big .fig").getAttribute("aria-label")).toBe("minus ₹3,081.00"); // ₹787 and the Real −$40 at 96.7
+        fireEvent.click(screen.getByRole("button", { name: "Hide the amounts" }));
+        // the total, the trading, every account: its sign and dots, nothing else
+        expect(document.querySelector(".hx-big .fig").getAttribute("aria-label")).toBe("Amount hidden");
+        expect(document.querySelector(".tx-big .fig").getAttribute("aria-label")).toBe("Amount hidden");
+        const figs = [...document.querySelectorAll(".fig")];
+        expect(figs.length).toBeGreaterThan(3);
+        for (const f of figs) expect(f.textContent).not.toMatch(/\d/);
+        expect(row("Savings account").textContent).toContain("₹••••");
+        // a stat that isn't an amount still shows
+        expect(document.querySelector(".tx-pct").textContent).toBe("50.0%");
+        expect(localStorage.getItem("financeHidden")).toBe("1");
+        expect(screen.getByRole("button", { name: "Show the amounts" }).getAttribute("aria-pressed")).toBe("true");
+        // H shows them again
+        fireEvent.keyDown(window, { key: "h" });
+        expect(document.querySelector(".hx-big .fig").getAttribute("aria-label")).toBe("minus ₹3,081.00");
+        expect(localStorage.getItem("financeHidden")).toBe("0");
+    });
+
+    it("keeps them hidden next time, and the balance's own field too", async () => {
+        localStorage.setItem("financeHidden", "1");
+        manual = [savings];
+        await renderFinance();
+        fireEvent.click(row("Savings account"));
+        // no figure to read or type in while they're hidden
+        expect(document.querySelector(".nw-amt.is-masked").textContent).toBe("₹••••");
+        expect(screen.queryByLabelText("Balance today")).toBeNull();
+        localStorage.removeItem("financeHidden");
+    });
+
+    it("gives a fund held on Groww its house's mark with Groww's on its corner, and one line of what the row doesn't say", async () => {
+        also((path) =>
+            path === "/worth/funds/119788" ? { code: 119788, name: "SBI Gold Fund", house: "SBI", kind: "gold", category: "Commodities Gold", nav: 45.3154, date: "2026-10-08", returns: { "1Y": 20.66, "3Y": 35.89, "5Y": 24.87 } } : undefined
+        );
+        manual = [gold];
+        await renderFinance();
+        const line = row("SBI Gold Fund");
+        expect(line.querySelector(".mk-badge img").getAttribute("src")).toBe("/brands/groww.png");
+        await act(async () => {
+            fireEvent.click(line);
+        });
+        const panel = document.querySelector(".nw-bal.is-fund");
+        expect(panel.querySelector(".nw-rets").textContent).toBe("1Y+20.7%3Y+35.9%5Y+24.9%");
+        expect(panel.querySelector(".nw-nav").textContent).toBe("NAV ₹45.32");
+        expect(panel.textContent).toContain("Updated");
+        // its category and where it's held are the row's, not said again
+        expect(line.textContent).toContain("Groww");
+        expect(panel.textContent).not.toContain("Commodities Gold");
+    });
+
+    it("names the kinds under the globe with what each comes to, the bar showing their shares", async () => {
+        manual = [savings, { ...savings, _id: "m6", name: "BofA Investments", kind: "invest", bank: "bofa", amount: 100, currency: "USD" }];
+        await renderFinance();
+        const kinds = [...document.querySelectorAll(".orb-legend button")];
+        expect(kinds.map((k) => k.querySelector(".orb-kind-name").textContent)).toEqual(["Brokerage", "Bank and cash"]);
+        for (const k of kinds) {
+            expect(k.textContent).not.toContain("%");
+            expect(k.getAttribute("title")).toMatch(/%/);
+        }
+    });
+
+    it("previews a wallet in its dialog the way the ledger shows it", async () => {
+        wallets = () => ({ wallets: [{ ...wallet(null), inr: 967 }] });
+        await renderFinance();
+        fireEvent.click(row("Trust Wallet"));
+        fireEvent.keyDown(screen.getByRole("button", { name: "Trust Wallet: more" }), { key: "Enter" });
+        fireEvent.click(await screen.findByRole("menuitem", { name: /Edit wallet/ }));
+        const dialog = await screen.findByRole("dialog", { name: "Edit Trust Wallet" });
+        expect(dialog.querySelector(".bal-preview-head").textContent).toBe("Crypto");
+        const preview = dialog.querySelector(".bal-preview-row");
+        expect(preview.querySelector(".bal-preview-text b").textContent).toBe("Trust Wallet");
+        expect(preview.querySelector(".bal-preview-amt").textContent).toBe("₹967.00");
+    });
+});
+
 describe("Archived trades", () => {
     // t3, the Real account's −$40, archived: its result leaves the total P&L, every stat still counts it
     const withArchived = () => TRADES.map((t) => (t._id === "t3" ? { ...t, archived: true } : t));
